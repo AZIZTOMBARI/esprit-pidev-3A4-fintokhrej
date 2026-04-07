@@ -1,0 +1,161 @@
+{% extends 'front/base_front.html.twig' %}
+
+{% block title %}Accueil | Fin Tokhroj{% endblock %}
+
+{% block front_content %}
+    <section class="hero app-card">
+        <div class="hero__grid">
+            <div>
+                <div class="badge-soft badge-gold">✨ Votre guide social intelligent</div>
+                <h1>وين تحب تخرج؟</h1>
+                <p>
+                    Trouve des lieux, sorties, événements et réductions en gardant exactement l'identité
+                    visuelle de ton application Java : bleu nuit, cyan doux, blanc lumineux et accent doré.
+                </p>
+                <div class="hero-search">
+                    <span>📍</span>
+                    <input type="text" value="sidi bou said" placeholder="Ville, activité, restaurant...">
+                    <a class="cta-btn" href="{{ path('app_lieux') }}">Explorer</a>
+                </div>
+                <div class="hero-tags">
+                    <span class="hero-tag">Cafés</span>
+                    <span class="hero-tag">Restaurants</span>
+                    <span class="hero-tag">Musées</span>
+                    <span class="hero-tag">Plages</span>
+                    <span class="hero-tag">Sorties</span>
+                </div>
+            </div>
+            <div class="hero-side">
+                <div class="hero-mini-card">
+                    <h3>{{ stats.lieux }} lieux référencés</h3>
+                    <p>Base enrichie avec cafés, restaurants, lieux publics, musées, plages et centres commerciaux.</p>
+                </div>
+                <div class="hero-mini-card">
+                    <h3>{{ stats.sorties }} sorties sociales</h3>
+                    <p>Des sorties ouvertes, confirmées ou terminées, prêtes à être affichées côté front.</p>
+                </div>
+                <div class="hero-mini-card">
+                    <h3>{{ stats.events }} événements & {{ stats.offres }} offres</h3>
+                    <p>Parfait pour montrer le potentiel de la plateforme dans Symfony.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <div class="section-head">
+            <div>
+                <h2 class="section-title">Villes tendance</h2>
+                <p class="section-subtitle">Clique sur une ville pour explorer ses lieux.</p>
+            </div>
+            <a href="{{ path('app_lieux') }}" class="text-link">Voir tout</a>
+        </div>
+        <div class="grid-cards">
+            {% set cityClasses = ['bg-tunis', 'bg-marsa', 'bg-sidibou', 'bg-hammamet', 'bg-nabeul', 'bg-monastir'] %}
+            {% for city in cities %}
+                <article class="city-card card-span-4 {{ cityClasses[loop.index0 % cityClasses|length] }}">
+                    <div class="city-card__content">
+                        <div class="city-card__title">{{ city.ville }}</div>
+                        <div class="city-card__meta">{{ city.total }} lieux · {{ city.categorie|replace({'_':' '})|title }}</div>
+                    </div>
+                </article>
+            {% else %}
+                <div class="empty-state card-span-12">Aucune ville disponible pour le moment.</div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="grid-cards">
+        <div class="card-span-6">
+            <div class="section-head">
+                <div>
+                    <h2 class="section-title">Lieux à découvrir</h2>
+                    <p class="section-subtitle">Sélection alimentée par la base existante.</p>
+                </div>
+            </div>
+            <div class="listing-grid">
+                {% for place in places|slice(0, 4) %}
+                    <article class="listing-card">
+                        <div class="cover-thumb"><span>{{ place.nom }}</span></div>
+                        <div class="listing-card__top">
+                            <div>
+                                <h3>{{ place.nom }}</h3>
+                                <p>{{ place.ville }} · {{ place.categorie|replace({'_':' '})|title }}</p>
+                            </div>
+                            <span class="badge-soft">{{ place.type }}</span>
+                        </div>
+                        <div class="meta-row">
+                            <span>💸 {{ place.budget_min ?? 0 }} - {{ place.budget_max ?? 0 }} TND</span>
+                        </div>
+                    </article>
+                {% else %}
+                    <div class="empty-state">Aucun lieu disponible.</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="card-span-6">
+            <div class="section-head">
+                <div>
+                    <h2 class="section-title">Sorties & offres</h2>
+                    <p class="section-subtitle">Contenu dynamique prêt pour Symfony.</p>
+                </div>
+            </div>
+            <div class="listing-grid">
+                {% for sortie in sorties|slice(0, 2) %}
+                    <article class="info-card">
+                        <span class="badge-soft">{{ sortie.type_activite }}</span>
+                        <h3>{{ sortie.titre }}</h3>
+                        <p>{{ sortie.ville }} · {{ sortie.date_sortie|date('d/m/Y H:i') }}</p>
+                        <div class="meta-row">
+                            <span>👥 {{ sortie.statut }}</span>
+                            <span>💰 {{ sortie.budget_max }} TND</span>
+                        </div>
+                    </article>
+                {% endfor %}
+                {% for offre in offres|slice(0, 2) %}
+                    <article class="info-card">
+                        <span class="badge-soft badge-gold">{{ offre.type }}</span>
+                        <h3>{{ offre.titre }}</h3>
+                        <p>{{ offre.lieu_nom ?: 'Lieu non défini' }} · {{ offre.ville ?: 'Tunisie' }}</p>
+                        <div class="meta-row">
+                            <span>🏷 {{ offre.pourcentage }}%</span>
+                            <span>⏳ Jusqu'au {{ offre.date_fin|date('d/m/Y') }}</span>
+                        </div>
+                    </article>
+                {% else %}
+                    <div class="empty-state">Aucune offre disponible.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <div class="section-head">
+            <div>
+                <h2 class="section-title">Événements à venir</h2>
+                <p class="section-subtitle">Idéal pour enrichir le front office.</p>
+            </div>
+            <a href="{{ path('app_evenements') }}" class="text-link">Tous les événements</a>
+        </div>
+        <div class="listing-grid">
+            {% for event in events %}
+                <article class="listing-card">
+                    <div class="listing-card__top">
+                        <div>
+                            <span class="badge-soft">{{ event.type }}</span>
+                            <h3>{{ event.titre }}</h3>
+                            <p>{{ event.lieu_nom ?: 'Lieu à définir' }} · {{ event.ville ?: 'Tunisie' }}</p>
+                        </div>
+                        <span class="price-pill">{{ event.prix }} TND</span>
+                    </div>
+                    <div class="meta-row">
+                        <span>🗓 {{ event.date_debut|date('d/m/Y H:i') }}</span>
+                    </div>
+                </article>
+            {% else %}
+                <div class="empty-state">Aucun événement disponible.</div>
+            {% endfor %}
+        </div>
+    </section>
+{% endblock %}
