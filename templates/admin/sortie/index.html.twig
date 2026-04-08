@@ -1,0 +1,46 @@
+{% extends 'admin/base_admin.html.twig' %}
+
+{% block title %}Gestion des sorties | Fin Tokhroj{% endblock %}
+{% block admin_page_title %}Gestion des sorties{% endblock %}
+
+{% block admin_content %}
+    <div class="admin-table-card">
+        <div class="section-head">
+            <div>
+                <h2 class="section-title">Gestion des sorties</h2>
+                <p class="section-subtitle">Page prête à être branchée à des actions CRUD Symfony.</p>
+            </div>
+            <a href="{{ path('app_admin_dashboard') }}" class="outline-btn">Retour dashboard</a>
+        </div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Titre</th>
+                        <th>Ville</th>
+                        <th>Activité</th>
+                        <th>Date</th>
+                        <th>Places</th>
+                        <th>Statut</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for item in sorties %}
+                    <tr>
+                        <td>{{ attribute(item, "id") }}</td>
+                        <td>{{ attribute(item, "titre") }}</td>
+                        <td>{{ attribute(item, "ville") }}</td>
+                        <td>{{ attribute(item, "type_activite") }}</td>
+                        <td>{{ item.date_sortie ? item.date_sortie|date("d/m/Y H:i") : "-" }}</td>
+                        <td>{{ attribute(item, "nb_places") }}</td>
+                        <td>{{ attribute(item, "statut") }}</td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="7">Aucune donnée disponible.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

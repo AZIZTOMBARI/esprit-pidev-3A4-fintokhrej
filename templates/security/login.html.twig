@@ -1,0 +1,57 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Connexion{% endblock %}
+
+{% block stylesheets %}
+    <link rel="stylesheet" href="{{ asset('styles/auth.css') }}">
+{% endblock %}
+
+{% block body %}
+    <div class="auth-page">
+        <div class="auth-layout">
+            <aside class="auth-visual">
+                <img src="{{ asset('theme/images/logo.png') }}" alt="Fin Tokhroj">
+                <div class="auth-visual-overlay"></div>
+                <div class="auth-tagline">
+                    <h2>Find your sweet home</h2>
+                    <p>Plan your visits and manage your account in just a few clicks.</p>
+                </div>
+            </aside>
+
+            <section class="auth-form-wrap">
+                <div class="auth-switch"><a href="{{ path('app_register') }}">Sign up</a></div>
+
+                <div class="auth-card">
+                    <h1 class="auth-title">Welcome Back to fintokhrej</h1>
+                    <p class="auth-subtitle">Sign in to your account</p>
+
+                    {% for message in app.flashes('success') %}
+                        <div class="auth-success">{{ message }}</div>
+                    {% endfor %}
+
+                    {% if error %}
+                        <div class="auth-error">{{ error.messageKey|trans(error.messageData, 'security') }}</div>
+                    {% endif %}
+
+                    <form method="post">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
+
+                        <div class="auth-field">
+                            <label for="username">Your Email</label>
+                            <input id="username" type="email" name="email" value="{{ last_username }}" required>
+                        </div>
+
+                        <div class="auth-field">
+                            <label for="password">Password</label>
+                            <input id="password" type="password" name="password" required>
+                        </div>
+
+                        <button class="auth-submit" type="submit">Login</button>
+                    </form>
+
+                    <p class="auth-footer">Don't have an account? <a href="{{ path('app_register') }}">Register</a></p>
+                </div>
+            </section>
+        </div>
+    </div>
+{% endblock %}

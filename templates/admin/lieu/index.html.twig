@@ -1,0 +1,46 @@
+{% extends 'admin/base_admin.html.twig' %}
+
+{% block title %}Gestion des lieux | Fin Tokhroj{% endblock %}
+{% block admin_page_title %}Gestion des lieux{% endblock %}
+
+{% block admin_content %}
+    <div class="admin-table-card">
+        <div class="section-head">
+            <div>
+                <h2 class="section-title">Gestion des lieux</h2>
+                <p class="section-subtitle">Page prête à être branchée à des actions CRUD Symfony.</p>
+            </div>
+            <a href="{{ path('app_admin_dashboard') }}" class="outline-btn">Retour dashboard</a>
+        </div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nom</th>
+                        <th>Ville</th>
+                        <th>Catégorie</th>
+                        <th>Type</th>
+                        <th>Budget min</th>
+                        <th>Budget max</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for item in places %}
+                    <tr>
+                        <td>{{ attribute(item, "id") }}</td>
+                        <td>{{ attribute(item, "nom") }}</td>
+                        <td>{{ attribute(item, "ville") }}</td>
+                        <td>{{ attribute(item, "categorie") }}</td>
+                        <td>{{ attribute(item, "type") }}</td>
+                        <td>{{ attribute(item, "budget_min") }}</td>
+                        <td>{{ attribute(item, "budget_max") }}</td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="7">Aucune donnée disponible.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

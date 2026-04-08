@@ -1,0 +1,232 @@
+{% extends 'front/base_front.html.twig' %}
+
+{% block title %}Détails Offre | Fin Tokhroj{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .offer-form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .offer-field {
+            display: grid;
+            gap: 6px;
+        }
+
+        .offer-field--full {
+            grid-column: 1 / -1;
+        }
+
+        .offer-field label {
+            font-size: 13px;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        .offer-input,
+        .offer-textarea {
+            width: 100%;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 10px 12px;
+            font-size: 14px;
+            background: #fff;
+            color: #0f172a;
+            outline: none;
+        }
+
+        .offer-textarea {
+            min-height: 96px;
+            resize: vertical;
+        }
+
+        .offer-submit {
+            border: 0;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #0ea5e9, #2563eb);
+            color: #fff;
+            font-weight: 700;
+            padding: 11px 18px;
+            cursor: pointer;
+        }
+
+        @media (max-width: 680px) {
+            .offer-form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+{% endblock %}
+
+{% block front_content %}
+<section>
+    {% for message in app.flashes('success') %}
+        <div style="border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; background:#ecfdf5; border:1px solid #86efac; color:#166534; font-weight:600;">{{ message }}</div>
+    {% endfor %}
+    {% for message in app.flashes('error') %}
+        <div style="border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; background:#fef2f2; border:1px solid #fca5a5; color:#991b1b; font-weight:600;">{{ message }}</div>
+    {% endfor %}
+
+    <div class="section-head">
+        <div>
+            <h1 class="section-title">{{ offre.titre }}</h1>
+            <p class="section-subtitle">Détails de l'offre et génération de code promo.</p>
+        </div>
+        <a href="{{ path('app_offres') }}" class="outline-btn">Retour offres</a>
+    </div>
+
+    <article class="listing-card" style="margin-bottom: 18px;">
+        <div class="listing-card__top">
+            <div>
+                <h3>{{ offre.titre }}</h3>
+                <p>{{ offre.type }} · {{ offre.pourcentage }}%</p>
+            </div>
+            <span class="price-pill">{{ offre.statut }}</span>
+        </div>
+
+        <div class="meta-row">
+            {% if offre.lieu_nom %}<span>📍 {{ offre.lieu_nom }}{% if offre.ville %}, {{ offre.ville }}{% endif %}</span>{% endif %}
+            {% if offre.date_debut %}<span>🗓 Début: {{ offre.date_debut|date('d/m/Y') }}</span>{% endif %}
+            {% if offre.date_fin %}<span>⏳ Fin: {{ offre.date_fin|date('d/m/Y') }}</span>{% endif %}
+        </div>
+
+        {% if offre.description %}
+            <p style="margin-top:14px;">{{ offre.description }}</p>
+        {% endif %}
+    </article>
+
+    {% if app.user %}
+        <form method="post" action="{{ path('app_offres_generate_code', {id: offre.id}) }}" style="margin-bottom:18px;">
+            <input type="hidden" name="_token" value="{{ csrf_token('generate_promo_' ~ offre.id) }}">
+            <button type="submit" class="outline-btn" style="font-weight:700;">Générer un code promo (QR)</button>
+        </form>
+    {% else %}
+        <div class="empty-state" style="margin-bottom:18px;">Connecte-toi pour générer un code promo.</div>
+    {% endif %}
+
+    <div class="admin-table-card" style="margin-bottom:18px;">
+        <div class="section-head">
+            <div>
+                <h2 class="section-title">Réserver le lieu associé</h2>
+                <p class="section-subtitle">La réservation sera envoyée en attente de confirmation par l'administrateur.</p>
+            </div>
+        </div>
+
+        {% if app.user %}
+            <form method="post" action="{{ path('app_offres_reserve', {id: offre.id}) }}" class="offer-form-grid">
+                <input type="hidden" name="_token" value="{{ csrf_token('reserve_offre_' ~ offre.id) }}">
+
+                <div class="offer-field">
+                    <label for="reserve_nombre_personnes">Nombre de personnes</label>
+                    <input id="reserve_nombre_personnes" class="offer-input" type="number" name="nombre_personnes" min="1" value="1" required>
+                </div>
+
+                <div class="offer-field offer-field--full">
+                    <label for="reserve_note">Note</label>
+                    <textarea id="reserve_note" class="offer-textarea" name="note" placeholder="Optionnel"></textarea>
+                </div>
+
+                <div class="offer-field offer-field--full">
+                    <button type="submit" class="offer-submit">Réserver maintenant</button>
+                </div>
+            </form>
+        {% else %}
+            <div class="empty-state">Connecte-toi pour réserver cette offre.</div>
+        {% endif %}
+    </div>
+
+    <div class="admin-table-card">
+        <div class="section-head">
+            <div>
+                <h2 class="section-title">Mes codes promo pour cette offre</h2>
+                <p class="section-subtitle">Tous les détails sont enregistrés dans la base (QR, dates, statut, user, offre).</p>
+            </div>
+        </div>
+
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>QR</th>
+                    <th>Date génération</th>
+                    <th>Date expiration</th>
+                    <th>Statut</th>
+                    <th>Action</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for promo in userPromoCodes %}
+                    <tr>
+                        <td>{{ promo.id }}</td>
+                        <td>
+                            <a href="{{ promo.qr_image_url }}" target="_blank" rel="noopener">
+                                <img src="{{ promo.qr_image_url }}" alt="QR code promo" style="width:68px; height:68px; object-fit:cover; border-radius:8px; border:1px solid #e2e8f0;">
+                            </a>
+                        </td>
+                        <td>{{ promo.date_generation ? promo.date_generation|date('d/m/Y') : '-' }}</td>
+                        <td>{{ promo.date_expiration ? promo.date_expiration|date('d/m/Y') : '-' }}</td>
+                        <td>{{ promo.statut }}</td>
+                        <td>
+                            {% if promo.statut == 'ACTIF' %}
+                                <form method="post" action="{{ path('app_offres_use_code', {offreId: offre.id, promoId: promo.id}) }}" onsubmit="return confirm('Utiliser ce code promo ?');">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('use_promo_' ~ promo.id) }}">
+                                    <button type="submit" class="outline-btn">Utiliser</button>
+                                </form>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="6">Aucun code promo généré pour cette offre.</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="admin-table-card" style="margin-top:18px;">
+        <div class="section-head">
+            <div>
+                <h2 class="section-title">Mes réservations pour cette offre</h2>
+                <p class="section-subtitle">Suivi de l'état des réservations envoyées.</p>
+            </div>
+        </div>
+
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Date</th>
+                    <th>Personnes</th>
+                    <th>Statut</th>
+                    <th>Note</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for reservation in userReservations %}
+                    <tr>
+                        <td>{{ reservation.id }}</td>
+                        <td>{{ reservation.date_reservation ? reservation.date_reservation|date('d/m/Y') : '-' }}</td>
+                        <td>{{ reservation.nombre_personnes }}</td>
+                        <td>{{ reservation.statut }}</td>
+                        <td>{{ reservation.note ?? '-' }}</td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="5">Aucune réservation pour cette offre.</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+{% endblock %}
