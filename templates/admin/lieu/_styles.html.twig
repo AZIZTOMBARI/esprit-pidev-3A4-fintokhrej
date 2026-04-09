@@ -39,6 +39,71 @@
         align-items: center;
     }
 
+    .lieu-search-card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 18px;
+        padding: 18px;
+        margin-bottom: 18px;
+        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.04);
+    }
+
+    .lieu-search-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-top: 12px;
+    }
+
+    .lieu-sort-link {
+        color: inherit;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .lieu-sort-link:hover {
+        color: #2563eb;
+    }
+
+    .lieu-pagination {
+        display: flex;
+        justify-content: center;
+        margin-top: 20px;
+    }
+
+    .lieu-empty-state {
+        text-align: center;
+        padding: 28px;
+        color: #475569;
+        background: #f8fafc;
+        border: 1px dashed #cbd5e1;
+        border-radius: 18px;
+    }
+
+    .lieu-image-preview {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 12px;
+    }
+
+    .lieu-gallery {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 12px;
+    }
+
+    .lieu-gallery img {
+        width: 100%;
+        height: 140px;
+        object-fit: cover;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+    }
+
     .lieu-table {
         width: 100%;
         border-collapse: collapse;

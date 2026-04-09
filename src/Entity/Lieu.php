@@ -10,11 +10,9 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
-use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 #[ORM\Entity(repositoryClass: LieuRepository::class)]
 #[ORM\Table(name: 'lieu')]
-#[Assert\Callback]
 class Lieu
 {
     #[ORM\Id]
@@ -26,38 +24,44 @@ class Lieu
     #[ORM\JoinColumn(name: 'id_offre', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     private ?Offre $offre = null;
 
-    #[ORM\Column(type: Types::STRING, length: 180, nullable: false)]
+    #[ORM\Column(type: Types::STRING, length: 120, nullable: false)]
     #[Assert\NotBlank(message: 'Le nom est obligatoire.')]
+    #[Assert\Length(max: 120, maxMessage: 'Le nom ne peut pas depasser {{ limit }} caracteres.')]
     private ?string $nom = null;
 
-    #[ORM\Column(type: Types::STRING, length: 180, nullable: false)]
+    #[ORM\Column(type: Types::STRING, length: 80, nullable: false)]
     #[Assert\NotBlank(message: 'La ville est obligatoire.')]
+    #[Assert\Length(max: 80, maxMessage: 'La ville ne peut pas depasser {{ limit }} caracteres.')]
     private ?string $ville = null;
 
-    #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
+    #[ORM\Column(type: Types::STRING, length: 200, nullable: true)]
+    #[Assert\Length(max: 200, maxMessage: 'L\'adresse ne peut pas depasser {{ limit }} caracteres.')]
     private ?string $adresse = null;
 
     #[ORM\Column(type: Types::STRING, length: 30, nullable: true)]
-    #[Assert\Regex(
-        pattern: '/^[0-9+\s().-]{6,20}$/',
-        message: 'Le téléphone doit être valide.'
-    )]
+    #[Assert\Length(max: 30, maxMessage: 'Le telephone ne peut pas depasser {{ limit }} caracteres.')]
+    #[Assert\Regex(pattern: '/^[0-9+\s().-]{6,30}$/', message: 'Le téléphone doit être valide.')]
     private ?string $telephone = null;
 
     #[ORM\Column(name: 'site_web', type: Types::STRING, length: 255, nullable: true)]
+    #[Assert\Length(max: 255, maxMessage: 'Le site web ne peut pas depasser {{ limit }} caracteres.')]
     #[Assert\Url(message: 'Le site web doit être une URL valide.', protocols: ['http', 'https'])]
     private ?string $site_web = null;
 
     #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
+    #[Assert\Length(max: 255, maxMessage: 'Instagram ne peut pas depasser {{ limit }} caracteres.')]
     private ?string $instagram = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Assert\Length(max: 5000, maxMessage: 'La description ne peut pas depasser {{ limit }} caracteres.')]
     private ?string $description = null;
 
     #[ORM\Column(name: 'budget_min', type: Types::FLOAT, nullable: true)]
+    #[Assert\PositiveOrZero(message: 'Le budget minimum doit etre positif.')]
     private ?float $budget_min = null;
 
     #[ORM\Column(name: 'budget_max', type: Types::FLOAT, nullable: true)]
+    #[Assert\PositiveOrZero(message: 'Le budget maximum doit etre positif.')]
     private ?float $budget_max = null;
 
     #[ORM\Column(enumType: LieuCategorie::class, length: 50, nullable: false)]
@@ -65,16 +69,19 @@ class Lieu
     private ?LieuCategorie $categorie = null;
 
     #[ORM\Column(type: Types::FLOAT, nullable: true)]
+    #[Assert\Range(min: -90, max: 90, notInRangeMessage: 'La latitude doit etre comprise entre {{ min }} et {{ max }}.')]
     private ?float $latitude = null;
 
     #[ORM\Column(type: Types::FLOAT, nullable: true)]
+    #[Assert\Range(min: -180, max: 180, notInRangeMessage: 'La longitude doit etre comprise entre {{ min }} et {{ max }}.')]
     private ?float $longitude = null;
 
     #[ORM\Column(enumType: LieuType::class, length: 20, nullable: false)]
     #[Assert\NotNull(message: 'Le type est obligatoire.')]
     private ?LieuType $type = null;
 
-    #[ORM\Column(name: 'image_url', type: Types::STRING, length: 255, nullable: true)]
+    #[ORM\Column(name: 'image_url', type: Types::STRING, length: 500, nullable: true)]
+    #[Assert\Length(max: 500, maxMessage: 'Le chemin de l\'image ne peut pas depasser {{ limit }} caracteres.')]
     private ?string $image_url = null;
 
     #[ORM\OneToOne(targetEntity: EvaluationLieu::class, mappedBy: 'lieu')]
@@ -112,13 +119,9 @@ class Lieu
         $this->users = new ArrayCollection();
     }
 
-    public function validate(ExecutionContextInterface $context): void
+    public function __toString(): string
     {
-        if ($this->budget_min !== null && $this->budget_max !== null && $this->budget_min > $this->budget_max) {
-            $context->buildViolation('Le budget minimum doit être inférieur ou égal au budget maximum.')
-                ->atPath('budget_min')
-                ->addViolation();
-        }
+        return (string) ($this->nom ?? 'Lieu');
     }
 
     public function getId(): ?int
