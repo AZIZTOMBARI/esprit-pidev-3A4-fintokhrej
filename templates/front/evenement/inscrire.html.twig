@@ -1,0 +1,71 @@
+{% extends 'front/base_front.html.twig' %}
+
+{% block title %}Inscription | {{ event.titre }}{% endblock %}
+
+{% block front_content %}
+<section style="max-width: 900px; margin: 30px auto; padding: 0 20px;">
+    <div style="background: white; padding: 28px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+        <div style="display: flex; justify-content: space-between; align-items: start; gap: 12px; margin-bottom: 20px;">
+            <div>
+                <h1 style="margin: 0 0 8px 0; font-size: 24px;">Choisir le nombre de tickets</h1>
+                <p style="margin: 0; color: #666;">
+                    {{ event.titre }} • {{ event.dateDebut|date('d/m/Y H:i') }}
+                </p>
+            </div>
+            <span style="background: #f1f5f9; color: #0f172a; padding: 8px 12px; border-radius: 999px; font-weight: 600; font-size: 13px;">
+                {{ places_restantes }} places restantes
+            </span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px;">
+            <div>
+                <h3 style="margin: 0 0 12px 0; font-size: 16px;">Rappel</h3>
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px;">
+                    <p style="margin: 0 0 6px 0;">Lieu: <strong>{{ event.lieu ? event.lieu.nom : 'Lieu a confirmer' }}</strong></p>
+                    <p style="margin: 0 0 6px 0;">Type: <strong>{{ event.type|replace({'_':' '}) }}</strong></p>
+                    <p style="margin: 0;">Prix par ticket: <strong>{% if event.prix > 0 %}{{ event.prix }} TND{% else %}Gratuit{% endif %}</strong></p>
+                </div>
+            </div>
+            <div>
+                <form method="POST" action="{{ path('app_evenement_inscrire', {id: event.id}) }}">
+                    <label style="display: block; margin-bottom: 6px; font-weight: 600;">Nombre de tickets</label>
+                    <select name="nb_tickets" id="nb_tickets" class="form-control" style="width: 100%; margin-bottom: 12px;">
+                        {% for i in 1..max_tickets %}
+                            <option value="{{ i }}">{{ i }} ticket{{ i > 1 ? 's' : '' }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <div style="background: #eef2ff; border: 1px solid #c7d2fe; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
+                        <div style="font-size: 13px; color: #4c51bf; margin-bottom: 6px;">Total a payer</div>
+                        <div style="font-size: 20px; font-weight: 700; color: #1e1b4b;" id="total_montant">
+                            {% if event.prix > 0 %}{{ event.prix }} TND{% else %}0 TND{% endif %}
+                        </div>
+                    </div>
+
+                    <button type="submit" class="cta-btn" style="width: 100%; padding: 14px; font-weight: 700;">
+                        Confirmer la demande
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div style="margin-top: 20px; text-align: center;">
+            <a href="{{ path('app_evenement_show', {id: event.id}) }}" style="color: #667eea; text-decoration: none; font-weight: 600;">Retour a l'evenement</a>
+        </div>
+    </div>
+</section>
+
+<script>
+    const ticketsSelect = document.getElementById('nb_tickets');
+    const totalMontant = document.getElementById('total_montant');
+    const prixUnitaire = {{ event.prix|default(0) }};
+
+    if (ticketsSelect && totalMontant) {
+        ticketsSelect.addEventListener('change', () => {
+            const nb = parseInt(ticketsSelect.value || '1', 10);
+            const total = Math.max(0, nb) * prixUnitaire;
+            totalMontant.textContent = `${total} TND`;
+        });
+    }
+</script>
+{% endblock %}

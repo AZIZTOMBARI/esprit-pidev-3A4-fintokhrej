@@ -1,0 +1,185 @@
+{% extends 'admin/base_admin.html.twig' %}
+
+{% block title %}Gestion des Événements - Admin{% endblock %}
+{% block admin_page_title %}Événements{% endblock %}
+
+{% block admin_content %}
+{% set filters = filters|default({
+    q: '',
+    statut: '',
+    type: '',
+    prix: '',
+    sort: '',
+    order: ''
+}) %}
+<div class="admin-container">
+    <div class="section-head">
+        <h1 class="section-title">Gestion des Événements</h1>
+        <a href="{{ path('app_admin_evenements_new') }}" class="cta-btn">+ Nouvel Événement</a>
+    </div>
+
+    <div class="admin-table-card" style="margin-bottom: 18px;">
+        <div class="section-head">
+            <div>
+                <h2 class="section-title">Recherche et filtres</h2>
+                <p class="section-subtitle">Filtrer rapidement les événements.</p>
+            </div>
+            <a href="{{ path('app_admin_evenements') }}" class="outline-btn">Réinitialiser</a>
+        </div>
+        <form method="get" class="event-filter-grid">
+            <div class="event-filter-field">
+                <label>Recherche</label>
+                <input type="text" name="q" value="{{ filters.q }}" placeholder="Titre ou lieu">
+            </div>
+            <div class="event-filter-field">
+                <label>Statut</label>
+                <select name="statut">
+                    <option value="">Tous les statuts</option>
+                    <option value="OUVERT" {{ filters.statut == 'OUVERT' ? 'selected' : '' }}>Ouvert</option>
+                    <option value="FERME" {{ filters.statut == 'FERME' ? 'selected' : '' }}>Fermé</option>
+                    <option value="ANNULE" {{ filters.statut == 'ANNULE' ? 'selected' : '' }}>Annulé</option>
+                </select>
+            </div>
+            <div class="event-filter-field">
+                <label>Type</label>
+                <select name="type">
+                    <option value="">Tous les types</option>
+                    <option value="PUBLIC" {{ filters.type == 'PUBLIC' ? 'selected' : '' }}>Public</option>
+                    <option value="PRIVE" {{ filters.type == 'PRIVE' ? 'selected' : '' }}>Privé</option>
+                </select>
+            </div>
+            <div class="event-filter-field">
+                <label>Prix</label>
+                <select name="prix">
+                    <option value="">Tous</option>
+                    <option value="gratuit" {{ filters.prix == 'gratuit' ? 'selected' : '' }}>Gratuit</option>
+                    <option value="payant" {{ filters.prix == 'payant' ? 'selected' : '' }}>Payant</option>
+                </select>
+            </div>
+            <div class="event-filter-field">
+                <label>Tri</label>
+                <select name="sort">
+                    <option value="date" {{ filters.sort == 'date' or filters.sort == '' ? 'selected' : '' }}>Date</option>
+                    <option value="prix" {{ filters.sort == 'prix' ? 'selected' : '' }}>Prix</option>
+                    <option value="capacite" {{ filters.sort == 'capacite' ? 'selected' : '' }}>Capacité</option>
+                    <option value="titre" {{ filters.sort == 'titre' ? 'selected' : '' }}>Titre</option>
+                </select>
+            </div>
+            <div class="event-filter-field">
+                <label>Ordre</label>
+                <select name="order">
+                    <option value="DESC" {{ filters.order == 'DESC' or filters.order == '' ? 'selected' : '' }}>Décroissant</option>
+                    <option value="ASC" {{ filters.order == 'ASC' ? 'selected' : '' }}>Croissant</option>
+                </select>
+            </div>
+            <div class="event-filter-field event-filter-actions">
+                <button type="submit" class="cta-btn">Filtrer</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="listing-grid">
+        {% for evenement in evenements %}
+            {% set rawImage = evenement.imageUrl|default('') %}
+            {% if rawImage and (rawImage starts with 'http://' or rawImage starts with 'https://') %}
+                {% set imageSrc = rawImage %}
+            {% elseif rawImage and (rawImage starts with 'theme/' or rawImage starts with 'uploads/') %}
+                {% set imageSrc = asset(rawImage) %}
+            {% elseif rawImage %}
+                {% set imageSrc = asset('uploads/evenements/' ~ rawImage) %}
+            {% else %}
+                {% set imageSrc = '' %}
+            {% endif %}
+
+            <article class="listing-card admin-event-card" data-href="{{ path('app_admin_evenement_show', {id: evenement.id}) }}">
+                <div class="cover-thumb">
+                    {% if imageSrc %}
+                        <img src="{{ imageSrc }}" alt="{{ evenement.titre }}" onerror="this.onerror=null;this.src='{{ asset('theme/images/logo.png') }}';">
+                    {% else %}
+                        <span>{{ evenement.titre|slice(0,1) }}</span>
+                    {% endif %}
+                </div>
+                
+                <div class="listing-card__top">
+                    <h3>{{ evenement.titre }}</h3>
+                    <p>{{ evenement.dateDebut|date('d/m/Y H:i') }} - {{ evenement.dateFin|date('d/m/Y H:i') }}</p>
+                </div>
+
+                <div class="meta-row">
+                    <span>👥 {{ evenement.capaciteMax }} places</span>
+                    <span>💰 {{ evenement.prix }} TND</span>
+                    <span class="badge-soft {{ evenement.statut == 'OUVERT' ? 'success' : 'warning' }}">
+                        {{ evenement.statut }}
+                    </span>
+                </div>
+
+                <div class="admin-actions">
+                    <a href="{{ path('app_admin_inscriptions', {id: evenement.id}) }}" class="outline-btn">Voir</a>
+                    <a href="{{ path('app_admin_evenements_edit', {id: evenement.id}) }}" class="outline-btn">Modifier</a>
+                    <form method="post" action="{{ path('app_admin_evenements_delete', {id: evenement.id}) }}" style="display:inline;">
+                        <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ evenement.id) }}">
+                        <button type="submit" class="outline-btn" style="color:#b91c1c;" onclick="return confirm('Supprimer cet événement ?')">Supprimer</button>
+                    </form>
+                </div>
+            </article>
+        {% else %}
+            <div class="empty-state">Aucun événement trouvé.</div>
+        {% endfor %}
+    </div>
+ </div>
+
+<style>
+    .event-filter-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+    }
+    .event-filter-field {
+        display: grid;
+        gap: 6px;
+    }
+    .event-filter-field label {
+        font-size: 13px;
+        font-weight: 700;
+        color: #334155;
+    }
+    .event-filter-field input,
+    .event-filter-field select {
+        width: 100%;
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        padding: 10px 12px;
+        font-size: 14px;
+        background: #fff;
+        color: #0f172a;
+        outline: none;
+    }
+    .event-filter-field input:focus,
+    .event-filter-field select:focus {
+        border-color: #38bdf8;
+        box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+    }
+    .event-filter-actions {
+        display: flex;
+        align-items: end;
+    }
+    .admin-event-card {
+        cursor: pointer;
+    }
+</style>
+
+<script>
+    document.querySelectorAll('.admin-event-card').forEach((card) => {
+        card.addEventListener('click', (event) => {
+            const target = event.target;
+            if (target.closest('a, button, form, input, select, textarea, label')) {
+                return;
+            }
+            const href = card.getAttribute('data-href');
+            if (href) {
+                window.location.href = href;
+            }
+        });
+    });
+</script>
+{% endblock %}

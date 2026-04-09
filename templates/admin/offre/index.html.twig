@@ -1,0 +1,46 @@
+{% extends 'admin/base_admin.html.twig' %}
+
+{% block title %}Gestion des offres | Fin Tokhroj{% endblock %}
+{% block admin_page_title %}Gestion des offres{% endblock %}
+
+{% block admin_content %}
+    <div class="admin-table-card">
+        <div class="section-head">
+            <div>
+                <h2 class="section-title">Gestion des offres</h2>
+                <p class="section-subtitle">Page prête à être branchée à des actions CRUD Symfony.</p>
+            </div>
+            <a href="{{ path('app_admin_dashboard') }}" class="outline-btn">Retour dashboard</a>
+        </div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Titre</th>
+                        <th>Type</th>
+                        <th>Pourcentage</th>
+                        <th>Début</th>
+                        <th>Fin</th>
+                        <th>Statut</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for item in offres %}
+                    <tr>
+                        <td>{{ attribute(item, "id") }}</td>
+                        <td>{{ attribute(item, "titre") }}</td>
+                        <td>{{ attribute(item, "type") }}</td>
+                        <td>{{ attribute(item, "pourcentage") }}</td>
+                        <td>{{ item.date_debut ? item.date_debut|date("d/m/Y H:i") : "-" }}</td>
+                        <td>{{ item.date_fin ? item.date_fin|date("d/m/Y H:i") : "-" }}</td>
+                        <td>{{ attribute(item, "statut") }}</td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="7">Aucune donnée disponible.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

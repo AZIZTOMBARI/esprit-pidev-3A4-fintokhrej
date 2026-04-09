@@ -1,0 +1,69 @@
+{% extends 'front/base_front.html.twig' %}
+
+{% block title %}Événements | Fin Tokhroj{% endblock %}
+
+{% block front_content %}
+<section>
+    <div class="section-head">
+        <div>
+            <h1 class="section-title">Événements à venir</h1>
+            <p class="section-subtitle">Découvrez et rejoignez les meilleurs événements</p>
+        </div>
+    </div>
+
+    <div class="listing-grid">
+        {% for event in events %}
+            <article class="listing-card">
+                {% set rawImage = event.imageUrl|default('') %}
+                {% if rawImage and (rawImage starts with 'http://' or rawImage starts with 'https://') %}
+                    {% set imageSrc = rawImage %}
+                {% elseif rawImage and (rawImage starts with 'theme/' or rawImage starts with 'uploads/') %}
+                    {% set imageSrc = asset(rawImage) %}
+                {% elseif rawImage %}
+                    {% set imageSrc = asset('uploads/evenements/' ~ rawImage) %}
+                {% else %}
+                    {% set imageSrc = '' %}
+                {% endif %}
+                <div class="cover-thumb">
+                    {% if imageSrc %}
+                        <img src="{{ imageSrc }}" alt="{{ event.titre }}" onerror="this.onerror=null;this.src='{{ asset('theme/images/logo.png') }}';">
+                    {% else %}
+                        <span>{{ event.titre|slice(0,1) }}</span>
+                    {% endif %}
+                </div>
+                
+                <div class="listing-card__top">
+                    <div>
+                        <h3>{{ event.titre }}</h3>
+                        <p>{{ event.dateDebut|date('d/m/Y') }} • 
+                            {% if event.lieu is defined %}
+                                {{ event.lieu ? event.lieu.nom : (event.lieu_nom ?? 'Lieu à confirmer') }}
+                            {% else %}
+                                {{ event.lieu_nom ?? 'Lieu à confirmer' }}
+                            {% endif %}
+                        </p>
+                    </div>
+                    {% if event.prix > 0 %}
+                        <span class="price-pill">{{ event.prix }} TND</span>
+                    {% endif %}
+                </div>
+
+                <div class="meta-row">
+                    <span>🗓 {{ event.dateDebut|date('H:i') }} - {% if event.dateFin is defined %}{{ event.dateFin|date('H:i') }}{% endif %}</span>
+                    <span>👥 {% if event.placesRestantes is defined %}{{ event.placesRestantes }}{% else %}{{ event.capaciteMax ?? '?' }}{% endif %} places restantes</span>
+                </div>
+
+                {% if event.description %}
+                    <p style="margin-top: 10px; font-size: 0.95rem;">{{ event.description|slice(0, 120) }}...</p>
+                {% endif %}
+
+                <a href="{{ path('app_evenement_show', {id: event.id}) }}" class="cta-btn" style="margin-top: 15px; display: block; text-align: center;">
+                    Voir détails & S'inscrire
+                </a>
+            </article>
+        {% else %}
+            <div class="empty-state">Aucun événement disponible pour le moment.</div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}
