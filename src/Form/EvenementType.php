@@ -50,7 +50,10 @@ class EvenementType extends AbstractType
             ])
             ->add('capaciteMax', IntegerType::class, [
                 'label' => 'Capacité maximale',
-                'constraints' => [new PositiveOrZero()],
+                'constraints' => [
+                    new NotBlank(['message' => 'La capacité maximale est obligatoire.']),
+                    new PositiveOrZero(['message' => 'La capacité maximale doit être positive ou nulle.']),
+                ],
             ])
             ->add('prix', MoneyType::class, [
                 'label' => 'Prix d\'entrée (TND)',

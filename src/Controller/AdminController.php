@@ -890,7 +890,7 @@ class AdminController extends AbstractController
         return $this->json(['status' => 'deleted']);
     }
 
-    #[Route('/evenements', name: 'app_admin_evenements')]
+    #[Route('/evenements-legacy', name: 'app_admin_evenements_legacy')]
     public function evenements(Connection $connection): Response
     {
         return $this->render('admin/evenement/index.html.twig', [

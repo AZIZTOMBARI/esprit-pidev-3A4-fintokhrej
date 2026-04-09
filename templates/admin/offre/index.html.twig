@@ -117,6 +117,20 @@
             box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
         }
 
+        .offer-input.is-invalid,
+        .offer-select.is-invalid,
+        .offer-textarea.is-invalid {
+            border-color: #ef4444;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.14);
+        }
+
+        .offer-inline-error {
+            margin-top: 2px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #b91c1c;
+        }
+
         .offer-submit {
             border: 0;
             border-radius: 12px;
@@ -308,7 +322,7 @@
             </div>
         </div>
 
-        <form method="post" action="{{ path('app_admin_offres_create') }}" class="offer-form-grid">
+        <form method="post" action="{{ path('app_admin_offres_create') }}" class="offer-form-grid" id="create-offer-form" novalidate>
             <input type="hidden" name="_token" value="{{ csrf_token('admin_offre_create') }}">
 
             <div class="offer-field">
@@ -705,4 +719,143 @@
             </table>
         </div>
     </div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const form = document.getElementById('create-offer-form');
+            if (!form) {
+                return;
+            }
+
+            const fields = {
+                titre: document.getElementById('create_titre'),
+                type: document.getElementById('create_type'),
+                pourcentage: document.getElementById('create_pourcentage'),
+                dateDebut: document.getElementById('create_date_debut'),
+                dateFin: document.getElementById('create_date_fin'),
+                statut: document.getElementById('create_statut'),
+                lieu: document.getElementById('create_lieu'),
+                description: document.getElementById('create_description')
+            };
+
+            const validators = {
+                titre: function (value) {
+                    const trimmed = value.trim();
+                    if (trimmed.length === 0) return 'Le titre est obligatoire.';
+                    if (trimmed.length < 3 || trimmed.length > 120) return 'Le titre doit contenir entre 3 et 120 caractères.';
+                    return '';
+                },
+                type: function (value) {
+                    const trimmed = value.trim();
+                    if (trimmed.length === 0) return 'Le type est obligatoire.';
+                    if (trimmed.length < 2 || trimmed.length > 60) return 'Le type doit contenir entre 2 et 60 caractères.';
+                    return '';
+                },
+                pourcentage: function (value) {
+                    const raw = value.trim();
+                    if (raw === '') return 'Le pourcentage est obligatoire.';
+                    const parsed = Number(raw);
+                    if (!Number.isFinite(parsed)) return 'Le pourcentage doit être un nombre.';
+                    if (parsed < 0 || parsed > 100) return 'Le pourcentage doit être entre 0 et 100.';
+                    if (!/^\d+(\.\d{1,2})?$/.test(raw)) return 'Maximum 2 chiffres après la virgule.';
+                    return '';
+                },
+                dateDebut: function (value) {
+                    if (!value) return 'La date de début est obligatoire.';
+                    return '';
+                },
+                dateFin: function (value) {
+                    if (!value) return 'La date de fin est obligatoire.';
+                    if (fields.dateDebut.value && value < fields.dateDebut.value) {
+                        return 'La date de fin doit être supérieure ou égale à la date de début.';
+                    }
+                    return '';
+                },
+                statut: function (value) {
+                    if (!value) return 'Le statut est obligatoire.';
+                    return '';
+                },
+                lieu: function (value) {
+                    if (!value) return 'Le lieu est obligatoire.';
+                    return '';
+                },
+                description: function (value) {
+                    if (value.length > 1000) return 'La description ne doit pas dépasser 1000 caractères.';
+                    return '';
+                }
+            };
+
+            function getErrorElement(input) {
+                const next = input.nextElementSibling;
+                if (next && next.classList.contains('offer-inline-error')) {
+                    return next;
+                }
+
+                const errorEl = document.createElement('div');
+                errorEl.className = 'offer-inline-error';
+                input.insertAdjacentElement('afterend', errorEl);
+                return errorEl;
+            }
+
+            function showError(input, message) {
+                const errorEl = getErrorElement(input);
+                input.classList.add('is-invalid');
+                input.setAttribute('aria-invalid', 'true');
+                errorEl.textContent = message;
+            }
+
+            function clearError(input) {
+                const errorEl = getErrorElement(input);
+                input.classList.remove('is-invalid');
+                input.removeAttribute('aria-invalid');
+                errorEl.textContent = '';
+            }
+
+            function validateField(name) {
+                const input = fields[name];
+                if (!input) return true;
+
+                const message = validators[name](input.value || '');
+                if (message) {
+                    showError(input, message);
+                    return false;
+                }
+
+                clearError(input);
+                return true;
+            }
+
+            Object.entries(fields).forEach(function (entry) {
+                const name = entry[0];
+                const input = entry[1];
+                if (!input) return;
+
+                const eventName = input.tagName === 'SELECT' ? 'change' : 'input';
+                input.addEventListener(eventName, function () {
+                    validateField(name);
+                    if (name === 'dateDebut') {
+                        validateField('dateFin');
+                    }
+                });
+            });
+
+            form.addEventListener('submit', function (event) {
+                let isValid = true;
+                Object.keys(fields).forEach(function (name) {
+                    isValid = validateField(name) && isValid;
+                });
+
+                if (!isValid) {
+                    event.preventDefault();
+                    const firstInvalid = form.querySelector('.is-invalid');
+                    if (firstInvalid) {
+                        firstInvalid.focus();
+                    }
+                }
+            });
+        });
+    </script>
 {% endblock %}

@@ -11,6 +11,7 @@ use App\Service\EvenementService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormError;
+use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -82,6 +83,13 @@ class EvenementController extends AbstractController
 
         $form->handleRequest($request);
         if ($form->isSubmitted() && $form->isValid()) {
+            if (!$this->validateEvenementInput($evenement, $form)) {
+                return $this->render('admin/evenement/new.html.twig', [
+                    'active' => 'evenements',
+                    'form' => $form->createView(),
+                ]);
+            }
+
             $uploadedFile = $form->get('imageFile')->getData();
             if ($uploadedFile instanceof UploadedFile) {
                 try {
@@ -95,11 +103,19 @@ class EvenementController extends AbstractController
                 }
             }
 
-            $this->em->persist($evenement);
-            $this->em->flush();
+            try {
+                $this->em->persist($evenement);
+                $this->em->flush();
 
-            $this->addFlash('success', 'Événement créé avec succès.');
-            return $this->redirectToRoute('app_admin_evenements');
+                $this->addFlash('success', 'Événement créé avec succès.');
+                return $this->redirectToRoute('app_admin_evenements');
+            } catch (\Throwable) {
+                $this->addFlash('error', 'Impossible de créer l\'événement. Vérifiez les champs obligatoires puis réessayez.');
+                return $this->render('admin/evenement/new.html.twig', [
+                    'active' => 'evenements',
+                    'form' => $form->createView(),
+                ]);
+            }
         }
 
         return $this->render('admin/evenement/new.html.twig', [
@@ -121,6 +137,14 @@ class EvenementController extends AbstractController
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
+            if (!$this->validateEvenementInput($evenement, $form)) {
+                return $this->render('admin/evenement/edit.html.twig', [
+                    'active' => 'evenements',
+                    'evenement' => $evenement,
+                    'form' => $form->createView(),
+                ]);
+            }
+
             $uploadedFile = $form->get('imageFile')->getData();
             if ($uploadedFile instanceof UploadedFile) {
                 try {
@@ -135,9 +159,18 @@ class EvenementController extends AbstractController
                 }
             }
 
-            $this->em->flush();
-            $this->addFlash('success', 'Événement modifié avec succès.');
-            return $this->redirectToRoute('app_admin_evenements');
+            try {
+                $this->em->flush();
+                $this->addFlash('success', 'Événement modifié avec succès.');
+                return $this->redirectToRoute('app_admin_evenements');
+            } catch (\Throwable) {
+                $this->addFlash('error', 'Impossible de modifier l\'événement. Vérifiez les champs obligatoires puis réessayez.');
+                return $this->render('admin/evenement/edit.html.twig', [
+                    'active' => 'evenements',
+                    'evenement' => $evenement,
+                    'form' => $form->createView(),
+                ]);
+            }
         }
 
         return $this->render('admin/evenement/edit.html.twig', [
@@ -269,5 +302,52 @@ class EvenementController extends AbstractController
         $uploadedFile->move($targetDir, $fileName);
 
         return 'uploads/evenements/'.$fileName;
+    }
+
+    private function validateEvenementInput(Evenement $evenement, FormInterface $form): bool
+    {
+        $isValid = true;
+
+        $titre = trim((string) $evenement->getTitre());
+        if ($titre === '' || mb_strlen($titre) < 3) {
+            $form->get('titre')->addError(new FormError('Le titre doit contenir au moins 3 caractères.'));
+            $isValid = false;
+        }
+
+        $dateDebut = $evenement->getDateDebut();
+        $dateFin = $evenement->getDateFin();
+        $now = new \DateTimeImmutable('now');
+
+        if ($dateDebut !== null && $dateDebut < $now) {
+            $form->get('dateDebut')->addError(new FormError('La date de début doit être dans le futur.'));
+            $isValid = false;
+        }
+
+        if ($dateDebut !== null && $dateFin !== null && $dateFin <= $dateDebut) {
+            $form->get('dateFin')->addError(new FormError('La date de fin doit être après la date de début.'));
+            $isValid = false;
+        }
+
+        if ($evenement->getCapaciteMax() === null || $evenement->getCapaciteMax() < 1) {
+            $form->get('capaciteMax')->addError(new FormError('La capacité maximale doit être au moins 1.'));
+            $isValid = false;
+        }
+
+        if ($evenement->getPrix() < 0) {
+            $form->get('prix')->addError(new FormError('Le prix ne peut pas être négatif.'));
+            $isValid = false;
+        }
+
+        if (!in_array($evenement->getType(), Evenement::TYPES_VALIDES, true)) {
+            $form->get('type')->addError(new FormError('Type d\'événement invalide.'));
+            $isValid = false;
+        }
+
+        if (!in_array($evenement->getStatut(), Evenement::STATUTS_VALIDES, true)) {
+            $form->get('statut')->addError(new FormError('Statut invalide.'));
+            $isValid = false;
+        }
+
+        return $isValid;
     }
 }

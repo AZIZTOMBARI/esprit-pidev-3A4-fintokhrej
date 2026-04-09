@@ -50,6 +50,9 @@
 
     <div class="listing-grid">
         {% for event in events %}
+            {% set eventDateDebut = event.dateDebut|default(event.date_debut|default(null)) %}
+            {% set eventDateFin = event.dateFin|default(event.date_fin|default(null)) %}
+            {% set eventCapacite = event.capaciteMax|default(event.capacite_max|default(null)) %}
             <article class="listing-card event-card">
                 {% set rawImage = event.imageUrl|default('') %}
                 {% if rawImage and (rawImage starts with 'http://' or rawImage starts with 'https://') %}
@@ -72,7 +75,7 @@
                 <div class="listing-card__top event-card__body">
                     <div>
                         <h3>{{ event.titre }}</h3>
-                        <p>{{ event.dateDebut|date('d/m/Y') }} • 
+                        <p>{{ eventDateDebut ? eventDateDebut|date('d/m/Y') : 'Date à confirmer' }} • 
                             {% if event.lieu is defined %}
                                 {{ event.lieu ? event.lieu.nom : (event.lieu_nom ?? 'Lieu à confirmer') }}
                             {% else %}
@@ -84,8 +87,8 @@
                 </div>
 
                 <div class="meta-row event-card__meta">
-                    <span>🗓 {{ event.dateDebut|date('d/m/Y H:i') }}{% if event.dateFin is defined %} • {{ event.dateFin|date('H:i') }}{% endif %}</span>
-                    <span>👥 {% if event.placesRestantes is defined %}{{ event.placesRestantes }}{% else %}{{ event.capaciteMax ?? '?' }}{% endif %} places restantes</span>
+                    <span>🗓 {{ eventDateDebut ? eventDateDebut|date('d/m/Y H:i') : 'Date à confirmer' }}{% if eventDateFin %} • {{ eventDateFin|date('H:i') }}{% endif %}</span>
+                    <span>👥 {% if event.placesRestantes is defined %}{{ event.placesRestantes }}{% else %}{{ eventCapacite ?? '?' }}{% endif %} places restantes</span>
                     <span class="badge-soft">{{ event.type|default('PUBLIC') }}</span>
                     <span class="badge-soft">{{ event.statut|default('OUVERT') }}</span>
                 </div>

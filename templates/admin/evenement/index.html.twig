@@ -12,6 +12,7 @@
     sort: '',
     order: ''
 }) %}
+{% set evenements = evenements|default(events|default([])) %}
 <div class="admin-container">
     <div class="section-head">
         <h1 class="section-title">Gestion des Événements</h1>

@@ -16,6 +16,14 @@
     <div class="event-form-card">
         {{ form_start(form, {'attr': {'novalidate': 'novalidate'}}) }}
 
+        {% if form.vars.errors|length > 0 %}
+            <div class="event-error" style="margin-bottom:12px;">
+                {% for error in form.vars.errors %}
+                    {{ error.message }}<br>
+                {% endfor %}
+            </div>
+        {% endif %}
+
         <div class="event-form-section">
             <h3 class="event-form-title">Informations générales</h3>
             <div class="event-form-grid">
@@ -94,10 +102,24 @@
                 <div class="event-field">
                     {{ form_label(form.statut) }}
                     {{ form_widget(form.statut, {attr: {class: 'form-control'}}) }}
+                    {% if form.statut.vars.errors|length > 0 %}
+                        <div class="event-error">
+                            {% for error in form.statut.vars.errors %}
+                                {{ error.message }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
                 </div>
                 <div class="event-field">
                     {{ form_label(form.type) }}
                     {{ form_widget(form.type, {attr: {class: 'form-control'}}) }}
+                    {% if form.type.vars.errors|length > 0 %}
+                        <div class="event-error">
+                            {% for error in form.type.vars.errors %}
+                                {{ error.message }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
                 </div>
                 <div class="event-field event-field--full">
                     {{ form_label(form.lieu) }}
