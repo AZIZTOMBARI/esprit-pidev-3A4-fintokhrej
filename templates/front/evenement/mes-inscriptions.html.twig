@@ -11,13 +11,20 @@
         </div>
     </div>
 
+    {% for message in app.flashes('success') %}
+        <div style="margin-bottom: 12px; padding: 12px 14px; border-radius: 14px; background: #e9f9ef; border: 1px solid #9de0b0; color: #156337; font-weight: 600;">{{ message }}</div>
+    {% endfor %}
+    {% for message in app.flashes('error') %}
+        <div style="margin-bottom: 12px; padding: 12px 14px; border-radius: 14px; background: #fdeaea; border: 1px solid #f3b8b8; color: #8a1f1f; font-weight: 600;">{{ message }}</div>
+    {% endfor %}
+
     {% for label, inscriptions in inscriptions_par_statut %}
         <div style="margin-bottom: 22px;">
             <h3 style="margin: 0 0 10px 0; font-size: 16px;">{{ label }}</h3>
 
             <div style="display: grid; gap: 12px;">
                 {% for inscription in inscriptions %}
-                    <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px;">
+                    <div class="listing-card" style="padding: 14px;">
                         <div style="display: flex; justify-content: space-between; align-items: start; gap: 12px;">
                             <div>
                                 <div style="font-weight: 700;">{{ inscription.evenement.titre }}</div>

@@ -3,40 +3,52 @@
 {% block title %}Inscription | {{ event.titre }}{% endblock %}
 
 {% block front_content %}
-<section style="max-width: 900px; margin: 30px auto; padding: 0 20px;">
-    <div style="background: white; padding: 28px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
-        <div style="display: flex; justify-content: space-between; align-items: start; gap: 12px; margin-bottom: 20px;">
-            <div>
-                <h1 style="margin: 0 0 8px 0; font-size: 24px;">Choisir le nombre de tickets</h1>
-                <p style="margin: 0; color: #666;">
-                    {{ event.titre }} • {{ event.dateDebut|date('d/m/Y H:i') }}
-                </p>
-            </div>
-            <span style="background: #f1f5f9; color: #0f172a; padding: 8px 12px; border-radius: 999px; font-weight: 600; font-size: 13px;">
-                {{ places_restantes }} places restantes
-            </span>
+<section style="max-width: 980px; margin: 30px auto; padding: 0 20px;">
+    <div class="section-head">
+        <div>
+            <h1 class="section-title">Participation</h1>
+            <p class="section-subtitle">Choisir le nombre de tickets</p>
         </div>
+        <a href="{{ path('app_evenement_show', {id: event.id}) }}" class="outline-btn">Retour à l'événement</a>
+    </div>
 
-        <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px;">
-            <div>
-                <h3 style="margin: 0 0 12px 0; font-size: 16px;">Rappel</h3>
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px;">
-                    <p style="margin: 0 0 6px 0;">Lieu: <strong>{{ event.lieu ? event.lieu.nom : 'Lieu a confirmer' }}</strong></p>
-                    <p style="margin: 0 0 6px 0;">Type: <strong>{{ event.type|replace({'_':' '}) }}</strong></p>
-                    <p style="margin: 0;">Prix par ticket: <strong>{% if event.prix > 0 %}{{ event.prix }} TND{% else %}Gratuit{% endif %}</strong></p>
-                </div>
+    {% for message in app.flashes('success') %}
+        <div style="margin-bottom: 12px; padding: 12px 14px; border-radius: 14px; background: #e9f9ef; border: 1px solid #9de0b0; color: #156337; font-weight: 600;">{{ message }}</div>
+    {% endfor %}
+    {% for message in app.flashes('error') %}
+        <div style="margin-bottom: 12px; padding: 12px 14px; border-radius: 14px; background: #fdeaea; border: 1px solid #f3b8b8; color: #8a1f1f; font-weight: 600;">{{ message }}</div>
+    {% endfor %}
+
+    <div class="listing-card" style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px;">
+        <div>
+            <h3 style="margin: 0 0 10px 0;">{{ event.titre }}</h3>
+            <div class="meta-row" style="margin-top: 6px;">
+                <span>🗓 {{ event.dateDebut|date('d/m/Y H:i') }}</span>
+                <span>📍 {{ event.lieu ? event.lieu.nom : 'Lieu a confirmer' }}</span>
+                <span>👥 {{ places_restantes }} places restantes</span>
             </div>
-            <div>
+            <div style="margin-top: 12px;">
+                <div style="font-size: 13px; color: #64748b; margin-bottom: 6px;">Prix par ticket</div>
+                <div style="font-weight: 800; color: #143d71;">{% if event.prix > 0 %}{{ event.prix }} TND{% else %}Gratuit{% endif %}</div>
+            </div>
+        </div>
+        <div>
+            {% if max_tickets < 1 %}
+                <div class="empty-state">Plus de places disponibles pour cet événement.</div>
+            {% else %}
                 <form method="POST" action="{{ path('app_evenement_inscrire', {id: event.id}) }}">
-                    <label style="display: block; margin-bottom: 6px; font-weight: 600;">Nombre de tickets</label>
+                    <label style="display: block; margin-bottom: 6px; font-weight: 700;">Nombre de tickets</label>
                     <select name="nb_tickets" id="nb_tickets" class="form-control" style="width: 100%; margin-bottom: 12px;">
                         {% for i in 1..max_tickets %}
                             <option value="{{ i }}">{{ i }} ticket{{ i > 1 ? 's' : '' }}</option>
                         {% endfor %}
                     </select>
+                    <div style="font-size: 12px; color: #64748b; margin-bottom: 12px;">
+                        Maximum autorisé: {{ max_tickets }} ticket{{ max_tickets > 1 ? 's' : '' }}.
+                    </div>
 
-                    <div style="background: #eef2ff; border: 1px solid #c7d2fe; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
-                        <div style="font-size: 13px; color: #4c51bf; margin-bottom: 6px;">Total a payer</div>
+                    <div style="background: #eef2ff; border: 1px solid #c7d2fe; padding: 12px; border-radius: 12px; margin-bottom: 16px;">
+                        <div style="font-size: 13px; color: #4c51bf; margin-bottom: 6px;">Total à payer</div>
                         <div style="font-size: 20px; font-weight: 700; color: #1e1b4b;" id="total_montant">
                             {% if event.prix > 0 %}{{ event.prix }} TND{% else %}0 TND{% endif %}
                         </div>
@@ -46,11 +58,7 @@
                         Confirmer la demande
                     </button>
                 </form>
-            </div>
-        </div>
-
-        <div style="margin-top: 20px; text-align: center;">
-            <a href="{{ path('app_evenement_show', {id: event.id}) }}" style="color: #667eea; text-decoration: none; font-weight: 600;">Retour a l'evenement</a>
+            {% endif %}
         </div>
     </div>
 </section>

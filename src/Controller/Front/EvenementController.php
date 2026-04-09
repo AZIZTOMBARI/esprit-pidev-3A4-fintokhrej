@@ -17,7 +17,10 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[Route('/evenements')]
 class EvenementController extends AbstractController
 {
-    public function __construct(private EvenementService $evenementService) {}
+    public function __construct(
+        private EvenementService $evenementService,
+        private InscriptionRepository $inscriptionRepository
+    ) {}
 
     #[Route('', name: 'app_evenements', methods: ['GET'])]
     public function index(EvenementRepository $repository): Response
@@ -30,7 +33,7 @@ class EvenementController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}', name: 'app_evenement_show', methods: ['GET'])]
+    #[Route('/{id<\\d+>}', name: 'app_evenement_show', methods: ['GET'])]
     public function show(Evenement $evenement): Response
     {
         $user = $this->getUser();
@@ -38,8 +41,7 @@ class EvenementController extends AbstractController
 
         // Vérifier si l'utilisateur est déjà inscrit
         if ($user) {
-            $repo = $this->container->get('doctrine')->getRepository(Inscription::class);
-            $inscription = $repo->findOneBy([
+            $inscription = $this->inscriptionRepository->findOneBy([
                 'user' => $user,
                 'evenement' => $evenement,
             ]);
@@ -56,10 +58,15 @@ class EvenementController extends AbstractController
     /**
      * Afficher le formulaire d'inscription (choix du nombre de tickets)
      */
-    #[Route('/{id}/inscrire', name: 'app_evenement_inscrire_form', methods: ['GET'])]
+    #[Route('/{id<\\d+>}/inscrire', name: 'app_evenement_inscrire_form', methods: ['GET'])]
     #[IsGranted('IS_AUTHENTICATED')]
-    public function inscrireForm(Evenement $evenement): Response
+    public function inscrireForm(int $id, EvenementRepository $repository): Response
     {
+        $evenement = $repository->find($id);
+        if (!$evenement) {
+            $this->addFlash('error', 'Événement introuvable.');
+            return $this->redirectToRoute('app_evenements');
+        }
         // Vérifier que l'événement est ouvert
         if (!$evenement->estOuvert()) {
             $this->addFlash('error', 'Les inscriptions à cet événement sont fermées.');
@@ -79,10 +86,16 @@ class EvenementController extends AbstractController
     /**
      * Soumettre l'inscription (POST)
      */
-    #[Route('/{id}/inscrire', name: 'app_evenement_inscrire', methods: ['POST'])]
+    #[Route('/{id<\\d+>}/inscrire', name: 'app_evenement_inscrire', methods: ['POST'])]
     #[IsGranted('IS_AUTHENTICATED')]
-    public function inscrire(Evenement $evenement, Request $request): Response
+    public function inscrire(int $id, Request $request, EvenementRepository $repository): Response
     {
+        $evenement = $repository->find($id);
+        if (!$evenement) {
+            $this->addFlash('error', 'Événement introuvable.');
+            return $this->redirectToRoute('app_evenements');
+        }
+
         $user = $this->getUser();
         $nbTickets = (int) $request->request->get('nb_tickets', 1);
 
