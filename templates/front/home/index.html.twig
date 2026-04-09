@@ -168,7 +168,13 @@
                         <h3>{{ offre.titre }}</h3>
                         <p>{{ offre.lieu_nom ?: 'Lieu non défini' }} · {{ offre.ville ?: 'Tunisie' }}</p>
                         <div class="meta-row">
-                            <span>🏷 {{ displayPercentage }}%</span>
+                            <span>
+                                🏷
+                                {% if offre.expiring_soon is defined and offre.expiring_soon %}
+                                    <span style="text-decoration:line-through; color:#94a3b8; margin-right:6px; font-weight:700;">{{ offre.pourcentage }}%</span>
+                                {% endif %}
+                                <span style="font-weight:800; color:{{ offre.expiring_soon is defined and offre.expiring_soon ? '#b91c1c' : 'inherit' }};">{{ displayPercentage }}%</span>
+                            </span>
                             <span>⏳ Jusqu'au {{ offre.date_fin|date('d/m/Y') }}</span>
                         </div>
                         {% if offre.expiring_soon is defined and offre.expiring_soon %}

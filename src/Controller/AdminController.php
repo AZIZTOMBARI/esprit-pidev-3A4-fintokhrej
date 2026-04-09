@@ -520,13 +520,45 @@ class AdminController extends AbstractController
     #[Route('/reservations/{id}/confirm', name: 'app_admin_reservation_confirm', methods: ['POST'])]
     public function reservationConfirm(int $id, Request $request, Connection $connection): Response
     {
+        $adminUser = $this->getUser();
+        $adminUserId = $adminUser instanceof User ? (int) $adminUser->getId() : null;
+
         if (!$this->isCsrfTokenValid('admin_reservation_confirm_'.$id, (string) $request->request->get('_token', ''))) {
             $this->addFlash('error', 'Jeton CSRF invalide pour la confirmation.');
             return $this->redirectToRoute('app_admin_offres');
         }
 
+        $reservation = $connection->fetchAssociative(
+            "SELECT r.id, r.statut, r.user_id, r.offre_id, o.titre AS offre_titre
+             FROM reservation_offre r
+             LEFT JOIN offre o ON o.id = r.offre_id
+             WHERE r.id = ?",
+            [$id]
+        );
+        if (!$reservation) {
+            $this->addFlash('error', 'Réservation introuvable.');
+            return $this->redirectToRoute('app_admin_offres');
+        }
+
+        if ((string) $reservation['statut'] !== 'EN_ATTENTE') {
+            $this->addFlash('error', 'Cette réservation ne peut plus être confirmée.');
+            return $this->redirectToRoute('app_admin_offres');
+        }
+
         try {
             $connection->update('reservation_offre', ['statut' => 'CONFIRMÉE'], ['id' => $id]);
+            $this->createInAppNotification(
+                $connection,
+                (int) $reservation['user_id'],
+                $adminUserId,
+                'RESERVATION_CONFIRMEE',
+                'Réservation confirmée',
+                'Votre réservation pour l\'offre "'.(string) ($reservation['offre_titre'] ?? 'Offre').'" a été confirmée.',
+                'reservation_offre',
+                (int) $reservation['id'],
+                ['offre_id' => (int) $reservation['offre_id']],
+                168
+            );
             $this->addFlash('success', 'Réservation confirmée.');
         } catch (Exception $e) {
             $this->addFlash('error', 'Erreur confirmation réservation: '.$e->getMessage());
@@ -538,13 +570,45 @@ class AdminController extends AbstractController
     #[Route('/reservations/{id}/refuse', name: 'app_admin_reservation_refuse', methods: ['POST'])]
     public function reservationRefuse(int $id, Request $request, Connection $connection): Response
     {
+        $adminUser = $this->getUser();
+        $adminUserId = $adminUser instanceof User ? (int) $adminUser->getId() : null;
+
         if (!$this->isCsrfTokenValid('admin_reservation_refuse_'.$id, (string) $request->request->get('_token', ''))) {
             $this->addFlash('error', 'Jeton CSRF invalide pour le refus.');
             return $this->redirectToRoute('app_admin_offres');
         }
 
+        $reservation = $connection->fetchAssociative(
+            "SELECT r.id, r.statut, r.user_id, r.offre_id, o.titre AS offre_titre
+             FROM reservation_offre r
+             LEFT JOIN offre o ON o.id = r.offre_id
+             WHERE r.id = ?",
+            [$id]
+        );
+        if (!$reservation) {
+            $this->addFlash('error', 'Réservation introuvable.');
+            return $this->redirectToRoute('app_admin_offres');
+        }
+
+        if ((string) $reservation['statut'] !== 'EN_ATTENTE') {
+            $this->addFlash('error', 'Cette réservation ne peut plus être refusée.');
+            return $this->redirectToRoute('app_admin_offres');
+        }
+
         try {
             $connection->update('reservation_offre', ['statut' => 'REFUSÉE'], ['id' => $id]);
+            $this->createInAppNotification(
+                $connection,
+                (int) $reservation['user_id'],
+                $adminUserId,
+                'RESERVATION_REFUSEE',
+                'Réservation refusée',
+                'Votre réservation pour l\'offre "'.(string) ($reservation['offre_titre'] ?? 'Offre').'" a été refusée.',
+                'reservation_offre',
+                (int) $reservation['id'],
+                ['offre_id' => (int) $reservation['offre_id']],
+                168
+            );
             $this->addFlash('success', 'Réservation refusée.');
         } catch (Exception $e) {
             $this->addFlash('error', 'Erreur refus réservation: '.$e->getMessage());
@@ -942,5 +1006,45 @@ class AdminController extends AbstractController
             ],
             'createdAt' => null,
         ];
+    }
+
+    private function createInAppNotification(
+        Connection $connection,
+        int $receiverId,
+        ?int $senderId,
+        string $type,
+        string $title,
+        string $body,
+        string $entityType,
+        int $entityId,
+        array $metadata = [],
+        int $dedupHours = 24
+    ): void {
+        $alreadyExists = (int) $connection->fetchOne(
+            'SELECT COUNT(*) FROM notifications
+             WHERE receiver_id = ?
+               AND type = ?
+               AND entity_type = ?
+               AND entity_id = ?
+               AND created_at >= DATE_SUB(NOW(), INTERVAL '.$dedupHours.' HOUR)',
+            [$receiverId, $type, $entityType, $entityId]
+        );
+
+        if ($alreadyExists > 0) {
+            return;
+        }
+
+        $connection->insert('notifications', [
+            'receiver_id' => $receiverId,
+            'sender_id' => $senderId,
+            'type' => $type,
+            'title' => $title,
+            'body' => $body,
+            'entity_type' => $entityType,
+            'entity_id' => $entityId,
+            'created_at' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
+            'read_at' => null,
+            'metadata_json' => $metadata !== [] ? json_encode($metadata, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null,
+        ]);
     }
 }

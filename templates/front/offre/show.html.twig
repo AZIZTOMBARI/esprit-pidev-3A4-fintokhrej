@@ -53,6 +53,26 @@
             color: #7f1d1d;
         }
 
+        .offer-detail-price-wrap {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 8px;
+            margin-left: 4px;
+        }
+
+        .offer-detail-price-old {
+            text-decoration: line-through;
+            color: #94a3b8;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .offer-detail-price-new {
+            color: #b91c1c;
+            font-size: 15px;
+            font-weight: 800;
+        }
+
         .offer-form-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -132,7 +152,17 @@
         <div class="listing-card__top">
             <div>
                 <h3>{{ offre.titre }}</h3>
-                <p>{{ offre.type }} · {{ displayPercentage }}%</p>
+                <p>
+                    {{ offre.type }} ·
+                    {% if offre.expiring_soon is defined and offre.expiring_soon %}
+                        <span class="offer-detail-price-wrap">
+                            <span class="offer-detail-price-old">{{ offre.pourcentage }}%</span>
+                            <span class="offer-detail-price-new">{{ displayPercentage }}%</span>
+                        </span>
+                    {% else %}
+                        {{ displayPercentage }}%
+                    {% endif %}
+                </p>
             </div>
             <div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end;">
                 <span class="price-pill">{{ offre.statut }}</span>
@@ -269,6 +299,7 @@
                     <th>Personnes</th>
                     <th>Statut</th>
                     <th>Note</th>
+                    <th>Actions</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -279,10 +310,41 @@
                         <td>{{ reservation.nombre_personnes }}</td>
                         <td>{{ reservation.statut }}</td>
                         <td>{{ reservation.note ?? '-' }}</td>
+                        <td>
+                            {% if reservation.statut == 'EN_ATTENTE' %}
+                                <details>
+                                    <summary class="outline-btn" style="cursor:pointer;">Modifier</summary>
+                                    <form method="post" action="{{ path('app_offres_reservation_update', {offreId: offre.id, reservationId: reservation.id}) }}" class="offer-form-grid" style="margin-top:8px; min-width:330px;">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('update_reservation_' ~ reservation.id) }}">
+
+                                        <div class="offer-field">
+                                            <label>Nombre de personnes</label>
+                                            <input class="offer-input" type="number" name="nombre_personnes" min="1" max="20" value="{{ reservation.nombre_personnes }}" required>
+                                        </div>
+
+                                        <div class="offer-field offer-field--full">
+                                            <label>Note</label>
+                                            <textarea class="offer-textarea" name="note" maxlength="300">{{ reservation.note ?? '' }}</textarea>
+                                        </div>
+
+                                        <div class="offer-field offer-field--full" style="display:flex; gap:8px; flex-wrap:wrap;">
+                                            <button type="submit" class="offer-submit">Enregistrer</button>
+                                        </div>
+                                    </form>
+                                </details>
+
+                                <form method="post" action="{{ path('app_offres_reservation_cancel', {offreId: offre.id, reservationId: reservation.id}) }}" onsubmit="return confirm('Annuler cette réservation ?');" style="margin-top:8px;">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('cancel_reservation_' ~ reservation.id) }}">
+                                    <button type="submit" class="outline-btn" style="color:#b91c1c;border-color:#fecaca;">Annuler</button>
+                                </form>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
                     </tr>
                 {% else %}
                     <tr>
-                        <td colspan="5">Aucune réservation pour cette offre.</td>
+                        <td colspan="6">Aucune réservation pour cette offre.</td>
                     </tr>
                 {% endfor %}
                 </tbody>
