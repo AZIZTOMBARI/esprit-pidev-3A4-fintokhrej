@@ -6,6 +6,7 @@ use App\Entity\User;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -25,6 +26,63 @@ class AdminController extends AbstractController
                 'abonnes' => $this->fetchValue($connection, "SELECT COUNT(*) FROM user WHERE role = 'abonne'"),
                 'visiteurs' => $this->fetchValue($connection, "SELECT COUNT(*) FROM user WHERE role = 'visiteur'"),
             ],
+        ]);
+    }
+
+    #[Route('/dashboard-offres', name: 'app_admin_dashboard_offres')]
+    public function dashboardOffres(Connection $connection): Response
+    {
+        $offerStats = [
+            'total' => $this->fetchValue($connection, 'SELECT COUNT(*) FROM offre'),
+            'active' => $this->fetchValue($connection, "SELECT COUNT(*) FROM offre WHERE LOWER(statut) IN ('actif', 'active')"),
+            'expiringSoon' => $this->fetchValue($connection, "SELECT COUNT(*) FROM offre WHERE TIMESTAMPDIFF(HOUR, NOW(), CONCAT(date_fin, ' 23:59:59')) BETWEEN 0 AND 24"),
+            'expired' => $this->fetchValue($connection, "SELECT COUNT(*) FROM offre WHERE date_fin < CURDATE() OR LOWER(statut) IN ('expiree', 'expire', 'expired')"),
+        ];
+
+        $promoStats = [
+            'total' => $this->fetchValue($connection, 'SELECT COUNT(*) FROM code_promo'),
+            'active' => $this->fetchValue($connection, "SELECT COUNT(*) FROM code_promo WHERE LOWER(statut) = 'actif'"),
+            'used' => $this->fetchValue($connection, "SELECT COUNT(*) FROM code_promo WHERE LOWER(statut) = 'utilise'"),
+            'blocked' => $this->fetchValue($connection, "SELECT COUNT(*) FROM code_promo WHERE LOWER(statut) = 'bloque_abus'"),
+        ];
+
+        $reservationStats = [
+            'total' => $this->fetchValue($connection, 'SELECT COUNT(*) FROM reservation_offre'),
+            'pending' => $this->fetchValue($connection, "SELECT COUNT(*) FROM reservation_offre WHERE LOWER(statut) = 'en_attente'"),
+            'confirmed' => $this->fetchValue($connection, "SELECT COUNT(*) FROM reservation_offre WHERE LOWER(statut) = 'confirmée' OR LOWER(statut) = 'confirmee'"),
+            'refused' => $this->fetchValue($connection, "SELECT COUNT(*) FROM reservation_offre WHERE LOWER(statut) = 'refusée' OR LOWER(statut) = 'refusee'"),
+        ];
+
+        return $this->render('admin/dashboard/offres.html.twig', [
+            'active' => 'dashboard_offres',
+            'offerStats' => $offerStats,
+            'promoStats' => $promoStats,
+            'reservationStats' => $reservationStats,
+            'recentOffers' => $this->fetchAll($connection, "
+                SELECT o.id, o.titre, o.type, o.pourcentage, o.date_fin, o.statut, l.nom AS lieu_nom,
+                       CASE
+                           WHEN TIMESTAMPDIFF(HOUR, NOW(), CONCAT(o.date_fin, ' 23:59:59')) BETWEEN 0 AND 24 THEN 1
+                           ELSE 0
+                       END AS expiring_soon
+                FROM offre o
+                LEFT JOIN lieu l ON l.id = o.lieu_id
+                ORDER BY o.date_fin ASC, o.id DESC
+                LIMIT 8
+            "),
+            'recentPromos' => $this->fetchAll($connection, "
+                SELECT cp.id, cp.statut, cp.date_generation, cp.date_expiration, o.titre AS offre_titre
+                FROM code_promo cp
+                LEFT JOIN offre o ON o.id = cp.offre_id
+                ORDER BY cp.id DESC
+                LIMIT 8
+            "),
+            'recentReservations' => $this->fetchAll($connection, "
+                SELECT r.id, r.statut, r.date_reservation, r.nombre_personnes, o.titre AS offre_titre
+                FROM reservation_offre r
+                LEFT JOIN offre o ON o.id = r.offre_id
+                ORDER BY r.id DESC
+                LIMIT 8
+            "),
         ]);
     }
 
@@ -207,6 +265,15 @@ class AdminController extends AbstractController
         return $this->redirectToRoute('app_admin_users');
     }
 
+    #[Route('/lieux', name: 'app_admin_lieux')]
+    public function lieux(Connection $connection): Response
+    {
+        return $this->render('admin/lieu/index.html.twig', [
+            'active' => 'lieux',
+            'places' => $this->fetchAll($connection, 'SELECT id, nom, ville, categorie, type, budget_min, budget_max FROM lieu ORDER BY id DESC'),
+        ]);
+    }
+
     #[Route('/sorties', name: 'app_admin_sorties')]
     public function sorties(Connection $connection): Response
     {
@@ -217,12 +284,555 @@ class AdminController extends AbstractController
     }
 
     #[Route('/offres', name: 'app_admin_offres')]
-    public function offres(Connection $connection): Response
+    public function offres(Request $request, Connection $connection): Response
     {
+        $query = trim((string) $request->query->get('q', ''));
+        $status = trim((string) $request->query->get('status', ''));
+        $sort = trim((string) $request->query->get('sort', 'date_fin'));
+        $direction = $this->normalizeSortDirection((string) $request->query->get('direction', 'asc'));
+        $promoQuery = trim((string) $request->query->get('promo_q', ''));
+        $promoStatus = trim((string) $request->query->get('promo_status', ''));
+        $promoSort = trim((string) $request->query->get('promo_sort', 'id'));
+        $promoDirection = $this->normalizeSortDirection((string) $request->query->get('promo_direction', 'desc'));
+        $page = max(1, (int) $request->query->get('page', 1));
+        $pageSize = 10;
+        $offset = ($page - 1) * $pageSize;
+
+        $whereParts = [];
+        $params = [];
+
+        if ($query !== '') {
+            $whereParts[] = '(LOWER(o.titre) LIKE LOWER(?) OR LOWER(o.type) LIKE LOWER(?) OR LOWER(COALESCE(o.description, \'\')) LIKE LOWER(?))';
+            $like = '%'.$query.'%';
+            $params[] = $like;
+            $params[] = $like;
+            $params[] = $like;
+        }
+
+        if ($status !== '') {
+            $aliases = $this->statusAliases($status);
+            $placeholders = implode(', ', array_fill(0, count($aliases), '?'));
+            $whereParts[] = 'LOWER(o.statut) IN ('.$placeholders.')';
+            foreach ($aliases as $alias) {
+                $params[] = $alias;
+            }
+        }
+
+        $whereSql = $whereParts !== [] ? ' WHERE '.implode(' AND ', $whereParts) : '';
+        $offerSortSql = $this->offerSortSql($sort, $direction);
+
+        $total = (int) $connection->fetchOne(
+            'SELECT COUNT(*) FROM offre o'.$whereSql,
+            $params
+        );
+
+        $offres = $this->fetchAll(
+            $connection,
+            'SELECT o.id, o.titre, o.type, o.pourcentage, o.date_debut, o.date_fin, o.statut, o.description, o.lieu_id, l.nom AS lieu_nom
+             FROM offre o
+             LEFT JOIN lieu l ON l.id = o.lieu_id'
+            .$whereSql.
+            ' ORDER BY '.$offerSortSql.', o.id DESC LIMIT '.$pageSize.' OFFSET '.$offset,
+            $params
+        );
+
+        $promoWhereParts = [];
+        $promoParams = [];
+
+        if ($promoQuery !== '') {
+            $promoWhereParts[] = '(LOWER(COALESCE(o.titre, \'\')) LIKE LOWER(?) OR LOWER(COALESCE(u.prenom, \'\')) LIKE LOWER(?) OR LOWER(COALESCE(u.nom, \'\')) LIKE LOWER(?) OR LOWER(CAST(cp.id AS CHAR)) LIKE LOWER(?) OR LOWER(cp.statut) LIKE LOWER(?))';
+            $like = '%'.$promoQuery.'%';
+            $promoParams[] = $like;
+            $promoParams[] = $like;
+            $promoParams[] = $like;
+            $promoParams[] = $like;
+            $promoParams[] = $like;
+        }
+
+        if ($promoStatus !== '') {
+            $promoWhereParts[] = 'LOWER(cp.statut) = LOWER(?)';
+            $promoParams[] = $this->normalizePromoStatus($promoStatus);
+        }
+
+        $promoWhereSql = $promoWhereParts !== [] ? ' WHERE '.implode(' AND ', $promoWhereParts) : '';
+        $promoSortSql = $this->promoSortSql($promoSort, $promoDirection);
+        $promoSql = "
+                SELECT cp.id, cp.offre_id, cp.user_id, cp.qr_image_url, cp.date_generation, cp.date_expiration, cp.statut,
+                       o.titre AS offre_titre, u.prenom, u.nom
+                FROM code_promo cp
+                LEFT JOIN offre o ON o.id = cp.offre_id
+                LEFT JOIN user u ON u.id = cp.user_id
+            ".$promoWhereSql.' ORDER BY '.$promoSortSql.' LIMIT 120';
+
+        $stats = [
+            'total' => $this->fetchValue($connection, 'SELECT COUNT(*) FROM offre'),
+            'actives' => $this->fetchValue($connection, "SELECT COUNT(*) FROM offre WHERE LOWER(statut) IN ('actif', 'active')"),
+            'expirees' => $this->fetchValue($connection, "SELECT COUNT(*) FROM offre WHERE date_fin < CURDATE() OR LOWER(statut) IN ('expiree', 'expire', 'expired')"),
+        ];
+
         return $this->render('admin/offre/index.html.twig', [
             'active' => 'offres',
-            'offres' => $this->fetchAll($connection, 'SELECT id, titre, type, pourcentage, date_debut, date_fin, statut FROM offre ORDER BY date_fin ASC'),
+            'offres' => $offres,
+            'lieux' => $this->fetchAll($connection, 'SELECT id, nom FROM lieu ORDER BY nom ASC'),
+            'promoCodes' => $this->fetchAll($connection, $promoSql, $promoParams),
+            'reservations' => $this->fetchAll($connection, "
+                SELECT r.id, r.date_reservation, r.nombre_personnes, r.statut, r.note, r.created_at,
+                       o.titre AS offre_titre, l.nom AS lieu_nom,
+                       u.prenom, u.nom
+                FROM reservation_offre r
+                LEFT JOIN offre o ON o.id = r.offre_id
+                LEFT JOIN lieu l ON l.id = r.lieu_id
+                LEFT JOIN user u ON u.id = r.user_id
+                ORDER BY r.id DESC
+                LIMIT 150
+            "),
+            'stats' => $stats,
+            'filters' => [
+                'q' => $query,
+                'status' => $status,
+                'sort' => $sort,
+                'direction' => $direction,
+                'promo_q' => $promoQuery,
+                'promo_status' => $promoStatus,
+                'promo_sort' => $promoSort,
+                'promo_direction' => $promoDirection,
+            ],
+            'pagination' => [
+                'page' => $page,
+                'pageSize' => $pageSize,
+                'total' => $total,
+                'totalPages' => max(1, (int) ceil($total / $pageSize)),
+            ],
         ]);
+    }
+
+    #[Route('/offres/create', name: 'app_admin_offres_create', methods: ['POST'])]
+    public function offresCreate(Request $request, Connection $connection): Response
+    {
+        if (!$this->isCsrfTokenValid('admin_offre_create', (string) $request->request->get('_token', ''))) {
+            $this->addFlash('error', 'Jeton CSRF invalide pour la création d\'offre.');
+            return $this->redirectToRoute('app_admin_offres');
+        }
+
+        $payload = $this->normalizeOffrePayload([
+            'titre' => (string) $request->request->get('titre', ''),
+            'type' => (string) $request->request->get('type', ''),
+            'pourcentage' => (string) $request->request->get('pourcentage', ''),
+            'date_debut' => (string) $request->request->get('date_debut', ''),
+            'date_fin' => (string) $request->request->get('date_fin', ''),
+            'statut' => (string) $request->request->get('statut', ''),
+            'description' => (string) $request->request->get('description', ''),
+            'lieu_id' => (string) $request->request->get('lieu_id', ''),
+        ]);
+
+        $errors = $this->validateOffrePayload($payload, true);
+        if ($errors !== []) {
+            $this->addFlash('error', implode(' ', $errors));
+            return $this->redirectToRoute('app_admin_offres');
+        }
+
+        $userId = $this->getUser() instanceof User ? $this->getUser()->getId() : null;
+
+        try {
+            $connection->insert('offre', [
+                'user_id' => $userId,
+                'titre' => $payload['titre'],
+                'type' => $payload['type'],
+                'pourcentage' => $payload['pourcentage'],
+                'date_debut' => $payload['date_debut'],
+                'date_fin' => $payload['date_fin'],
+                'statut' => $payload['statut'],
+                'description' => $payload['description'] !== '' ? $payload['description'] : null,
+                'lieu_id' => $payload['lieu_id'],
+            ]);
+
+            $this->addFlash('success', 'Offre créée avec succès.');
+        } catch (Exception $e) {
+            $this->addFlash('error', 'Erreur création offre: '.$e->getMessage());
+        }
+
+        return $this->redirectToRoute('app_admin_offres');
+    }
+
+    #[Route('/offres/{id}/update', name: 'app_admin_offres_update', methods: ['POST'])]
+    public function offresUpdate(int $id, Request $request, Connection $connection): Response
+    {
+        if (!$this->isCsrfTokenValid('admin_offre_edit_'.$id, (string) $request->request->get('_token', ''))) {
+            $this->addFlash('error', 'Jeton CSRF invalide pour la modification d\'offre.');
+            return $this->redirectToRoute('app_admin_offres');
+        }
+
+        $payload = $this->normalizeOffrePayload([
+            'titre' => (string) $request->request->get('titre', ''),
+            'type' => (string) $request->request->get('type', ''),
+            'pourcentage' => (string) $request->request->get('pourcentage', ''),
+            'date_debut' => (string) $request->request->get('date_debut', ''),
+            'date_fin' => (string) $request->request->get('date_fin', ''),
+            'statut' => (string) $request->request->get('statut', ''),
+            'description' => (string) $request->request->get('description', ''),
+            'lieu_id' => (string) $request->request->get('lieu_id', ''),
+        ]);
+
+        $errors = $this->validateOffrePayload($payload, true);
+        if ($errors !== []) {
+            $this->addFlash('error', implode(' ', $errors));
+            return $this->redirectToRoute('app_admin_offres');
+        }
+
+        try {
+            $connection->update('offre', [
+                'titre' => $payload['titre'],
+                'type' => $payload['type'],
+                'pourcentage' => $payload['pourcentage'],
+                'date_debut' => $payload['date_debut'],
+                'date_fin' => $payload['date_fin'],
+                'statut' => $payload['statut'],
+                'description' => $payload['description'] !== '' ? $payload['description'] : null,
+                'lieu_id' => $payload['lieu_id'],
+            ], ['id' => $id]);
+
+            $this->addFlash('success', 'Offre modifiée avec succès.');
+        } catch (Exception $e) {
+            $this->addFlash('error', 'Erreur modification offre: '.$e->getMessage());
+        }
+
+        return $this->redirectToRoute('app_admin_offres');
+    }
+
+    #[Route('/offres/{id}/delete', name: 'app_admin_offres_delete', methods: ['POST'])]
+    public function offresDelete(int $id, Request $request, Connection $connection): Response
+    {
+        if (!$this->isCsrfTokenValid('admin_offre_delete_'.$id, (string) $request->request->get('_token', ''))) {
+            $this->addFlash('error', 'Jeton CSRF invalide pour la suppression d\'offre.');
+            return $this->redirectToRoute('app_admin_offres');
+        }
+
+        try {
+            $connection->delete('offre', ['id' => $id]);
+            $this->addFlash('success', 'Offre supprimée avec succès.');
+        } catch (Exception $e) {
+            $this->addFlash('error', 'Erreur suppression offre: '.$e->getMessage());
+        }
+
+        return $this->redirectToRoute('app_admin_offres');
+    }
+
+    #[Route('/reservations/{id}/confirm', name: 'app_admin_reservation_confirm', methods: ['POST'])]
+    public function reservationConfirm(int $id, Request $request, Connection $connection): Response
+    {
+        $adminUser = $this->getUser();
+        $adminUserId = $adminUser instanceof User ? (int) $adminUser->getId() : null;
+
+        if (!$this->isCsrfTokenValid('admin_reservation_confirm_'.$id, (string) $request->request->get('_token', ''))) {
+            $this->addFlash('error', 'Jeton CSRF invalide pour la confirmation.');
+            return $this->redirectToRoute('app_admin_offres');
+        }
+
+        $reservation = $connection->fetchAssociative(
+            "SELECT r.id, r.statut, r.user_id, r.offre_id, o.titre AS offre_titre
+             FROM reservation_offre r
+             LEFT JOIN offre o ON o.id = r.offre_id
+             WHERE r.id = ?",
+            [$id]
+        );
+        if (!$reservation) {
+            $this->addFlash('error', 'Réservation introuvable.');
+            return $this->redirectToRoute('app_admin_offres');
+        }
+
+        if ((string) $reservation['statut'] !== 'EN_ATTENTE') {
+            $this->addFlash('error', 'Cette réservation ne peut plus être confirmée.');
+            return $this->redirectToRoute('app_admin_offres');
+        }
+
+        try {
+            $connection->update('reservation_offre', ['statut' => 'CONFIRMÉE'], ['id' => $id]);
+            $this->createInAppNotification(
+                $connection,
+                (int) $reservation['user_id'],
+                $adminUserId,
+                'RESERVATION_CONFIRMEE',
+                'Réservation confirmée',
+                'Votre réservation pour l\'offre "'.(string) ($reservation['offre_titre'] ?? 'Offre').'" a été confirmée.',
+                'reservation_offre',
+                (int) $reservation['id'],
+                ['offre_id' => (int) $reservation['offre_id']],
+                168
+            );
+            $this->addFlash('success', 'Réservation confirmée.');
+        } catch (Exception $e) {
+            $this->addFlash('error', 'Erreur confirmation réservation: '.$e->getMessage());
+        }
+
+        return $this->redirectToRoute('app_admin_offres');
+    }
+
+    #[Route('/reservations/{id}/refuse', name: 'app_admin_reservation_refuse', methods: ['POST'])]
+    public function reservationRefuse(int $id, Request $request, Connection $connection): Response
+    {
+        $adminUser = $this->getUser();
+        $adminUserId = $adminUser instanceof User ? (int) $adminUser->getId() : null;
+
+        if (!$this->isCsrfTokenValid('admin_reservation_refuse_'.$id, (string) $request->request->get('_token', ''))) {
+            $this->addFlash('error', 'Jeton CSRF invalide pour le refus.');
+            return $this->redirectToRoute('app_admin_offres');
+        }
+
+        $reservation = $connection->fetchAssociative(
+            "SELECT r.id, r.statut, r.user_id, r.offre_id, o.titre AS offre_titre
+             FROM reservation_offre r
+             LEFT JOIN offre o ON o.id = r.offre_id
+             WHERE r.id = ?",
+            [$id]
+        );
+        if (!$reservation) {
+            $this->addFlash('error', 'Réservation introuvable.');
+            return $this->redirectToRoute('app_admin_offres');
+        }
+
+        if ((string) $reservation['statut'] !== 'EN_ATTENTE') {
+            $this->addFlash('error', 'Cette réservation ne peut plus être refusée.');
+            return $this->redirectToRoute('app_admin_offres');
+        }
+
+        try {
+            $connection->update('reservation_offre', ['statut' => 'REFUSÉE'], ['id' => $id]);
+            $this->createInAppNotification(
+                $connection,
+                (int) $reservation['user_id'],
+                $adminUserId,
+                'RESERVATION_REFUSEE',
+                'Réservation refusée',
+                'Votre réservation pour l\'offre "'.(string) ($reservation['offre_titre'] ?? 'Offre').'" a été refusée.',
+                'reservation_offre',
+                (int) $reservation['id'],
+                ['offre_id' => (int) $reservation['offre_id']],
+                168
+            );
+            $this->addFlash('success', 'Réservation refusée.');
+        } catch (Exception $e) {
+            $this->addFlash('error', 'Erreur refus réservation: '.$e->getMessage());
+        }
+
+        return $this->redirectToRoute('app_admin_offres');
+    }
+
+    #[Route('/promo-codes/{id}/update', name: 'app_admin_promo_codes_update', methods: ['POST'])]
+    public function promoCodeUpdate(int $id, Request $request, Connection $connection): Response
+    {
+        if (!$this->isCsrfTokenValid('admin_promo_edit_'.$id, (string) $request->request->get('_token', ''))) {
+            $this->addFlash('error', 'Jeton CSRF invalide pour la modification du code promo.');
+            return $this->redirectToRoute('app_admin_offres');
+        }
+
+        $dateExpiration = trim((string) $request->request->get('date_expiration', ''));
+        $statut = $this->normalizePromoStatus(trim((string) $request->request->get('statut', '')));
+
+        if ($dateExpiration === '') {
+            $this->addFlash('error', 'La date d’expiration est obligatoire.');
+            return $this->redirectToRoute('app_admin_offres');
+        }
+
+        $dateExpirationObject = \DateTimeImmutable::createFromFormat('Y-m-d', $dateExpiration);
+        if (!$dateExpirationObject) {
+            $this->addFlash('error', 'Format de date invalide pour le code promo.');
+            return $this->redirectToRoute('app_admin_offres');
+        }
+
+        if (!in_array($statut, ['ACTIF', 'EXPIRE', 'DESACTIVE', 'UTILISE', 'BLOQUE_ABUS'], true)) {
+            $this->addFlash('error', 'Statut de code promo invalide.');
+            return $this->redirectToRoute('app_admin_offres');
+        }
+
+        try {
+            $connection->update('code_promo', [
+                'date_expiration' => $dateExpirationObject->format('Y-m-d'),
+                'statut' => $statut,
+            ], ['id' => $id]);
+
+            $this->addFlash('success', 'Code promo modifié avec succès.');
+        } catch (Exception $e) {
+            $this->addFlash('error', 'Erreur modification code promo: '.$e->getMessage());
+        }
+
+        return $this->redirectToRoute('app_admin_offres');
+    }
+
+    #[Route('/promo-codes/{id}/delete', name: 'app_admin_promo_codes_delete', methods: ['POST'])]
+    public function promoCodeDelete(int $id, Request $request, Connection $connection): Response
+    {
+        if (!$this->isCsrfTokenValid('admin_promo_delete_'.$id, (string) $request->request->get('_token', ''))) {
+            $this->addFlash('error', 'Jeton CSRF invalide pour la suppression du code promo.');
+            return $this->redirectToRoute('app_admin_offres');
+        }
+
+        try {
+            $connection->delete('code_promo', ['id' => $id]);
+            $this->addFlash('success', 'Code promo supprimé avec succès.');
+        } catch (Exception $e) {
+            $this->addFlash('error', 'Erreur suppression code promo: '.$e->getMessage());
+        }
+
+        return $this->redirectToRoute('app_admin_offres');
+    }
+
+    #[Route('/api/offres', name: 'app_admin_api_offres_list', methods: ['GET'])]
+    public function apiOffresList(Request $request, Connection $connection): JsonResponse
+    {
+        $query = trim((string) $request->query->get('q', ''));
+        $status = trim((string) $request->query->get('status', ''));
+        $page = max(1, (int) $request->query->get('page', 1));
+        $pageSize = min(100, max(1, (int) $request->query->get('pageSize', 10)));
+        $offset = ($page - 1) * $pageSize;
+
+        $whereParts = [];
+        $params = [];
+
+        if ($query !== '') {
+            $whereParts[] = '(LOWER(o.titre) LIKE LOWER(?) OR LOWER(o.type) LIKE LOWER(?) OR LOWER(COALESCE(o.description, \'\')) LIKE LOWER(?))';
+            $like = '%'.$query.'%';
+            $params[] = $like;
+            $params[] = $like;
+            $params[] = $like;
+        }
+
+        if ($status !== '') {
+            $aliases = $this->statusAliases($status);
+            $placeholders = implode(', ', array_fill(0, count($aliases), '?'));
+            $whereParts[] = 'LOWER(o.statut) IN ('.$placeholders.')';
+            foreach ($aliases as $alias) {
+                $params[] = $alias;
+            }
+        }
+
+        $whereSql = $whereParts !== [] ? ' WHERE '.implode(' AND ', $whereParts) : '';
+        $total = (int) $connection->fetchOne('SELECT COUNT(*) FROM offre o'.$whereSql, $params);
+
+        $rows = $this->fetchAll(
+            $connection,
+            'SELECT o.id, o.titre, o.description, o.type, o.pourcentage, o.date_debut, o.date_fin, o.statut, o.lieu_id, l.nom AS lieu_nom
+             FROM offre o
+             LEFT JOIN lieu l ON l.id = o.lieu_id'
+            .$whereSql.
+            ' ORDER BY o.id DESC LIMIT '.$pageSize.' OFFSET '.$offset,
+            $params
+        );
+
+        return $this->json([
+            'data' => array_map(fn (array $row) => $this->toOffreDto($row), $rows),
+            'meta' => [
+                'page' => $page,
+                'pageSize' => $pageSize,
+                'total' => $total,
+                'totalPages' => max(1, (int) ceil($total / $pageSize)),
+            ],
+        ]);
+    }
+
+    #[Route('/api/offres/{id}', name: 'app_admin_api_offres_detail', methods: ['GET'])]
+    public function apiOffresDetail(int $id, Connection $connection): JsonResponse
+    {
+        $row = $connection->fetchAssociative(
+            'SELECT o.id, o.titre, o.description, o.type, o.pourcentage, o.date_debut, o.date_fin, o.statut, o.lieu_id, l.nom AS lieu_nom
+             FROM offre o
+             LEFT JOIN lieu l ON l.id = o.lieu_id
+             WHERE o.id = ?',
+            [$id]
+        );
+
+        if (!$row) {
+            return $this->json(['error' => 'Offre introuvable.'], Response::HTTP_NOT_FOUND);
+        }
+
+        return $this->json(['data' => $this->toOffreDto($row)]);
+    }
+
+    #[Route('/api/offres', name: 'app_admin_api_offres_create', methods: ['POST'])]
+    public function apiOffresCreate(Request $request, Connection $connection): JsonResponse
+    {
+        $payload = json_decode((string) $request->getContent(), true);
+        if (!is_array($payload)) {
+            return $this->json(['error' => 'Payload JSON invalide.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $payload = $this->normalizeOffrePayload($payload);
+        $errors = $this->validateOffrePayload($payload, true);
+        if ($errors !== []) {
+            return $this->json(['errors' => $errors], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $userId = $this->getUser() instanceof User ? $this->getUser()->getId() : null;
+
+        try {
+            $connection->insert('offre', [
+                'user_id' => $userId,
+                'titre' => $payload['titre'],
+                'type' => $payload['type'],
+                'pourcentage' => $payload['pourcentage'],
+                'date_debut' => $payload['date_debut'],
+                'date_fin' => $payload['date_fin'],
+                'statut' => $payload['statut'],
+                'description' => $payload['description'] !== '' ? $payload['description'] : null,
+                'lieu_id' => $payload['lieu_id'],
+            ]);
+
+            $newId = (int) $connection->lastInsertId();
+        } catch (Exception $e) {
+            return $this->json(['error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        return $this->json(['id' => $newId], Response::HTTP_CREATED);
+    }
+
+    #[Route('/api/offres/{id}', name: 'app_admin_api_offres_update', methods: ['PUT', 'PATCH'])]
+    public function apiOffresUpdate(int $id, Request $request, Connection $connection): JsonResponse
+    {
+        $payload = json_decode((string) $request->getContent(), true);
+        if (!is_array($payload)) {
+            return $this->json(['error' => 'Payload JSON invalide.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $payload = $this->normalizeOffrePayload($payload);
+        $errors = $this->validateOffrePayload($payload, true);
+        if ($errors !== []) {
+            return $this->json(['errors' => $errors], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        try {
+            $affected = $connection->update('offre', [
+                'titre' => $payload['titre'],
+                'type' => $payload['type'],
+                'pourcentage' => $payload['pourcentage'],
+                'date_debut' => $payload['date_debut'],
+                'date_fin' => $payload['date_fin'],
+                'statut' => $payload['statut'],
+                'description' => $payload['description'] !== '' ? $payload['description'] : null,
+                'lieu_id' => $payload['lieu_id'],
+            ], ['id' => $id]);
+
+            if ($affected === 0) {
+                return $this->json(['error' => 'Offre introuvable ou inchangée.'], Response::HTTP_NOT_FOUND);
+            }
+        } catch (Exception $e) {
+            return $this->json(['error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        return $this->json(['status' => 'updated']);
+    }
+
+    #[Route('/api/offres/{id}', name: 'app_admin_api_offres_delete', methods: ['DELETE'])]
+    public function apiOffresDelete(int $id, Connection $connection): JsonResponse
+    {
+        try {
+            $affected = $connection->delete('offre', ['id' => $id]);
+            if ($affected === 0) {
+                return $this->json(['error' => 'Offre introuvable.'], Response::HTTP_NOT_FOUND);
+            }
+        } catch (Exception $e) {
+            return $this->json(['error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        return $this->json(['status' => 'deleted']);
     }
 
     #[Route('/evenements', name: 'app_admin_evenements')]
@@ -250,5 +860,222 @@ class AdminController extends AbstractController
         } catch (Exception) {
             return 0;
         }
+    }
+
+    private function normalizeOffrePayload(array $payload): array
+    {
+        $titre = preg_replace('/\s+/', ' ', trim((string) ($payload['titre'] ?? '')));
+        $type = preg_replace('/\s+/', ' ', trim((string) ($payload['type'] ?? '')));
+        $description = trim((string) ($payload['description'] ?? ''));
+
+        return [
+            'titre' => $titre,
+            'type' => $type,
+            'pourcentage_raw' => trim((string) ($payload['pourcentage'] ?? '')),
+            'pourcentage' => isset($payload['pourcentage']) ? (float) $payload['pourcentage'] : -1,
+            'date_debut' => trim((string) ($payload['date_debut'] ?? '')),
+            'date_fin' => trim((string) ($payload['date_fin'] ?? '')),
+            'statut' => $this->normalizeStatus(trim((string) ($payload['statut'] ?? ''))),
+            'description' => $description,
+            'lieu_id' => isset($payload['lieu_id']) ? (int) $payload['lieu_id'] : 0,
+        ];
+    }
+
+    /**
+     * @return string[]
+     */
+    private function validateOffrePayload(array $payload, bool $requireLieu): array
+    {
+        $errors = [];
+
+        if ($payload['titre'] === '') {
+            $errors[] = 'Le titre est obligatoire.';
+        } elseif (mb_strlen($payload['titre']) < 3 || mb_strlen($payload['titre']) > 120) {
+            $errors[] = 'Le titre doit contenir entre 3 et 120 caractères.';
+        }
+
+        if ($payload['type'] === '') {
+            $errors[] = 'Le type est obligatoire.';
+        } elseif (mb_strlen($payload['type']) < 2 || mb_strlen($payload['type']) > 60) {
+            $errors[] = 'Le type doit contenir entre 2 et 60 caractères.';
+        }
+
+        if ($payload['description'] !== '' && mb_strlen($payload['description']) > 1000) {
+            $errors[] = 'La description ne doit pas dépasser 1000 caractères.';
+        }
+
+        if ($payload['statut'] === '') {
+            $errors[] = 'Le statut est obligatoire.';
+        } elseif (!in_array($payload['statut'], ['ACTIVE', 'EXPIREE', 'DESACTIVEE'], true)) {
+            $errors[] = 'Le statut est invalide.';
+        }
+
+        if ($payload['pourcentage_raw'] === '' || !is_numeric($payload['pourcentage_raw'])) {
+            $errors[] = 'Le pourcentage est obligatoire et doit être un nombre.';
+        } elseif ($payload['pourcentage'] < 0 || $payload['pourcentage'] > 100) {
+            $errors[] = 'Le pourcentage doit être entre 0 et 100.';
+        } elseif (preg_match('/^-?\d+(\.\d{1,2})?$/', $payload['pourcentage_raw']) !== 1) {
+            $errors[] = 'Le pourcentage accepte au maximum 2 chiffres après la virgule.';
+        }
+
+        if ($requireLieu && $payload['lieu_id'] <= 0) {
+            $errors[] = 'Le lieu est obligatoire.';
+        }
+
+        $dateDebut = $this->parseStrictYmdDate($payload['date_debut']);
+        $dateFin = $this->parseStrictYmdDate($payload['date_fin']);
+
+        if (!$dateDebut || !$dateFin) {
+            $errors[] = 'Les dates début/fin sont obligatoires et doivent être au format YYYY-MM-DD.';
+        } elseif ($dateDebut > $dateFin) {
+            $errors[] = 'La date de début doit être inférieure ou égale à la date de fin.';
+        }
+
+        return $errors;
+    }
+
+    private function parseStrictYmdDate(string $date): ?\DateTimeImmutable
+    {
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            return null;
+        }
+
+        $parsed = \DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+        if (!$parsed) {
+            return null;
+        }
+
+        return $parsed->format('Y-m-d') === $date ? $parsed : null;
+    }
+
+    private function normalizeStatus(string $status): string
+    {
+        return match (strtolower(trim($status))) {
+            'actif', 'active' => 'ACTIVE',
+            'expiree', 'expire', 'expired' => 'EXPIREE',
+            'desactivee', 'desactive', 'inactif', 'inactive', 'brouillon', 'draft' => 'DESACTIVEE',
+            default => strtoupper(trim($status)),
+        };
+    }
+
+    private function normalizePromoStatus(string $status): string
+    {
+        return match (strtolower(trim($status))) {
+            'actif', 'active' => 'ACTIF',
+            'expire', 'expiré', 'expiree', 'expired' => 'EXPIRE',
+            'desactive', 'désactivé', 'desactivee', 'inactive', 'inactif', 'disabled' => 'DESACTIVE',
+            'utilise', 'utilisé', 'used' => 'UTILISE',
+            'bloque_abus', 'bloqué_abus', 'blocked_abuse' => 'BLOQUE_ABUS',
+            default => strtoupper(trim($status)),
+        };
+    }
+
+    private function normalizeSortDirection(string $direction): string
+    {
+        return strtolower(trim($direction)) === 'desc' ? 'desc' : 'asc';
+    }
+
+    private function offerSortSql(string $sort, string $direction): string
+    {
+        $column = match ($sort) {
+            'id' => 'o.id',
+            'titre' => 'o.titre',
+            'type' => 'o.type',
+            'pourcentage' => 'o.pourcentage',
+            'date_debut' => 'o.date_debut',
+            'date_fin' => 'o.date_fin',
+            'statut' => 'o.statut',
+            'lieu' => 'l.nom',
+            default => 'o.date_fin',
+        };
+
+        return $column.' '.strtoupper($direction);
+    }
+
+    private function promoSortSql(string $sort, string $direction): string
+    {
+        $column = match ($sort) {
+            'id' => 'cp.id',
+            'offre' => 'o.titre',
+            'user' => 'u.prenom',
+            'date_generation' => 'cp.date_generation',
+            'date_expiration' => 'cp.date_expiration',
+            'statut' => 'cp.statut',
+            default => 'cp.id',
+        };
+
+        return $column.' '.strtoupper($direction);
+    }
+
+    /**
+     * @return string[]
+     */
+    private function statusAliases(string $status): array
+    {
+        return match ($this->normalizeStatus($status)) {
+            'ACTIVE' => ['active', 'actif'],
+            'EXPIREE' => ['expiree', 'expire', 'expired'],
+            'DESACTIVEE' => ['desactivee', 'desactive', 'inactive', 'inactif', 'draft', 'brouillon'],
+            default => [strtolower(trim($status))],
+        };
+    }
+
+    private function toOffreDto(array $row): array
+    {
+        return [
+            'id' => (int) ($row['id'] ?? 0),
+            'titre' => (string) ($row['titre'] ?? ''),
+            'type' => (string) ($row['type'] ?? ''),
+            'pourcentage' => isset($row['pourcentage']) ? (float) $row['pourcentage'] : 0.0,
+            'dateDebut' => isset($row['date_debut']) ? (string) $row['date_debut'] : null,
+            'dateFin' => isset($row['date_fin']) ? (string) $row['date_fin'] : null,
+            'statut' => (string) ($row['statut'] ?? ''),
+            'description' => isset($row['description']) ? (string) $row['description'] : null,
+            'lieu' => [
+                'id' => isset($row['lieu_id']) ? (int) $row['lieu_id'] : null,
+                'nom' => $row['lieu_nom'] ?? null,
+            ],
+            'createdAt' => null,
+        ];
+    }
+
+    private function createInAppNotification(
+        Connection $connection,
+        int $receiverId,
+        ?int $senderId,
+        string $type,
+        string $title,
+        string $body,
+        string $entityType,
+        int $entityId,
+        array $metadata = [],
+        int $dedupHours = 24
+    ): void {
+        $alreadyExists = (int) $connection->fetchOne(
+            'SELECT COUNT(*) FROM notifications
+             WHERE receiver_id = ?
+               AND type = ?
+               AND entity_type = ?
+               AND entity_id = ?
+               AND created_at >= DATE_SUB(NOW(), INTERVAL '.$dedupHours.' HOUR)',
+            [$receiverId, $type, $entityType, $entityId]
+        );
+
+        if ($alreadyExists > 0) {
+            return;
+        }
+
+        $connection->insert('notifications', [
+            'receiver_id' => $receiverId,
+            'sender_id' => $senderId,
+            'type' => $type,
+            'title' => $title,
+            'body' => $body,
+            'entity_type' => $entityType,
+            'entity_id' => $entityId,
+            'created_at' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
+            'read_at' => null,
+            'metadata_json' => $metadata !== [] ? json_encode($metadata, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null,
+        ]);
     }
 }

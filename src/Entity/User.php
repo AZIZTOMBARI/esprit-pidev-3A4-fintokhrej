@@ -124,12 +124,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $role = strtolower((string) $this->role);
 
         return match ($role) {
-            'admin' => ['ROLE_ADMIN', 'ROLE_USER'],
-            'abonne' => ['ROLE_ABONNE', 'ROLE_USER'],
-            'visiteur' => ['ROLE_VISITEUR', 'ROLE_USER'],
-            'role_admin' => ['ROLE_ADMIN', 'ROLE_USER'],
-            'role_abonne' => ['ROLE_ABONNE', 'ROLE_USER'],
-            'role_visiteur' => ['ROLE_VISITEUR', 'ROLE_USER'],
+            'admin' => ['ROLE_ADMIN'],
+            'abonne' => ['ROLE_ABONNE'],
+            'visiteur' => ['ROLE_VISITEUR'],
+            'role_admin' => ['ROLE_ADMIN'],
+            'role_abonne' => ['ROLE_ABONNE'],
+            'role_visiteur' => ['ROLE_VISITEUR'],
             default => ['ROLE_USER'],
         };
     }

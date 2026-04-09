@@ -2,6 +2,54 @@
 
 {% block title %}Accueil | Fin Tokhroj{% endblock %}
 
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .home-offer-card {
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .home-offer-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+        }
+
+        .home-offer-card--urgent {
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            background: linear-gradient(135deg, rgba(254, 242, 242, 0.92), #fff);
+        }
+
+        .home-offer-ribbon {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 10px;
+            border-radius: 999px;
+            padding: 6px 10px;
+            background: #fee2e2;
+            color: #991b1b;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .home-offer-countdown {
+            margin-top: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border-radius: 999px;
+            padding: 6px 10px;
+            background: rgba(255, 255, 255, 0.85);
+            color: #991b1b;
+            border: 1px dashed rgba(239, 68, 68, 0.35);
+            font-size: 12px;
+            font-weight: 800;
+        }
+    </style>
+{% endblock %}
+
 {% block front_content %}
     <section class="hero app-card">
         <div class="hero__grid">
@@ -114,14 +162,25 @@
                     </article>
                 {% endfor %}
                 {% for offre in offres|slice(0, 2) %}
-                    <article class="info-card">
+                    {% set displayPercentage = offre.expiring_soon is defined and offre.expiring_soon ? offre.pourcentage * 2 : offre.pourcentage %}
+                    <article class="info-card home-offer-card {{ offre.expiring_soon is defined and offre.expiring_soon ? 'home-offer-card--urgent' : '' }}">
                         <span class="badge-soft badge-gold">{{ offre.type }}</span>
                         <h3>{{ offre.titre }}</h3>
                         <p>{{ offre.lieu_nom ?: 'Lieu non défini' }} · {{ offre.ville ?: 'Tunisie' }}</p>
                         <div class="meta-row">
-                            <span>🏷 {{ offre.pourcentage }}%</span>
+                            <span>
+                                🏷
+                                {% if offre.expiring_soon is defined and offre.expiring_soon %}
+                                    <span style="text-decoration:line-through; color:#94a3b8; margin-right:6px; font-weight:700;">{{ offre.pourcentage }}%</span>
+                                {% endif %}
+                                <span style="font-weight:800; color:{{ offre.expiring_soon is defined and offre.expiring_soon ? '#b91c1c' : 'inherit' }};">{{ displayPercentage }}%</span>
+                            </span>
                             <span>⏳ Jusqu'au {{ offre.date_fin|date('d/m/Y') }}</span>
                         </div>
+                        {% if offre.expiring_soon is defined and offre.expiring_soon %}
+                            <div class="home-offer-ribbon">Expire bientôt · remise doublée</div>
+                            <div class="home-offer-countdown" data-offer-countdown="{{ offre.countdown_target ?? (offre.date_fin|date('Y-m-d') ~ 'T23:59:59') }}">{{ offre.countdown_label ?? 'Expire dans ...' }}</div>
+                        {% endif %}
                     </article>
                 {% else %}
                     <div class="empty-state">Aucune offre disponible.</div>

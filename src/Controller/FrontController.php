@@ -3,12 +3,12 @@
 namespace App\Controller;
 
 use App\Entity\User;
+use App\Service\OffreManager;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\RedirectResponse;
-use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
 
 class FrontController extends AbstractController
@@ -16,6 +16,19 @@ class FrontController extends AbstractController
     #[Route('/home', name: 'app_home')]
     public function home(Connection $connection): Response
     {
+        $notificationData = $this->getNotificationData($connection);
+        $homeOffers = $this->enrichOffersCountdown($this->fetchAll($connection, "
+            SELECT o.id, o.titre, o.type, o.pourcentage, o.date_fin, l.nom AS lieu_nom, l.ville,
+                   CASE
+                       WHEN TIMESTAMPDIFF(HOUR, NOW(), CONCAT(o.date_fin, ' 23:59:59')) BETWEEN 0 AND 24 THEN 1
+                       ELSE 0
+                   END AS expiring_soon
+            FROM offre o
+            LEFT JOIN lieu l ON l.id = o.lieu_id
+            ORDER BY o.date_fin ASC
+            LIMIT 6
+        "));
+
         return $this->render('front/home/index.html.twig', [
             'active' => 'home',
             'stats' => $this->getFrontStats($connection),
@@ -38,13 +51,7 @@ class FrontController extends AbstractController
                 ORDER BY date_sortie ASC
                 LIMIT 6
             "),
-            'offres' => $this->fetchAll($connection, "
-                SELECT o.id, o.titre, o.type, o.pourcentage, o.date_fin, l.nom AS lieu_nom, l.ville
-                FROM offre o
-                LEFT JOIN lieu l ON l.id = o.lieu_id
-                ORDER BY o.date_fin ASC
-                LIMIT 6
-            "),
+            'offres' => $homeOffers,
             'events' => $this->fetchAll($connection, "
                 SELECT e.id, e.titre, e.type, e.date_debut, e.prix, l.nom AS lieu_nom, l.ville
                 FROM evenement e
@@ -58,6 +65,7 @@ class FrontController extends AbstractController
                 ORDER BY id ASC
                 LIMIT 1
             "),
+            'notificationData' => $notificationData,
         ]);
     }
 
@@ -71,264 +79,8 @@ class FrontController extends AbstractController
                 FROM lieu
                 ORDER BY ville ASC, nom ASC
             "),
+            'notificationData' => $this->getNotificationData($connection),
         ]);
-    }
-
-    #[Route('/lieux/{id}', name: 'app_lieu_show', requirements: ['id' => '\\d+'], methods: ['GET'])]
-    public function lieuShow(int $id, Connection $connection): Response
-    {
-        $lieu = $this->fetchOne(
-            $connection,
-            "
-                SELECT id, id_offre, nom, ville, adresse, telephone, site_web, instagram, description,
-                       budget_min, budget_max, categorie, type, latitude, longitude, image_url
-                FROM lieu
-                WHERE id = ?
-                LIMIT 1
-            ",
-            [$id]
-        );
-
-        if ($lieu === null) {
-            throw $this->createNotFoundException('Lieu introuvable.');
-        }
-
-        $images = $this->fetchAll(
-            $connection,
-            "
-                SELECT image_url, ordre
-                FROM lieu_image
-                WHERE lieu_id = ?
-                ORDER BY ordre ASC, id ASC
-            ",
-            [$id]
-        );
-
-        $galleryImages = [];
-        if (!empty($lieu['image_url'])) {
-            $galleryImages[] = (string) $lieu['image_url'];
-        }
-        foreach ($images as $image) {
-            $value = trim((string) ($image['image_url'] ?? ''));
-            if ($value !== '') {
-                $galleryImages[] = $value;
-            }
-        }
-        $galleryImages = array_values(array_unique($galleryImages));
-
-        $horaires = $this->fetchAll(
-            $connection,
-            "
-                SELECT jour, ouvert, heure_ouverture_1, heure_fermeture_1, heure_ouverture_2, heure_fermeture_2
-                FROM lieu_horaire
-                WHERE lieu_id = ?
-                ORDER BY FIELD(jour, 'LUNDI','MARDI','MERCREDI','JEUDI','VENDREDI','SAMEDI','DIMANCHE'), id ASC
-            ",
-            [$id]
-        );
-
-        $offres = $this->fetchAll(
-            $connection,
-            "
-                SELECT id, titre, type, pourcentage, date_fin, statut
-                FROM offre
-                WHERE lieu_id = ?
-                ORDER BY date_fin ASC
-            ",
-            [$id]
-        );
-
-        if (empty($offres) && !empty($lieu['id_offre'] ?? null)) {
-            $offres = $this->fetchAll(
-                $connection,
-                "
-                    SELECT id, titre, type, pourcentage, date_fin, statut
-                    FROM offre
-                    WHERE id = ?
-                    ORDER BY date_fin ASC
-                ",
-                [(int) $lieu['id_offre']]
-            );
-        }
-
-        $evaluations = $this->fetchAll(
-            $connection,
-            "
-                SELECT e.id, e.user_id, e.note, e.commentaire, e.date_evaluation, e.updated_at,
-                       u.prenom, u.nom
-                FROM evaluation_lieu e
-                LEFT JOIN user u ON u.id = e.user_id
-                WHERE e.lieu_id = ?
-                ORDER BY COALESCE(e.updated_at, e.date_evaluation) DESC, e.id DESC
-            ",
-            [$id]
-        );
-
-        $stats = $this->fetchOne(
-            $connection,
-            "
-                SELECT COUNT(*) AS total, ROUND(AVG(note), 2) AS moyenne
-                FROM evaluation_lieu
-                WHERE lieu_id = ?
-            ",
-            [$id]
-        ) ?? ['total' => 0, 'moyenne' => null];
-
-        $currentUserEvaluation = null;
-        $currentUser = $this->getUser();
-        if ($currentUser instanceof User) {
-            $currentUserEvaluation = $this->fetchOne(
-                $connection,
-                "
-                    SELECT id, note, commentaire, date_evaluation, updated_at
-                    FROM evaluation_lieu
-                    WHERE lieu_id = ? AND user_id = ?
-                    LIMIT 1
-                ",
-                [$id, $currentUser->getId()]
-            );
-        }
-
-        return $this->render('front/lieu/show.html.twig', [
-            'active' => 'lieux',
-            'lieu' => $lieu,
-            'images' => $images,
-            'galleryImages' => $galleryImages,
-            'horaires' => $horaires,
-            'offres' => $offres,
-            'evaluations' => $evaluations,
-            'evaluationStats' => $stats,
-            'currentUserEvaluation' => $currentUserEvaluation,
-        ]);
-    }
-
-    #[Route('/lieux/{id}/evaluations', name: 'app_lieu_evaluation_create', requirements: ['id' => '\\d+'], methods: ['POST'])]
-    public function lieuEvaluationCreate(int $id, Request $request, Connection $connection): RedirectResponse
-    {
-        $user = $this->requireFrontUser();
-        if (!$user instanceof User) {
-            return $this->redirectToRoute('app_login');
-        }
-
-        if (!$this->isCsrfTokenValid('front_eval_create_'.$id, (string) $request->request->get('_token', ''))) {
-            $this->addFlash('error', 'Jeton CSRF invalide.');
-            return $this->redirectToRoute('app_lieu_show', ['id' => $id]);
-        }
-
-        [$note, $commentaire, $errors] = $this->validateEvaluationPayload($request);
-        if ($errors !== []) {
-            foreach ($errors as $error) {
-                $this->addFlash('error', $error);
-            }
-            return $this->redirectToRoute('app_lieu_show', ['id' => $id]);
-        }
-
-        try {
-            $exists = (int) $connection->fetchOne(
-                'SELECT COUNT(*) FROM evaluation_lieu WHERE lieu_id = ? AND user_id = ?',
-                [$id, $user->getId()]
-            );
-
-            if ($exists > 0) {
-                $this->addFlash('error', 'Vous avez déjà publié un avis pour ce lieu. Modifiez-le au lieu d\'en créer un nouveau.');
-                return $this->redirectToRoute('app_lieu_show', ['id' => $id]);
-            }
-
-            $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
-            $connection->insert('evaluation_lieu', [
-                'lieu_id' => $id,
-                'user_id' => $user->getId(),
-                'note' => $note,
-                'commentaire' => $commentaire,
-                'date_evaluation' => $now,
-                'updated_at' => $now,
-            ]);
-
-            $this->addFlash('success', 'Votre avis a été ajouté.');
-        } catch (Exception $e) {
-            $this->addFlash('error', 'Erreur lors de l\'ajout de l\'avis : '.$e->getMessage());
-        }
-
-        return $this->redirectToRoute('app_lieu_show', ['id' => $id]);
-    }
-
-    #[Route('/lieux/{id}/evaluations/{evaluationId}/update', name: 'app_lieu_evaluation_update', requirements: ['id' => '\\d+', 'evaluationId' => '\\d+'], methods: ['POST'])]
-    public function lieuEvaluationUpdate(int $id, int $evaluationId, Request $request, Connection $connection): RedirectResponse
-    {
-        $user = $this->requireFrontUser();
-        if (!$user instanceof User) {
-            return $this->redirectToRoute('app_login');
-        }
-
-        if (!$this->isCsrfTokenValid('front_eval_update_'.$evaluationId, (string) $request->request->get('_token', ''))) {
-            $this->addFlash('error', 'Jeton CSRF invalide.');
-            return $this->redirectToRoute('app_lieu_show', ['id' => $id]);
-        }
-
-        [$note, $commentaire, $errors] = $this->validateEvaluationPayload($request);
-        if ($errors !== []) {
-            foreach ($errors as $error) {
-                $this->addFlash('error', $error);
-            }
-            return $this->redirectToRoute('app_lieu_show', ['id' => $id]);
-        }
-
-        try {
-            $owner = $this->fetchOne(
-                $connection,
-                'SELECT id FROM evaluation_lieu WHERE id = ? AND lieu_id = ? AND user_id = ? LIMIT 1',
-                [$evaluationId, $id, $user->getId()]
-            );
-
-            if ($owner === null) {
-                $this->addFlash('error', 'Modification non autorisée pour cet avis.');
-                return $this->redirectToRoute('app_lieu_show', ['id' => $id]);
-            }
-
-            $connection->update('evaluation_lieu', [
-                'note' => $note,
-                'commentaire' => $commentaire,
-                'updated_at' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
-            ], ['id' => $evaluationId]);
-
-            $this->addFlash('success', 'Votre avis a été modifié.');
-        } catch (Exception $e) {
-            $this->addFlash('error', 'Erreur lors de la modification : '.$e->getMessage());
-        }
-
-        return $this->redirectToRoute('app_lieu_show', ['id' => $id]);
-    }
-
-    #[Route('/lieux/{id}/evaluations/{evaluationId}/delete', name: 'app_lieu_evaluation_delete', requirements: ['id' => '\\d+', 'evaluationId' => '\\d+'], methods: ['POST'])]
-    public function lieuEvaluationDelete(int $id, int $evaluationId, Request $request, Connection $connection): RedirectResponse
-    {
-        $user = $this->requireFrontUser();
-        if (!$user instanceof User) {
-            return $this->redirectToRoute('app_login');
-        }
-
-        if (!$this->isCsrfTokenValid('front_eval_delete_'.$evaluationId, (string) $request->request->get('_token', ''))) {
-            $this->addFlash('error', 'Jeton CSRF invalide.');
-            return $this->redirectToRoute('app_lieu_show', ['id' => $id]);
-        }
-
-        try {
-            $deleted = $connection->delete('evaluation_lieu', [
-                'id' => $evaluationId,
-                'lieu_id' => $id,
-                'user_id' => $user->getId(),
-            ]);
-
-            if ($deleted === 0) {
-                $this->addFlash('error', 'Suppression non autorisée pour cet avis.');
-            } else {
-                $this->addFlash('success', 'Votre avis a été supprimé.');
-            }
-        } catch (Exception $e) {
-            $this->addFlash('error', 'Erreur lors de la suppression : '.$e->getMessage());
-        }
-
-        return $this->redirectToRoute('app_lieu_show', ['id' => $id]);
     }
 
     #[Route('/sorties', name: 'app_sorties')]
@@ -343,22 +95,395 @@ class FrontController extends AbstractController
                 LEFT JOIN user u ON u.id = s.user_id
                 ORDER BY s.date_sortie ASC
             "),
+            'notificationData' => $this->getNotificationData($connection),
         ]);
     }
 
     #[Route('/offres', name: 'app_offres')]
-    public function offres(Connection $connection): Response
+    public function offres(Request $request, Connection $connection, OffreManager $offreManager): Response
     {
+        $lieuId = (int) $request->query->get('lieu', 0);
+        $offres = $this->enrichOffersCountdown($offreManager->findActiveByLieu($lieuId > 0 ? $lieuId : null));
+
         return $this->render('front/offre/index.html.twig', [
             'active' => 'offres',
-            'offres' => $this->fetchAll($connection, "
-                SELECT o.id, o.titre, o.description, o.type, o.pourcentage, o.date_debut, o.date_fin, o.statut,
-                       l.nom AS lieu_nom, l.ville
-                FROM offre o
-                LEFT JOIN lieu l ON l.id = o.lieu_id
-                ORDER BY o.date_fin ASC
-            "),
+            'offres' => $offres,
+            'lieux' => $this->fetchAll($connection, 'SELECT id, nom FROM lieu ORDER BY nom ASC'),
+            'selectedLieu' => $lieuId,
+            'notificationData' => $this->getNotificationData($connection),
         ]);
+    }
+
+    #[Route('/offres/{id}', name: 'app_offres_show', methods: ['GET'])]
+    public function offreShow(int $id, Connection $connection): Response
+    {
+        $offre = $connection->fetchAssociative(
+            "SELECT o.id, o.titre, o.description, o.type, o.pourcentage, o.date_debut, o.date_fin, o.statut, o.lieu_id,
+                    l.nom AS lieu_nom, l.ville,
+                    CASE
+                        WHEN TIMESTAMPDIFF(HOUR, NOW(), CONCAT(o.date_fin, ' 23:59:59')) BETWEEN 0 AND 24 THEN 1
+                        ELSE 0
+                    END AS expiring_soon
+             FROM offre o
+             LEFT JOIN lieu l ON l.id = o.lieu_id
+             WHERE o.id = ?",
+            [$id]
+        );
+
+        if (!$offre) {
+            throw $this->createNotFoundException('Offre introuvable.');
+        }
+
+        $offre = $this->enrichOfferCountdown($offre);
+
+        $currentUser = $this->getUser();
+        $userPromoCodes = [];
+        if ($currentUser instanceof User) {
+            $userPromoCodes = $connection->fetchAllAssociative(
+                'SELECT id, qr_image_url, date_generation, date_expiration, statut
+                 FROM code_promo
+                 WHERE offre_id = ? AND user_id = ?
+                 ORDER BY id DESC',
+                [$id, $currentUser->getId()]
+            );
+        }
+
+        $userReservations = [];
+        if ($currentUser instanceof User) {
+            $userReservations = $connection->fetchAllAssociative(
+                "SELECT id, date_reservation, nombre_personnes, statut, note, created_at
+                 FROM reservation_offre
+                 WHERE offre_id = ? AND user_id = ?
+                 ORDER BY id DESC",
+                [$id, $currentUser->getId()]
+            );
+        }
+
+        return $this->render('front/offre/show.html.twig', [
+            'active' => 'offres',
+            'offre' => $offre,
+            'userPromoCodes' => $userPromoCodes,
+            'userReservations' => $userReservations,
+            'notificationData' => $this->getNotificationData($connection),
+        ]);
+    }
+
+    #[Route('/notifications/{id}/read', name: 'app_notifications_read', methods: ['POST'])]
+    public function markNotificationRead(int $id, Request $request, Connection $connection): Response
+    {
+        $user = $this->getUser();
+        if ($user instanceof User) {
+            if ($this->isCsrfTokenValid('notification_read_'.$id, (string) $request->request->get('_token', ''))) {
+                $connection->executeStatement(
+                    'UPDATE notifications SET read_at = NOW() WHERE id = ? AND receiver_id = ? AND read_at IS NULL',
+                    [$id, (int) $user->getId()]
+                );
+            }
+        }
+
+        return $this->redirect($request->headers->get('referer') ?: $this->generateUrl('app_home'));
+    }
+
+    #[Route('/notifications/read-all', name: 'app_notifications_read_all', methods: ['POST'])]
+    public function markAllNotificationsRead(Request $request, Connection $connection): Response
+    {
+        $user = $this->getUser();
+        if ($user instanceof User) {
+            if ($this->isCsrfTokenValid('notifications_read_all', (string) $request->request->get('_token', ''))) {
+                $connection->executeStatement(
+                    'UPDATE notifications SET read_at = NOW() WHERE receiver_id = ? AND read_at IS NULL',
+                    [(int) $user->getId()]
+                );
+            }
+        }
+
+        return $this->redirect($request->headers->get('referer') ?: $this->generateUrl('app_home'));
+    }
+
+    #[Route('/offres/{id}/reserve', name: 'app_offres_reserve', methods: ['POST'])]
+    public function reserveOffre(int $id, Request $request, Connection $connection): Response
+    {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            $this->addFlash('error', 'Veuillez vous connecter pour réserver une offre.');
+            return $this->redirectToRoute('app_login');
+        }
+
+        if (!$this->isCsrfTokenValid('reserve_offre_'.$id, (string) $request->request->get('_token', ''))) {
+            $this->addFlash('error', 'Jeton CSRF invalide.');
+            return $this->redirectToRoute('app_offres_show', ['id' => $id]);
+        }
+
+        $offre = $connection->fetchAssociative('SELECT id, statut, date_fin, lieu_id FROM offre WHERE id = ?', [$id]);
+        if (!$offre) {
+            throw $this->createNotFoundException('Offre introuvable.');
+        }
+
+        $offreStatus = strtolower(trim((string) ($offre['statut'] ?? '')));
+        if (!in_array($offreStatus, ['active', 'actif', ''], true)) {
+            $this->addFlash('error', 'Cette offre n\'est pas disponible à la réservation.');
+            return $this->redirectToRoute('app_offres_show', ['id' => $id]);
+        }
+
+        if (!empty($offre['date_fin']) && new \DateTimeImmutable((string) $offre['date_fin']) < new \DateTimeImmutable('today')) {
+            $this->addFlash('error', 'Cette offre est expirée.');
+            return $this->redirectToRoute('app_offres_show', ['id' => $id]);
+        }
+
+        $nombrePersonnes = (int) $request->request->get('nombre_personnes', 1);
+        $note = trim((string) $request->request->get('note', ''));
+
+        if ($nombrePersonnes < 1 || $nombrePersonnes > 20) {
+            $this->addFlash('error', 'Le nombre de personnes doit être entre 1 et 20.');
+            return $this->redirectToRoute('app_offres_show', ['id' => $id]);
+        }
+
+        if (mb_strlen($note) > 300) {
+            $this->addFlash('error', 'La note ne doit pas dépasser 300 caractères.');
+            return $this->redirectToRoute('app_offres_show', ['id' => $id]);
+        }
+
+        $existingReservation = (int) $connection->fetchOne(
+            "SELECT COUNT(*) FROM reservation_offre
+             WHERE user_id = ? AND offre_id = ? AND statut IN ('EN_ATTENTE', 'CONFIRMÉE')",
+            [(int) $user->getId(), $id]
+        );
+
+        if ($existingReservation > 0) {
+            $this->addFlash('error', 'Vous avez déjà une réservation en cours ou confirmée pour cette offre.');
+            return $this->redirectToRoute('app_offres_show', ['id' => $id]);
+        }
+
+        $cooldownAttempts = (int) $connection->fetchOne(
+            "SELECT COUNT(*) FROM reservation_offre
+             WHERE user_id = ? AND offre_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)",
+            [(int) $user->getId(), $id]
+        );
+
+        if ($cooldownAttempts > 0) {
+            $this->addFlash('error', 'Merci de patienter quelques minutes avant d’envoyer une nouvelle demande.');
+            return $this->redirectToRoute('app_offres_show', ['id' => $id]);
+        }
+
+        try {
+            $connection->insert('reservation_offre', [
+                'user_id' => (int) $user->getId(),
+                'offre_id' => $id,
+                'lieu_id' => (int) ($offre['lieu_id'] ?? 0),
+                'date_reservation' => (new \DateTimeImmutable('today'))->format('Y-m-d'),
+                'nombre_personnes' => $nombrePersonnes,
+                'statut' => 'EN_ATTENTE',
+                'note' => $note !== '' ? $note : null,
+                'created_at' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
+            ]);
+
+            $this->addFlash('success', 'Réservation envoyée. Elle sera confirmée par l\'administrateur.');
+        } catch (\Throwable $e) {
+            $this->addFlash('error', 'Erreur réservation: '.$e->getMessage());
+        }
+
+        return $this->redirectToRoute('app_offres_show', ['id' => $id]);
+    }
+
+    #[Route('/offres/{offreId}/reservation/{reservationId}/update', name: 'app_offres_reservation_update', methods: ['POST'])]
+    public function updateReservation(int $offreId, int $reservationId, Request $request, Connection $connection): Response
+    {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            $this->addFlash('error', 'Veuillez vous connecter pour modifier une réservation.');
+            return $this->redirectToRoute('app_login');
+        }
+
+        if (!$this->isCsrfTokenValid('update_reservation_'.$reservationId, (string) $request->request->get('_token', ''))) {
+            $this->addFlash('error', 'Jeton CSRF invalide.');
+            return $this->redirectToRoute('app_offres_show', ['id' => $offreId]);
+        }
+
+        $reservation = $connection->fetchAssociative(
+            'SELECT id, statut FROM reservation_offre WHERE id = ? AND offre_id = ? AND user_id = ?',
+            [$reservationId, $offreId, (int) $user->getId()]
+        );
+
+        if (!$reservation) {
+            $this->addFlash('error', 'Réservation introuvable.');
+            return $this->redirectToRoute('app_offres_show', ['id' => $offreId]);
+        }
+
+        if ((string) $reservation['statut'] !== 'EN_ATTENTE') {
+            $this->addFlash('error', 'Seules les réservations en attente peuvent être modifiées.');
+            return $this->redirectToRoute('app_offres_show', ['id' => $offreId]);
+        }
+
+        $nombrePersonnes = (int) $request->request->get('nombre_personnes', 1);
+        $note = trim((string) $request->request->get('note', ''));
+
+        if ($nombrePersonnes < 1 || $nombrePersonnes > 20) {
+            $this->addFlash('error', 'Le nombre de personnes doit être entre 1 et 20.');
+            return $this->redirectToRoute('app_offres_show', ['id' => $offreId]);
+        }
+
+        if (mb_strlen($note) > 300) {
+            $this->addFlash('error', 'La note ne doit pas dépasser 300 caractères.');
+            return $this->redirectToRoute('app_offres_show', ['id' => $offreId]);
+        }
+
+        try {
+            $connection->update('reservation_offre', [
+                'nombre_personnes' => $nombrePersonnes,
+                'note' => $note !== '' ? $note : null,
+                'created_at' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
+            ], ['id' => $reservationId]);
+
+            $this->addFlash('success', 'Réservation mise à jour avec succès.');
+        } catch (\Throwable $e) {
+            $this->addFlash('error', 'Erreur modification réservation: '.$e->getMessage());
+        }
+
+        return $this->redirectToRoute('app_offres_show', ['id' => $offreId]);
+    }
+
+    #[Route('/offres/{offreId}/reservation/{reservationId}/cancel', name: 'app_offres_reservation_cancel', methods: ['POST'])]
+    public function cancelReservation(int $offreId, int $reservationId, Request $request, Connection $connection): Response
+    {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            $this->addFlash('error', 'Veuillez vous connecter pour annuler une réservation.');
+            return $this->redirectToRoute('app_login');
+        }
+
+        if (!$this->isCsrfTokenValid('cancel_reservation_'.$reservationId, (string) $request->request->get('_token', ''))) {
+            $this->addFlash('error', 'Jeton CSRF invalide.');
+            return $this->redirectToRoute('app_offres_show', ['id' => $offreId]);
+        }
+
+        $reservation = $connection->fetchAssociative(
+            'SELECT id, statut FROM reservation_offre WHERE id = ? AND offre_id = ? AND user_id = ?',
+            [$reservationId, $offreId, (int) $user->getId()]
+        );
+
+        if (!$reservation) {
+            $this->addFlash('error', 'Réservation introuvable.');
+            return $this->redirectToRoute('app_offres_show', ['id' => $offreId]);
+        }
+
+        if ((string) $reservation['statut'] !== 'EN_ATTENTE') {
+            $this->addFlash('error', 'Seules les réservations en attente peuvent être annulées.');
+            return $this->redirectToRoute('app_offres_show', ['id' => $offreId]);
+        }
+
+        try {
+            $connection->update('reservation_offre', ['statut' => 'ANNULEE'], ['id' => $reservationId]);
+            $this->addFlash('success', 'Réservation annulée.');
+        } catch (\Throwable $e) {
+            $this->addFlash('error', 'Erreur annulation réservation: '.$e->getMessage());
+        }
+
+        return $this->redirectToRoute('app_offres_show', ['id' => $offreId]);
+    }
+
+    #[Route('/offres/{id}/generate-code', name: 'app_offres_generate_code', methods: ['POST'])]
+    public function generateCodePromo(int $id, Request $request, Connection $connection): Response
+    {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            $this->addFlash('error', 'Veuillez vous connecter pour générer un code promo.');
+            return $this->redirectToRoute('app_login');
+        }
+
+        if (!$this->isCsrfTokenValid('generate_promo_'.$id, (string) $request->request->get('_token', ''))) {
+            $this->addFlash('error', 'Jeton CSRF invalide.');
+            return $this->redirectToRoute('app_offres_show', ['id' => $id]);
+        }
+
+        $offre = $connection->fetchAssociative('SELECT id, date_fin FROM offre WHERE id = ?', [$id]);
+        if (!$offre) {
+            throw $this->createNotFoundException('Offre introuvable.');
+        }
+
+        $today = new \DateTimeImmutable('today');
+        $expiration = isset($offre['date_fin']) ? new \DateTimeImmutable((string) $offre['date_fin']) : $today->modify('+7 days');
+        if ($expiration < $today) {
+            $expiration = $today->modify('+7 days');
+        }
+
+        $activeCount = (int) $connection->fetchOne(
+            "SELECT COUNT(*) FROM code_promo
+             WHERE offre_id = ? AND user_id = ? AND statut = 'ACTIF'",
+            [$id, (int) $user->getId()]
+        );
+
+        if ($activeCount > 0) {
+            $blockedPromoId = $this->createPromoRecord($connection, $id, (int) $user->getId(), 'BLOQUE_ABUS', $today, $today);
+            $blockedPromoNumber = $this->formatPromoNumber($blockedPromoId);
+            $connection->update(
+                'code_promo',
+                ['qr_image_url' => $this->buildQrImageUrl($blockedPromoNumber)],
+                ['id' => $blockedPromoId]
+            );
+            $this->addFlash('error', 'Vous avez déjà un code promo actif pour cette offre. Cette tentative a été bloquée.');
+            return $this->redirectToRoute('app_offres_show', ['id' => $id]);
+        }
+
+        try {
+            $promoId = $this->createPromoRecord($connection, $id, (int) $user->getId(), 'ACTIF', $today, $expiration);
+            $promoNumber = $this->formatPromoNumber($promoId);
+            $qrImageUrl = $this->buildQrImageUrl($promoNumber);
+            $connection->update('code_promo', ['qr_image_url' => $qrImageUrl], ['id' => $promoId]);
+
+            $this->addFlash('success', 'Code promo généré avec succès: '.$promoNumber);
+        } catch (\Throwable $e) {
+            $this->addFlash('error', 'Erreur génération code promo: '.$e->getMessage());
+        }
+
+        return $this->redirectToRoute('app_offres_show', ['id' => $id]);
+    }
+
+    #[Route('/offres/{offreId}/promo/{promoId}/use', name: 'app_offres_use_code', methods: ['POST'])]
+    public function useCodePromo(int $offreId, int $promoId, Request $request, Connection $connection): Response
+    {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            $this->addFlash('error', 'Veuillez vous connecter pour utiliser un code promo.');
+            return $this->redirectToRoute('app_login');
+        }
+
+        if (!$this->isCsrfTokenValid('use_promo_'.$promoId, (string) $request->request->get('_token', ''))) {
+            $this->addFlash('error', 'Jeton CSRF invalide.');
+            return $this->redirectToRoute('app_offres_show', ['id' => $offreId]);
+        }
+
+        $promo = $connection->fetchAssociative(
+            'SELECT id, date_expiration, statut
+             FROM code_promo
+             WHERE id = ? AND offre_id = ? AND user_id = ?',
+            [$promoId, $offreId, (int) $user->getId()]
+        );
+
+        if (!$promo) {
+            $this->addFlash('error', 'Code promo introuvable.');
+            return $this->redirectToRoute('app_offres_show', ['id' => $offreId]);
+        }
+
+        if ((string) $promo['statut'] !== 'ACTIF') {
+            if ((string) $promo['statut'] === 'BLOQUE_ABUS') {
+                $this->addFlash('error', 'Ce code promo a été bloqué pour abus.');
+            } else {
+                $this->addFlash('error', 'Ce code promo n\'est pas actif.');
+            }
+            return $this->redirectToRoute('app_offres_show', ['id' => $offreId]);
+        }
+
+        $expiration = new \DateTimeImmutable((string) $promo['date_expiration']);
+        if ($expiration < new \DateTimeImmutable('today')) {
+            $connection->update('code_promo', ['statut' => 'EXPIRE'], ['id' => $promoId]);
+            $this->addFlash('error', 'Ce code promo est expiré.');
+            return $this->redirectToRoute('app_offres_show', ['id' => $offreId]);
+        }
+
+        $connection->update('code_promo', ['statut' => 'UTILISE'], ['id' => $promoId]);
+        $this->addFlash('success', 'Code promo utilisé avec succès.');
+
+        return $this->redirectToRoute('app_offres_show', ['id' => $offreId]);
     }
 
     #[Route('/evenements', name: 'app_evenements')]
@@ -373,6 +498,130 @@ class FrontController extends AbstractController
                 LEFT JOIN lieu l ON l.id = e.lieu_id
                 ORDER BY e.date_debut ASC
             "),
+            'notificationData' => $this->getNotificationData($connection),
+        ]);
+    }
+
+    private function getNotificationData(Connection $connection): array
+    {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            return ['items' => [], 'unreadCount' => 0];
+        }
+
+        $this->syncInAppNotifications($connection, $user);
+
+        return [
+            'items' => $this->fetchAll(
+                $connection,
+                'SELECT id, type, title, body, entity_type, entity_id, created_at, read_at
+                 FROM notifications
+                 WHERE receiver_id = ?
+                 ORDER BY created_at DESC
+                 LIMIT 8',
+                [(int) $user->getId()]
+            ),
+            'unreadCount' => (int) $connection->fetchOne(
+                'SELECT COUNT(*) FROM notifications WHERE receiver_id = ? AND read_at IS NULL',
+                [(int) $user->getId()]
+            ),
+        ];
+    }
+
+    private function syncInAppNotifications(Connection $connection, User $user): void
+    {
+        $userId = (int) $user->getId();
+
+        $expiringPromos = $this->fetchAll(
+            $connection,
+            "SELECT cp.id, cp.date_expiration, o.titre AS offre_titre
+             FROM code_promo cp
+             LEFT JOIN offre o ON o.id = cp.offre_id
+             WHERE cp.user_id = ?
+               AND cp.statut = 'ACTIF'
+               AND TIMESTAMPDIFF(HOUR, NOW(), CONCAT(cp.date_expiration, ' 23:59:59')) BETWEEN 0 AND 24",
+            [$userId]
+        );
+
+        foreach ($expiringPromos as $promo) {
+            $this->createInAppNotification(
+                $connection,
+                $userId,
+                null,
+                'PROMO_EXPIRE_BIENTOT',
+                'Code promo bientôt expiré',
+                'Votre code promo CP'.str_pad((string) $promo['id'], 6, '0', STR_PAD_LEFT).' pour l\'offre "'.(string) ($promo['offre_titre'] ?? 'Offre').'" expire bientôt.',
+                'code_promo',
+                (int) $promo['id'],
+                ['date_expiration' => (string) ($promo['date_expiration'] ?? '')],
+                12
+            );
+        }
+
+        $expiringOffers = $this->fetchAll(
+            $connection,
+            "SELECT DISTINCT o.id, o.titre, o.date_fin
+             FROM reservation_offre r
+             INNER JOIN offre o ON o.id = r.offre_id
+             WHERE r.user_id = ?
+               AND r.statut IN ('EN_ATTENTE', 'CONFIRMÉE')
+               AND TIMESTAMPDIFF(HOUR, NOW(), CONCAT(o.date_fin, ' 23:59:59')) BETWEEN 0 AND 24",
+            [$userId]
+        );
+
+        foreach ($expiringOffers as $offer) {
+            $this->createInAppNotification(
+                $connection,
+                $userId,
+                null,
+                'OFFRE_TERMINE_BIENTOT',
+                'Offre bientôt terminée',
+                'L\'offre "'.(string) ($offer['titre'] ?? 'Offre').'" se termine bientôt. Pensez à finaliser votre réservation.',
+                'offre',
+                (int) $offer['id'],
+                ['date_fin' => (string) ($offer['date_fin'] ?? '')],
+                12
+            );
+        }
+    }
+
+    private function createInAppNotification(
+        Connection $connection,
+        int $receiverId,
+        ?int $senderId,
+        string $type,
+        string $title,
+        string $body,
+        string $entityType,
+        int $entityId,
+        array $metadata = [],
+        int $dedupHours = 24
+    ): void {
+        $alreadyExists = (int) $connection->fetchOne(
+            'SELECT COUNT(*) FROM notifications
+             WHERE receiver_id = ?
+               AND type = ?
+               AND entity_type = ?
+               AND entity_id = ?
+               AND created_at >= DATE_SUB(NOW(), INTERVAL '.$dedupHours.' HOUR)',
+            [$receiverId, $type, $entityType, $entityId]
+        );
+
+        if ($alreadyExists > 0) {
+            return;
+        }
+
+        $connection->insert('notifications', [
+            'receiver_id' => $receiverId,
+            'sender_id' => $senderId,
+            'type' => $type,
+            'title' => $title,
+            'body' => $body,
+            'entity_type' => $entityType,
+            'entity_id' => $entityId,
+            'created_at' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
+            'read_at' => null,
+            'metadata_json' => $metadata !== [] ? json_encode($metadata, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null,
         ]);
     }
 
@@ -386,6 +635,46 @@ class FrontController extends AbstractController
         ];
     }
 
+    private function enrichOffersCountdown(array $offers): array
+    {
+        return array_map(fn (array $offer): array => $this->enrichOfferCountdown($offer), $offers);
+    }
+
+    private function enrichOfferCountdown(array $offer): array
+    {
+        $offer['countdown_label'] = null;
+        $offer['countdown_target'] = null;
+
+        if (!empty($offer['expiring_soon']) && !empty($offer['date_fin'])) {
+            $target = new \DateTimeImmutable((string) $offer['date_fin'] . ' 23:59:59');
+            $offer['countdown_target'] = $target->format(DATE_ATOM);
+            $offer['countdown_label'] = $this->formatCountdownLabel($target);
+        }
+
+        return $offer;
+    }
+
+    private function formatCountdownLabel(\DateTimeImmutable $target): string
+    {
+        $now = new \DateTimeImmutable('now');
+
+        if ($target <= $now) {
+            return 'Expirée';
+        }
+
+        $diff = $now->diff($target);
+
+        if ($diff->days > 0) {
+            return sprintf('%dj %dh %dm', $diff->days, $diff->h, $diff->i);
+        }
+
+        if ($diff->h > 0) {
+            return sprintf('%dh %dm', $diff->h, $diff->i);
+        }
+
+        return sprintf('%dm', $diff->i);
+    }
+
     private function fetchAll(Connection $connection, string $sql, array $params = []): array
     {
         try {
@@ -395,10 +684,10 @@ class FrontController extends AbstractController
         }
     }
 
-    private function fetchOne(Connection $connection, string $sql, array $params = []): ?array
+    private function fetchOne(Connection $connection, string $sql): ?array
     {
         try {
-            return $connection->fetchAssociative($sql, $params) ?: null;
+            return $connection->fetchAssociative($sql) ?: null;
         } catch (Exception) {
             return null;
         }
@@ -413,42 +702,27 @@ class FrontController extends AbstractController
         }
     }
 
-    private function requireFrontUser(): ?object
+    private function createPromoRecord(Connection $connection, int $offreId, int $userId, string $statut, \DateTimeImmutable $today, \DateTimeImmutable $expiration): int
     {
-        $this->denyAccessUnlessGranted('ROLE_USER');
+        $connection->insert('code_promo', [
+            'offre_id' => $offreId,
+            'user_id' => $userId,
+            'qr_image_url' => 'pending',
+            'date_generation' => $today->format('Y-m-d'),
+            'date_expiration' => $expiration->format('Y-m-d'),
+            'statut' => $statut,
+        ]);
 
-        return $this->getUser();
+        return (int) $connection->lastInsertId();
     }
 
-    /**
-     * @return array{0:int,1:?string,2:array<int,string>}
-     */
-    private function validateEvaluationPayload(Request $request): array
+    private function buildQrImageUrl(string $promoNumber): string
     {
-        $errors = [];
-        $rawNote = trim((string) $request->request->get('note', ''));
-        $rawCommentaire = trim((string) $request->request->get('commentaire', ''));
+        return 'https://api.qrserver.com/v1/create-qr-code/?size=280x280&data='.urlencode($promoNumber);
+    }
 
-        if ($rawNote === '' || !ctype_digit($rawNote)) {
-            $errors[] = 'La note est obligatoire et doit être un nombre entier.';
-            $note = 0;
-        } else {
-            $note = (int) $rawNote;
-            if ($note < 1 || $note > 5) {
-                $errors[] = 'La note doit être comprise entre 1 et 5.';
-            }
-        }
-
-        if ($rawCommentaire !== '' && mb_strlen($rawCommentaire) < 3) {
-            $errors[] = 'Le commentaire doit contenir au moins 3 caractères.';
-        }
-
-        if (mb_strlen($rawCommentaire) > 1000) {
-            $errors[] = 'Le commentaire ne peut pas dépasser 1000 caractères.';
-        }
-
-        $commentaire = $rawCommentaire === '' ? null : $rawCommentaire;
-
-        return [$note, $commentaire, $errors];
+    private function formatPromoNumber(int|string $promoId): string
+    {
+        return 'CP'.str_pad((string) $promoId, 6, '0', STR_PAD_LEFT);
     }
 }
