@@ -63,7 +63,12 @@ class ParticipationRequestType extends AbstractType
                         : [],
                 ],
                 'constraints' => $questionCount > 0
-                    ? [new Assert\Count(['exactly' => $questionCount, 'exactMessage' => 'Veuillez repondre a toutes les questions obligatoires.'])]
+                    ? [new Assert\Count([
+                        'min' => $questionCount,
+                        'max' => $questionCount,
+                        'minMessage' => 'Veuillez repondre a toutes les questions obligatoires.',
+                        'maxMessage' => 'Veuillez repondre a toutes les questions obligatoires.',
+                    ])]
                     : [],
             ]);
 

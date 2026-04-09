@@ -59,6 +59,9 @@ class ParticipationController extends AbstractController
                  ORDER BY id DESC LIMIT 1',
                 [$id, $currentUserId]
             );
+            if ($myParticipation === false) {
+                $myParticipation = null;
+            }
         }
 
         $questions = $this->decodeJsonArray($sortie['questions_json'] ?? null);
@@ -227,6 +230,9 @@ class ParticipationController extends AbstractController
              ORDER BY id DESC LIMIT 1',
             [$id, $currentUser->getId()]
         );
+        if ($existing === false) {
+            $existing = null;
+        }
         $isEditingPending = $existing && (string) $existing['statut'] === 'EN_ATTENTE';
 
         if ($existing && (string) $existing['statut'] === 'CONFIRMEE') {

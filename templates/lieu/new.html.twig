@@ -21,5 +21,5 @@
         </div>
     </div>
 
-    {% include 'admin/lieu/_form.html.twig' with { button_label: 'Enregistrer', lieu: lieu } %}
+    {% include 'admin/lieu/_form.html.twig' with { button_label: 'Enregistrer', lieu: lieu, horaires: horaires|default({}) } %}
 {% endblock %}

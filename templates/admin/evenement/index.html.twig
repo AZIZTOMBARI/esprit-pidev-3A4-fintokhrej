@@ -81,24 +81,22 @@
 
     <div class="listing-grid">
         {% for evenement in evenements %}
-            {% set rawImage = evenement.imageUrl|default('') %}
-            {% if rawImage and (rawImage starts with 'http://' or rawImage starts with 'https://') %}
+            {% set rawImage = (evenement.imageUrl|default(''))|trim %}
+            {% if rawImage and (rawImage starts with 'http://' or rawImage starts with 'https://' or rawImage starts with 'data:image/') %}
+                {% set imageSrc = rawImage %}
+            {% elseif rawImage and (rawImage starts with '/') %}
                 {% set imageSrc = rawImage %}
             {% elseif rawImage and (rawImage starts with 'theme/' or rawImage starts with 'uploads/') %}
-                {% set imageSrc = asset(rawImage) %}
+                {% set imageSrc = '/' ~ rawImage|trim('/') %}
             {% elseif rawImage %}
-                {% set imageSrc = asset('uploads/evenements/' ~ rawImage) %}
+                {% set imageSrc = '/uploads/evenements/' ~ rawImage|trim('/') %}
             {% else %}
-                {% set imageSrc = '' %}
+                {% set imageSrc = asset('theme/images/logo.png') %}
             {% endif %}
 
             <article class="listing-card admin-event-card" data-href="{{ path('app_admin_evenement_show', {id: evenement.id}) }}">
                 <div class="cover-thumb">
-                    {% if imageSrc %}
-                        <img src="{{ imageSrc }}" alt="{{ evenement.titre }}" onerror="this.onerror=null;this.src='{{ asset('theme/images/logo.png') }}';">
-                    {% else %}
-                        <span>{{ evenement.titre|slice(0,1) }}</span>
-                    {% endif %}
+                    <img src="{{ imageSrc }}" alt="{{ evenement.titre }}" onerror="this.onerror=null;this.src='{{ asset('theme/images/logo.png') }}';">
                 </div>
                 
                 <div class="listing-card__top">
@@ -114,12 +112,12 @@
                     </span>
                 </div>
 
-                <div class="admin-actions">
-                    <a href="{{ path('app_admin_inscriptions', {id: evenement.id}) }}" class="outline-btn">Voir</a>
-                    <a href="{{ path('app_admin_evenements_edit', {id: evenement.id}) }}" class="outline-btn">Modifier</a>
-                    <form method="post" action="{{ path('app_admin_evenements_delete', {id: evenement.id}) }}" style="display:inline;">
+                <div class="admin-actions admin-event-actions">
+                    <a href="{{ path('app_admin_inscriptions', {id: evenement.id}) }}" class="outline-btn event-action-btn"><span>Inscriptions</span></a>
+                    <a href="{{ path('app_admin_evenements_edit', {id: evenement.id}) }}" class="outline-btn event-action-btn"><span>Modifier</span></a>
+                    <form method="post" action="{{ path('app_admin_evenements_delete', {id: evenement.id}) }}" class="btn-inline-form" style="display:inline; margin:0;">
                         <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ evenement.id) }}">
-                        <button type="submit" class="outline-btn" style="color:#b91c1c;" onclick="return confirm('Supprimer cet événement ?')">Supprimer</button>
+                        <button type="submit" class="outline-btn event-action-btn event-action-btn--danger" onclick="return confirm('Supprimer cet événement ?')"><span>Supprimer</span></button>
                     </form>
                 </div>
             </article>
@@ -166,6 +164,47 @@
     }
     .admin-event-card {
         cursor: pointer;
+    }
+    .admin-event-card .cover-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+    .admin-event-actions {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        align-items: center;
+    }
+    .admin-event-actions .btn-inline-form {
+        width: 100%;
+    }
+    .event-action-btn {
+        width: 100%;
+        min-height: 44px;
+        white-space: nowrap;
+        background: linear-gradient(180deg, #ffffff, #f8fbff) !important;
+        color: var(--ft-primary) !important;
+        border: 1px solid rgba(20,61,113,.24) !important;
+    }
+    .event-action-btn span {
+        color: inherit;
+        font-weight: 800;
+    }
+    .event-action-btn--danger {
+        color: #b91c1c !important;
+        border-color: #fecaca !important;
+        background: linear-gradient(180deg, #ffffff, #fff6f6);
+    }
+
+    @media (max-width: 900px) {
+        .admin-event-actions {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .admin-event-actions .btn-inline-form {
+            grid-column: 1 / -1;
+        }
     }
 </style>
 

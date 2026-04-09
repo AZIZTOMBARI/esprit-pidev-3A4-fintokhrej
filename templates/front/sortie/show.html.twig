@@ -196,17 +196,18 @@
                     <div class="sortie-modal__questions" style="margin-top: 2px;">
                         <h4>Vos réponses</h4>
                         {% for question in questions %}
+                            {% set answerKey = loop.index0 ~ '' %}
                             <div class="form-group" style="margin-top: 8px;">
                                 <label for="question_{{ loop.index0 }}">{{ question }}</label>
-                                {% if participationForm.reponses[loop.index0] is defined %}
-                                    {{ form_widget(participationForm.reponses[loop.index0], {
+                                {% if attribute(participationForm.reponses, answerKey) is defined %}
+                                    {{ form_widget(attribute(participationForm.reponses, answerKey), {
                                         attr: {
                                             id: 'question_' ~ loop.index0,
                                             class: 'custom-input',
                                             required: true
                                         }
                                     }) }}
-                                    {{ form_errors(participationForm.reponses[loop.index0]) }}
+                                    {{ form_errors(attribute(participationForm.reponses, answerKey)) }}
                                 {% endif %}
                             </div>
                         {% endfor %}

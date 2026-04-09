@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Entity\EvaluationLieu;
 use App\Entity\User;
 use App\Service\OffreManager;
 use Doctrine\DBAL\Connection;
@@ -10,6 +11,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 class FrontController extends AbstractController
 {
@@ -163,7 +165,7 @@ class FrontController extends AbstractController
     }
 
     #[Route('/lieux/{id}/evaluations', name: 'app_lieu_evaluation_create', methods: ['POST'], requirements: ['id' => '\\d+'])]
-    public function createLieuEvaluation(int $id, Request $request, Connection $connection): Response
+    public function createLieuEvaluation(int $id, Request $request, Connection $connection, ValidatorInterface $validator): Response
     {
         $user = $this->getUser();
         if (!$user instanceof User) {
@@ -178,8 +180,17 @@ class FrontController extends AbstractController
 
         $note = (int) $request->request->get('note', 0);
         $commentaire = trim((string) $request->request->get('commentaire', ''));
-        if ($note < 1 || $note > 5) {
-            $this->addFlash('error', 'La note doit être comprise entre 1 et 5.');
+
+        $evaluationInput = (new EvaluationLieu())
+            ->setNote($note)
+            ->setCommentaire($commentaire !== '' ? $commentaire : null)
+            ->setDate_evaluation(new \DateTimeImmutable());
+
+        $violations = $validator->validate($evaluationInput);
+        if (count($violations) > 0) {
+            foreach ($violations as $violation) {
+                $this->addFlash('error', (string) $violation->getMessage());
+            }
             return $this->redirectToRoute('app_lieu_show', ['id' => $id]);
         }
 
@@ -211,7 +222,7 @@ class FrontController extends AbstractController
     }
 
     #[Route('/lieux/{id}/evaluations/{evaluationId}/update', name: 'app_lieu_evaluation_update', methods: ['POST'], requirements: ['id' => '\\d+', 'evaluationId' => '\\d+'])]
-    public function updateLieuEvaluation(int $id, int $evaluationId, Request $request, Connection $connection): Response
+    public function updateLieuEvaluation(int $id, int $evaluationId, Request $request, Connection $connection, ValidatorInterface $validator): Response
     {
         $user = $this->getUser();
         if (!$user instanceof User) {
@@ -236,8 +247,17 @@ class FrontController extends AbstractController
 
         $note = (int) $request->request->get('note', 0);
         $commentaire = trim((string) $request->request->get('commentaire', ''));
-        if ($note < 1 || $note > 5) {
-            $this->addFlash('error', 'La note doit être comprise entre 1 et 5.');
+
+        $evaluationInput = (new EvaluationLieu())
+            ->setNote($note)
+            ->setCommentaire($commentaire !== '' ? $commentaire : null)
+            ->setDate_evaluation(new \DateTimeImmutable());
+
+        $violations = $validator->validate($evaluationInput);
+        if (count($violations) > 0) {
+            foreach ($violations as $violation) {
+                $this->addFlash('error', (string) $violation->getMessage());
+            }
             return $this->redirectToRoute('app_lieu_show', ['id' => $id]);
         }
 
@@ -288,8 +308,9 @@ class FrontController extends AbstractController
         return $this->render('front/sortie/index.html.twig', [
             'active' => 'sorties',
             'sorties' => $this->fetchAll($connection, "
-                SELECT s.id, s.titre, s.description, s.ville, s.type_activite, s.date_sortie, s.budget_max, s.nb_places, s.statut,
-                       u.prenom, u.nom
+                SELECT s.id, s.user_id, s.titre, s.description, s.ville, s.lieu_texte, s.point_rencontre,
+                       s.type_activite, s.date_sortie, s.budget_max, s.nb_places, s.statut, s.image_url, s.questions_json,
+                       u.prenom, u.nom, u.imageUrl AS user_image_url
                 FROM annonce_sortie s
                 LEFT JOIN user u ON u.id = s.user_id
                 ORDER BY s.date_sortie ASC

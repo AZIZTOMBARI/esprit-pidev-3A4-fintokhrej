@@ -10,6 +10,7 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 #[ORM\Entity(repositoryClass: LieuRepository::class)]
 #[ORM\Table(name: 'lieu')]
@@ -26,11 +27,13 @@ class Lieu
 
     #[ORM\Column(type: Types::STRING, length: 120, nullable: false)]
     #[Assert\NotBlank(message: 'Le nom est obligatoire.')]
+    #[Assert\Length(min: 2, minMessage: 'Le nom doit contenir au moins {{ limit }} caracteres.')]
     #[Assert\Length(max: 120, maxMessage: 'Le nom ne peut pas depasser {{ limit }} caracteres.')]
     private ?string $nom = null;
 
     #[ORM\Column(type: Types::STRING, length: 80, nullable: false)]
     #[Assert\NotBlank(message: 'La ville est obligatoire.')]
+    #[Assert\Length(min: 2, minMessage: 'La ville doit contenir au moins {{ limit }} caracteres.')]
     #[Assert\Length(max: 80, maxMessage: 'La ville ne peut pas depasser {{ limit }} caracteres.')]
     private ?string $ville = null;
 
@@ -372,6 +375,16 @@ class Lieu
         $this->image_url = $image_url;
 
         return $this;
+    }
+
+    #[Assert\Callback]
+    public function validateBudgetRange(ExecutionContextInterface $context): void
+    {
+        if ($this->budget_min !== null && $this->budget_max !== null && $this->budget_min > $this->budget_max) {
+            $context->buildViolation('Le budget minimum doit être inférieur ou égal au budget maximum.')
+                ->atPath('budgetMax')
+                ->addViolation();
+        }
     }
 
     public function getEvaluationLieu(): ?EvaluationLieu
