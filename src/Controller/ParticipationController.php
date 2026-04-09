@@ -3,11 +3,14 @@
 namespace App\Controller;
 
 use App\Entity\User;
+use App\Form\ParticipationRequestType;
+use App\Model\ParticipationRequestData;
 use App\Service\NotificationService;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -149,6 +152,23 @@ class ParticipationController extends AbstractController
             && $myParticipation
             && (string) $myParticipation['statut'] === 'EN_ATTENTE';
 
+        $participationForm = null;
+        if ($canJoin || $canEditPending) {
+            $participationForm = $this->createParticipationForm(
+                $id,
+                $this->buildParticipationData(
+                    $myParticipation,
+                    $defaultContactPrefer,
+                    $defaultContactValue,
+                    (int) ($myParticipation['nb_places'] ?? 1),
+                    $myParticipation['commentaire'] ?? null,
+                    $myAnswers
+                ),
+                $maxPlacesChoice,
+                count($questions)
+            )->createView();
+        }
+
         return $this->render('front/sortie/show.html.twig', [
             'active' => 'sorties',
             'sortie' => $sortie,
@@ -168,6 +188,7 @@ class ParticipationController extends AbstractController
             'defaultContactValue' => $defaultContactValue,
             'defaultContactEmail' => $currentUserEmail,
             'defaultContactPhone' => $currentUserPhone,
+            'participationForm' => $participationForm,
         ]);
     }
 
@@ -182,11 +203,6 @@ class ParticipationController extends AbstractController
         if (!$currentUser instanceof User) {
             $this->addFlash('error', 'Vous devez être connecté pour participer.');
             return $this->redirectToRoute('app_login');
-        }
-
-        if (!$this->isCsrfTokenValid('join_sortie_'.$id, (string) $request->request->get('_token', ''))) {
-            $this->addFlash('error', 'Jeton CSRF invalide.');
-            return $this->redirectToRoute('app_sorties_show', ['id' => $id]);
         }
 
         $sortie = $connection->fetchAssociative(
@@ -205,7 +221,10 @@ class ParticipationController extends AbstractController
         }
 
         $existing = $connection->fetchAssociative(
-            'SELECT id, statut, nb_places FROM participation_annonce WHERE annonce_id = ? AND user_id = ? ORDER BY id DESC LIMIT 1',
+            'SELECT id, statut, nb_places, contact_prefer, contact_value, commentaire, reponses_json
+             FROM participation_annonce
+             WHERE annonce_id = ? AND user_id = ?
+             ORDER BY id DESC LIMIT 1',
             [$id, $currentUser->getId()]
         );
         $isEditingPending = $existing && (string) $existing['statut'] === 'EN_ATTENTE';
@@ -222,12 +241,74 @@ class ParticipationController extends AbstractController
         $nbPlaces = (int) ($sortie['nb_places'] ?? 0);
         $remainingPlaces = max(0, $nbPlaces - $confirmedPlaces);
         $previousRequestedPlaces = (int) ($existing['nb_places'] ?? 1);
+        $questions = $this->decodeJsonArray($sortie['questions_json'] ?? null);
+        $existingAnswers = $this->decodeParticipationAnswers($existing['reponses_json'] ?? null);
+        $maxPlacesChoice = max(1, $remainingPlaces, $previousRequestedPlaces);
 
-        $requestedPlaces = (int) $request->request->get('nb_places', 1);
-        if ($requestedPlaces < 1) {
-            $this->addFlash('error', 'Le nombre de places doit etre strictement positif.');
+        $defaultContactPrefer = 'EMAIL';
+        $currentUserPhone = $this->normalizePhoneForForm($currentUser->getTelephone());
+        if ($existing && in_array((string) ($existing['contact_prefer'] ?? ''), ['TELEPHONE', 'EMAIL'], true)) {
+            $defaultContactPrefer = (string) $existing['contact_prefer'];
+        } elseif ($currentUserPhone !== '') {
+            $defaultContactPrefer = 'TELEPHONE';
+        }
+
+        $defaultContactValue = '';
+        if ($existing && !empty($existing['contact_value'])) {
+            $rawContactValue = trim((string) $existing['contact_value']);
+            if ($defaultContactPrefer === 'TELEPHONE') {
+                $defaultContactValue = $this->normalizePhoneForForm($rawContactValue);
+            } else {
+                $defaultContactValue = $rawContactValue;
+            }
+        } else {
+            $defaultContactValue = $defaultContactPrefer === 'TELEPHONE'
+                ? $currentUserPhone
+                : trim((string) $currentUser->getEmail());
+        }
+
+        $submitted = $request->request->all();
+        $submittedContactValue = trim((string) ($submitted['contact_value'] ?? ''));
+        if ($submittedContactValue === '') {
+            $submittedContactPrefer = strtoupper(trim((string) ($submitted['contact_prefer'] ?? $defaultContactPrefer)));
+            $fallbackContact = $submittedContactPrefer === 'TELEPHONE'
+                ? $this->normalizePhoneForForm($currentUser->getTelephone())
+                : trim((string) $currentUser->getEmail());
+
+            if ($fallbackContact !== '') {
+                $submitted['contact_value'] = $fallbackContact;
+                $request->request->replace($submitted);
+            }
+        }
+
+        $form = $this->createParticipationForm(
+            $id,
+            $this->buildParticipationData(
+                $existing,
+                $defaultContactPrefer,
+                $defaultContactValue,
+                $previousRequestedPlaces,
+                $existing['commentaire'] ?? null,
+                $existingAnswers
+            ),
+            $maxPlacesChoice,
+            count($questions)
+        );
+        $form->handleRequest($request);
+
+        if (!$form->isSubmitted()) {
+            $this->addFlash('error', 'Formulaire de participation invalide.');
             return $this->redirectToRoute('app_sorties_show', ['id' => $id]);
         }
+
+        if (!$form->isValid()) {
+            $this->addFormErrorsAsFlash($form);
+            return $this->redirectToRoute('app_sorties_show', ['id' => $id]);
+        }
+
+        /** @var ParticipationRequestData $payloadData */
+        $payloadData = $form->getData();
+        $requestedPlaces = (int) $payloadData->getNbPlaces();
 
         if (!$isEditingPending && (($sortie['statut'] ?? '') !== 'OUVERTE' || ($nbPlaces > 0 && $remainingPlaces <= 0))) {
             if (($sortie['statut'] ?? '') === 'OUVERTE' && $nbPlaces > 0 && $confirmedPlaces >= $nbPlaces) {
@@ -247,44 +328,16 @@ class ParticipationController extends AbstractController
             return $this->redirectToRoute('app_sorties_show', ['id' => $id]);
         }
 
-        $contactPrefer = strtoupper(trim((string) $request->request->get('contact_prefer', '')));
-        $contactValue = trim((string) $request->request->get('contact_value', ''));
-        $commentaire = trim((string) $request->request->get('commentaire', ''));
-
-        if (!in_array($contactPrefer, ['TELEPHONE', 'EMAIL'], true)) {
-            $contactPrefer = 'EMAIL';
-        }
-
-        if ($contactValue === '') {
-            if ($contactPrefer === 'TELEPHONE') {
-                $contactValue = $this->normalizePhoneForForm($currentUser->getTelephone());
-            } else {
-                $contactValue = trim((string) $currentUser->getEmail());
-            }
-
-            if ($contactValue === '') {
-                $this->addFlash('error', 'Le contact de reponse est obligatoire.');
-                return $this->redirectToRoute('app_sorties_show', ['id' => $id]);
-            }
-        }
-
-        if ($contactPrefer === 'EMAIL' && !filter_var($contactValue, FILTER_VALIDATE_EMAIL)) {
-            $this->addFlash('error', 'Veuillez saisir une adresse email valide.');
-            return $this->redirectToRoute('app_sorties_show', ['id' => $id]);
-        }
+        $contactPrefer = $payloadData->getContactPrefer();
+        $contactValue = trim($payloadData->getContactValue());
+        $commentaire = trim((string) $payloadData->getCommentaire());
 
         if ($contactPrefer === 'TELEPHONE') {
             $contactValue = $this->normalizePhoneForForm($contactValue);
-            if (!preg_match('/^\d{8}$/', $contactValue)) {
-                $this->addFlash('error', 'Le numero de telephone doit contenir exactement 8 chiffres.');
-                return $this->redirectToRoute('app_sorties_show', ['id' => $id]);
-            }
-
             $contactValue = '+216'.$contactValue;
         }
 
-        $questions = $this->decodeJsonArray($sortie['questions_json'] ?? null);
-        $rawAnswers = $request->request->all('reponses');
+        $rawAnswers = $payloadData->getReponses();
         $answerItems = [];
         foreach ($questions as $index => $question) {
             $answer = trim((string) ($rawAnswers[(string) $index] ?? ''));
@@ -343,6 +396,63 @@ class ParticipationController extends AbstractController
         }
 
         return $this->redirectToRoute('app_sorties_show', ['id' => $id]);
+    }
+
+    private function createParticipationForm(
+        int $sortieId,
+        ParticipationRequestData $data,
+        int $maxPlacesChoice,
+        int $questionCount
+    ): FormInterface {
+        return $this->createForm(ParticipationRequestType::class, $data, [
+            'action' => $this->generateUrl('app_sorties_join', ['id' => $sortieId]),
+            'method' => 'POST',
+            'csrf_token_id' => 'join_sortie_'.$sortieId,
+            'max_places' => max(1, $maxPlacesChoice),
+            'question_count' => max(0, $questionCount),
+        ]);
+    }
+
+    /**
+     * @param array<string, mixed>|null $participation
+     * @param array<int, string> $answers
+     */
+    private function buildParticipationData(
+        ?array $participation,
+        string $defaultContactPrefer,
+        string $defaultContactValue,
+        int $defaultPlaces,
+        ?string $defaultCommentaire,
+        array $answers
+    ): ParticipationRequestData {
+        $data = new ParticipationRequestData();
+        $contactPrefer = (string) ($participation['contact_prefer'] ?? $defaultContactPrefer);
+        $contactValue = (string) ($participation['contact_value'] ?? $defaultContactValue);
+        if (strtoupper($contactPrefer) === 'TELEPHONE') {
+            $contactValue = $this->normalizePhoneForForm($contactValue);
+        }
+
+        $data->setNbPlaces(max(1, (int) ($participation['nb_places'] ?? $defaultPlaces)));
+        $data->setContactPrefer($contactPrefer);
+        $data->setContactValue($contactValue);
+        $data->setCommentaire((string) ($participation['commentaire'] ?? $defaultCommentaire));
+        $data->setReponses($answers);
+
+        return $data;
+    }
+
+    private function addFormErrorsAsFlash(FormInterface $form): void
+    {
+        $seen = [];
+        foreach ($form->getErrors(true) as $error) {
+            $message = trim((string) $error->getMessage());
+            if ($message === '' || isset($seen[$message])) {
+                continue;
+            }
+
+            $seen[$message] = true;
+            $this->addFlash('error', $message);
+        }
     }
 
     #[Route('/sorties/{id}/quitter', name: 'app_sorties_leave', requirements: ['id' => '\\d+'], methods: ['POST'])]

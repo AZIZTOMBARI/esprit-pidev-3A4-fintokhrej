@@ -117,44 +117,79 @@
                     Participer (organisateur)
                 </button>
             </div>
-        {% elseif canJoin or canEditPending %}
-            <form method="post" action="{{ path('app_sorties_join', {id: sortie.id}) }}" class="sortie-participation-form neon-participation-form" data-participation-form novalidate style="margin-top: 12px; display:grid; gap:12px;">
-                <input type="hidden" name="_token" value="{{ csrf_token('join_sortie_' ~ sortie.id) }}">
+        {% elseif participationForm is not null and (canJoin or canEditPending) %}
+            {{ form_start(participationForm, {
+                attr: {
+                    id: 'participation-form-' ~ sortie.id,
+                    class: 'sortie-participation-form neon-participation-form',
+                    'data-participation-form': '',
+                    novalidate: 'novalidate',
+                    style: 'margin-top: 12px; display:grid; gap:12px;'
+                }
+            }) }}
+
+                {% if form_errors(participationForm) %}
+                    <div class="sortie-form-global-errors">{{ form_errors(participationForm) }}</div>
+                {% endif %}
 
                 <div class="form-group">
                     <label for="nb_places">Places souhaitées</label>
-                    <input
-                        id="nb_places"
-                        type="number"
-                        name="nb_places"
-                        class="custom-input"
-                        min="1"
-                        max="{{ maxPlacesChoice }}"
-                        value="{{ myParticipation and myParticipation.nb_places ? myParticipation.nb_places : 1 }}"
-                        data-nb-places
-                        required
-                    >
+                    {{ form_widget(participationForm.nb_places, {
+                        attr: {
+                            id: 'nb_places',
+                            class: 'custom-input',
+                            min: 1,
+                            max: maxPlacesChoice,
+                            'data-nb-places': '',
+                            required: true
+                        }
+                    }) }}
+                    {{ form_errors(participationForm.nb_places) }}
                     <small class="field-hint">Places restantes disponibles actuellement: {{ remainingPlaces }}</small>
                 </div>
 
                 <div class="form-row two">
                     <div class="form-group">
                         <label for="contact_prefer">Contact préféré</label>
-                        <select id="contact_prefer" name="contact_prefer" class="custom-input" data-contact-prefer required>
-                            <option value="TELEPHONE" {{ defaultContactPrefer == 'TELEPHONE' ? 'selected' : '' }}>Téléphone</option>
-                            <option value="EMAIL" {{ defaultContactPrefer == 'EMAIL' ? 'selected' : '' }}>Email</option>
-                        </select>
+                        {{ form_widget(participationForm.contact_prefer, {
+                            attr: {
+                                id: 'contact_prefer',
+                                class: 'custom-input',
+                                'data-contact-prefer': '',
+                                required: true
+                            }
+                        }) }}
+                        {{ form_errors(participationForm.contact_prefer) }}
                     </div>
                     <div class="form-group">
                         <label for="contact_value">Valeur de contact</label>
-                        <input id="contact_value" type="text" name="contact_value" class="custom-input" data-contact-value data-default-email="{{ defaultContactEmail|default('')|e('html_attr') }}" data-default-phone="{{ defaultContactPhone|default('')|e('html_attr') }}" value="{{ defaultContactValue|default('') }}" placeholder="Ex: 55216548 ou email" required>
+                        {{ form_widget(participationForm.contact_value, {
+                            attr: {
+                                id: 'contact_value',
+                                class: 'custom-input',
+                                'data-contact-value': '',
+                                'data-default-email': defaultContactEmail|default(''),
+                                'data-default-phone': defaultContactPhone|default(''),
+                                placeholder: 'Ex: 55216548 ou email',
+                                required: true
+                            }
+                        }) }}
+                        {{ form_errors(participationForm.contact_value) }}
                         <small class="field-hint" data-contact-hint></small>
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label for="commentaire">Commentaire</label>
-                    <textarea id="commentaire" name="commentaire" rows="3" class="custom-input" placeholder="Votre motivation...">{{ myParticipation and myParticipation.commentaire ? myParticipation.commentaire : '' }}</textarea>
+                    {{ form_widget(participationForm.commentaire, {
+                        attr: {
+                            id: 'commentaire',
+                            rows: 3,
+                            class: 'custom-input',
+                            placeholder: 'Votre motivation...'
+                        }
+                    }) }}
+                    {{ form_errors(participationForm.commentaire) }}
                 </div>
 
                 {% if questions is not empty %}
@@ -163,22 +198,36 @@
                         {% for question in questions %}
                             <div class="form-group" style="margin-top: 8px;">
                                 <label for="question_{{ loop.index0 }}">{{ question }}</label>
-                                <input id="question_{{ loop.index0 }}" type="text" name="reponses[{{ loop.index0 }}]" value="{{ myAnswers[loop.index0]|default('') }}" class="custom-input" required>
+                                {% if participationForm.reponses[loop.index0] is defined %}
+                                    {{ form_widget(participationForm.reponses[loop.index0], {
+                                        attr: {
+                                            id: 'question_' ~ loop.index0,
+                                            class: 'custom-input',
+                                            required: true
+                                        }
+                                    }) }}
+                                    {{ form_errors(participationForm.reponses[loop.index0]) }}
+                                {% endif %}
                             </div>
                         {% endfor %}
+                        {{ form_errors(participationForm.reponses) }}
                     </div>
                 {% endif %}
 
-                <div class="btn-row" style="margin-top: 4px;">
-                    <button type="submit" class="primary-btn">{{ canEditPending ? 'Modifier ma demande' : 'Demander à rejoindre' }}</button>
-                </div>
-            </form>
-            {% if canEditPending %}
-                <form method="post" action="{{ path('app_sorties_leave', {id: sortie.id}) }}" class="btn-row" style="margin-top: 8px;">
-                    <input type="hidden" name="_token" value="{{ csrf_token('leave_sortie_' ~ sortie.id) }}">
-                    <button type="submit" class="danger-btn">Annuler ma participation</button>
-                </form>
-            {% endif %}
+                {% if participationForm._token is defined %}
+                    {{ form_widget(participationForm._token) }}
+                {% endif %}
+            {{ form_end(participationForm, { render_rest: false }) }}
+
+            <div class="btn-row participation-actions-row" style="margin-top: 8px;">
+                <button type="submit" form="participation-form-{{ sortie.id }}" class="primary-btn">{{ canEditPending ? 'Modifier ma demande' : 'Demander à rejoindre' }}</button>
+                {% if canEditPending %}
+                    <form method="post" action="{{ path('app_sorties_leave', {id: sortie.id}) }}" class="btn-inline-form participation-cancel-form">
+                        <input type="hidden" name="_token" value="{{ csrf_token('leave_sortie_' ~ sortie.id) }}">
+                        <button type="submit" class="danger-btn">Annuler ma participation</button>
+                    </form>
+                {% endif %}
+            </div>
         {% elseif app.user and not isCreator and remainingPlaces <= 0 %}
             <div class="sortie-flash sortie-flash-info" style="margin: 12px 0 0;">
                 Cette sortie est complète — aucune place disponible.

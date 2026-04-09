@@ -364,13 +364,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const sender = senderName ? ` · ${escapeHtml(senderName)}` : '';
                 const url = item.url ? String(item.url) : '';
                 const adminUrl = item.admin_url ? String(item.admin_url) : '';
+                const isUnread = !item.read_at;
                 const links = [
                     url ? `<a href="${escapeHtml(url)}" class="notification-link">Voir la sortie</a>` : '',
                     adminUrl ? `<a href="${escapeHtml(adminUrl)}" class="notification-link">Voir demandes</a>` : ''
                 ].filter(Boolean).join('');
 
                 return `
-                    <article class="notification-item">
+                    <article class="notification-item ${isUnread ? 'notification-item--unread' : ''}">
                         <h4 class="notification-item__title">${title}</h4>
                         <p class="notification-item__body">${body}</p>
                         <div class="notification-item__meta">${escapeHtml(created)}${sender}</div>
@@ -412,14 +413,14 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
+        panel.hidden = true;
+
         if (!isInline) {
             document.addEventListener('click', (event) => {
                 if (!root.contains(event.target)) {
                     panel.hidden = true;
                 }
             });
-        } else {
-            panel.hidden = false;
         }
 
         if (readAllBtn && readAllUrl) {
