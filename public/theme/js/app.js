@@ -9,6 +9,58 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    const countdownElements = Array.from(document.querySelectorAll('[data-offer-countdown]'));
+
+    const formatCountdown = (diffMs) => {
+        if (diffMs <= 0) {
+            return 'Expirée';
+        }
+
+        const totalSeconds = Math.floor(diffMs / 1000);
+        const days = Math.floor(totalSeconds / 86400);
+        const hours = Math.floor((totalSeconds % 86400) / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+        if (days > 0) {
+            return `${days}j ${hours}h ${minutes}m`;
+        }
+
+        if (hours > 0) {
+            return `${hours}h ${minutes}m`;
+        }
+
+        return `${minutes}m`;
+    };
+
+    const refreshCountdowns = () => {
+        const now = Date.now();
+
+        countdownElements.forEach((el) => {
+            const endValue = el.getAttribute('data-offer-countdown');
+            if (!endValue) {
+                return;
+            }
+
+            const endDate = new Date(endValue);
+            if (Number.isNaN(endDate.getTime())) {
+                return;
+            }
+
+            const diffMs = endDate.getTime() - now;
+            const label = formatCountdown(diffMs);
+            el.textContent = `Expire dans ${label}`;
+
+            if (diffMs <= 0) {
+                el.classList.add('is-expired');
+            }
+        });
+    };
+
+    if (countdownElements.length > 0) {
+        refreshCountdowns();
+        window.setInterval(refreshCountdowns, 1000);
+    }
+
     const searchForm = document.querySelector('[data-admin-search-form]');
     const searchInput = document.querySelector('[data-admin-search-input]');
     const userCards = Array.from(document.querySelectorAll('.user-card'));

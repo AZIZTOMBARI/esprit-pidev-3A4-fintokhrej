@@ -2,6 +2,66 @@
 
 {% block title %}Offres | Fin Tokhroj{% endblock %}
 
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .offer-card--urgent {
+            border: 1px solid rgba(239, 68, 68, 0.35);
+            background: linear-gradient(180deg, rgba(254, 242, 242, 0.92), #ffffff 55%);
+            box-shadow: 0 18px 40px rgba(239, 68, 68, 0.12);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .offer-card--urgent::before {
+            content: '';
+            position: absolute;
+            inset: 0 auto auto 0;
+            width: 120px;
+            height: 120px;
+            background: radial-gradient(circle, rgba(248, 113, 113, 0.22), transparent 72%);
+            pointer-events: none;
+        }
+
+        .offer-urgent-banner {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border-radius: 999px;
+            padding: 7px 12px;
+            background: #fee2e2;
+            color: #991b1b;
+            font-weight: 800;
+            font-size: 12px;
+            letter-spacing: 0.02em;
+        }
+
+        .offer-double-pill {
+            background: linear-gradient(135deg, #f59e0b, #ef4444) !important;
+            color: #fff !important;
+        }
+
+        .offer-countdown {
+            margin-top: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border-radius: 999px;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.84);
+            color: #991b1b;
+            font-size: 12px;
+            font-weight: 800;
+            border: 1px dashed rgba(239, 68, 68, 0.35);
+        }
+
+        .offer-countdown.is-expired {
+            background: #fee2e2;
+            color: #7f1d1d;
+        }
+    </style>
+{% endblock %}
+
 {% block front_content %}
 <section>
     <div class="section-head">
@@ -27,19 +87,22 @@
 
     <div class="listing-grid">
         {% for item in offres %}
-            <article class="listing-card">
+            {% set displayPercentage = item.expiring_soon is defined and item.expiring_soon ? item.pourcentage * 2 : item.pourcentage %}
+            <article class="listing-card {{ item.expiring_soon is defined and item.expiring_soon ? 'offer-card--urgent' : '' }}">
                 <div class="cover-thumb"><span>{{ attribute(item, 'titre') }}</span></div>
                 <div class="listing-card__top">
                     <div>
                         <h3>{{ attribute(item, 'titre') }}</h3>
                         <p>
                             {% if item.type is defined and item.type %}{{ item.type }}{% endif %}
-                            {% if item.pourcentage is defined and item.pourcentage %} · {{ item.pourcentage }}{% endif %}
+                            {% if item.pourcentage is defined and item.pourcentage %} · {{ displayPercentage }}%{% endif %}
                         </p>
                     </div>
-                    {% if item.prix is defined %}<span class="price-pill">{{ item.prix }} TND</span>{% endif %}
-                    {% if item.pourcentage is defined %}<span class="price-pill">{{ item.pourcentage }}%</span>{% endif %}
-                    {% if item.expiring_soon is defined and item.expiring_soon %}<span class="price-pill" style="background:#fee2e2; color:#991b1b;">Expire bientôt</span>{% endif %}
+                    <div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end;">
+                        {% if item.prix is defined %}<span class="price-pill">{{ item.prix }} TND</span>{% endif %}
+                        {% if item.pourcentage is defined %}<span class="price-pill {{ item.expiring_soon is defined and item.expiring_soon ? 'offer-double-pill' : '' }}">{{ displayPercentage }}%</span>{% endif %}
+                        {% if item.expiring_soon is defined and item.expiring_soon %}<span class="offer-urgent-banner">Expire bientôt</span>{% endif %}
+                    </div>
                 </div>
                 <div class="meta-row">
                     {% if item.lieu_nom is defined and item.lieu_nom %}<span>📍 {{ item.lieu_nom }}{% if item.ville is defined and item.ville %}, {{ item.ville }}{% endif %}</span>{% endif %}
@@ -52,6 +115,10 @@
                 </div>
                 {% if item.description is defined and item.description %}
                     <p style="margin-top:14px;">{{ item.description }}</p>
+                {% endif %}
+
+                {% if item.expiring_soon is defined and item.expiring_soon %}
+                    <div class="offer-countdown" data-offer-countdown="{{ item.countdown_target ?? (item.date_fin|date('Y-m-d') ~ 'T23:59:59') }}">{{ item.countdown_label ?? 'Expire dans ...' }}</div>
                 {% endif %}
 
                 <div style="margin-top: 14px;">

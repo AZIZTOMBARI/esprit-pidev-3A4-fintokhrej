@@ -231,6 +231,12 @@ class AdminController extends AbstractController
     {
         $query = trim((string) $request->query->get('q', ''));
         $status = trim((string) $request->query->get('status', ''));
+        $sort = trim((string) $request->query->get('sort', 'date_fin'));
+        $direction = $this->normalizeSortDirection((string) $request->query->get('direction', 'asc'));
+        $promoQuery = trim((string) $request->query->get('promo_q', ''));
+        $promoStatus = trim((string) $request->query->get('promo_status', ''));
+        $promoSort = trim((string) $request->query->get('promo_sort', 'id'));
+        $promoDirection = $this->normalizeSortDirection((string) $request->query->get('promo_direction', 'desc'));
         $page = max(1, (int) $request->query->get('page', 1));
         $pageSize = 10;
         $offset = ($page - 1) * $pageSize;
@@ -256,6 +262,7 @@ class AdminController extends AbstractController
         }
 
         $whereSql = $whereParts !== [] ? ' WHERE '.implode(' AND ', $whereParts) : '';
+        $offerSortSql = $this->offerSortSql($sort, $direction);
 
         $total = (int) $connection->fetchOne(
             'SELECT COUNT(*) FROM offre o'.$whereSql,
@@ -268,9 +275,37 @@ class AdminController extends AbstractController
              FROM offre o
              LEFT JOIN lieu l ON l.id = o.lieu_id'
             .$whereSql.
-            ' ORDER BY o.date_fin ASC, o.id DESC LIMIT '.$pageSize.' OFFSET '.$offset,
+            ' ORDER BY '.$offerSortSql.', o.id DESC LIMIT '.$pageSize.' OFFSET '.$offset,
             $params
         );
+
+        $promoWhereParts = [];
+        $promoParams = [];
+
+        if ($promoQuery !== '') {
+            $promoWhereParts[] = '(LOWER(COALESCE(o.titre, \'\')) LIKE LOWER(?) OR LOWER(COALESCE(u.prenom, \'\')) LIKE LOWER(?) OR LOWER(COALESCE(u.nom, \'\')) LIKE LOWER(?) OR LOWER(CAST(cp.id AS CHAR)) LIKE LOWER(?) OR LOWER(cp.statut) LIKE LOWER(?))';
+            $like = '%'.$promoQuery.'%';
+            $promoParams[] = $like;
+            $promoParams[] = $like;
+            $promoParams[] = $like;
+            $promoParams[] = $like;
+            $promoParams[] = $like;
+        }
+
+        if ($promoStatus !== '') {
+            $promoWhereParts[] = 'LOWER(cp.statut) = LOWER(?)';
+            $promoParams[] = $this->normalizePromoStatus($promoStatus);
+        }
+
+        $promoWhereSql = $promoWhereParts !== [] ? ' WHERE '.implode(' AND ', $promoWhereParts) : '';
+        $promoSortSql = $this->promoSortSql($promoSort, $promoDirection);
+        $promoSql = "
+                SELECT cp.id, cp.offre_id, cp.user_id, cp.qr_image_url, cp.date_generation, cp.date_expiration, cp.statut,
+                       o.titre AS offre_titre, u.prenom, u.nom
+                FROM code_promo cp
+                LEFT JOIN offre o ON o.id = cp.offre_id
+                LEFT JOIN user u ON u.id = cp.user_id
+            ".$promoWhereSql.' ORDER BY '.$promoSortSql.' LIMIT 120';
 
         $stats = [
             'total' => $this->fetchValue($connection, 'SELECT COUNT(*) FROM offre'),
@@ -282,15 +317,7 @@ class AdminController extends AbstractController
             'active' => 'offres',
             'offres' => $offres,
             'lieux' => $this->fetchAll($connection, 'SELECT id, nom FROM lieu ORDER BY nom ASC'),
-            'promoCodes' => $this->fetchAll($connection, "
-                SELECT cp.id, cp.offre_id, cp.user_id, cp.qr_image_url, cp.date_generation, cp.date_expiration, cp.statut,
-                       o.titre AS offre_titre, u.prenom, u.nom
-                FROM code_promo cp
-                LEFT JOIN offre o ON o.id = cp.offre_id
-                LEFT JOIN user u ON u.id = cp.user_id
-                ORDER BY cp.id DESC
-                LIMIT 120
-            "),
+            'promoCodes' => $this->fetchAll($connection, $promoSql, $promoParams),
             'reservations' => $this->fetchAll($connection, "
                 SELECT r.id, r.date_reservation, r.nombre_personnes, r.statut, r.note, r.created_at,
                        o.titre AS offre_titre, l.nom AS lieu_nom,
@@ -306,6 +333,12 @@ class AdminController extends AbstractController
             'filters' => [
                 'q' => $query,
                 'status' => $status,
+                'sort' => $sort,
+                'direction' => $direction,
+                'promo_q' => $promoQuery,
+                'promo_status' => $promoStatus,
+                'promo_sort' => $promoSort,
+                'promo_direction' => $promoDirection,
             ],
             'pagination' => [
                 'page' => $page,
@@ -458,6 +491,65 @@ class AdminController extends AbstractController
             $this->addFlash('success', 'Réservation refusée.');
         } catch (Exception $e) {
             $this->addFlash('error', 'Erreur refus réservation: '.$e->getMessage());
+        }
+
+        return $this->redirectToRoute('app_admin_offres');
+    }
+
+    #[Route('/promo-codes/{id}/update', name: 'app_admin_promo_codes_update', methods: ['POST'])]
+    public function promoCodeUpdate(int $id, Request $request, Connection $connection): Response
+    {
+        if (!$this->isCsrfTokenValid('admin_promo_edit_'.$id, (string) $request->request->get('_token', ''))) {
+            $this->addFlash('error', 'Jeton CSRF invalide pour la modification du code promo.');
+            return $this->redirectToRoute('app_admin_offres');
+        }
+
+        $dateExpiration = trim((string) $request->request->get('date_expiration', ''));
+        $statut = $this->normalizePromoStatus(trim((string) $request->request->get('statut', '')));
+
+        if ($dateExpiration === '') {
+            $this->addFlash('error', 'La date d’expiration est obligatoire.');
+            return $this->redirectToRoute('app_admin_offres');
+        }
+
+        $dateExpirationObject = \DateTimeImmutable::createFromFormat('Y-m-d', $dateExpiration);
+        if (!$dateExpirationObject) {
+            $this->addFlash('error', 'Format de date invalide pour le code promo.');
+            return $this->redirectToRoute('app_admin_offres');
+        }
+
+        if (!in_array($statut, ['ACTIF', 'EXPIRE', 'DESACTIVE', 'UTILISE', 'BLOQUE_ABUS'], true)) {
+            $this->addFlash('error', 'Statut de code promo invalide.');
+            return $this->redirectToRoute('app_admin_offres');
+        }
+
+        try {
+            $connection->update('code_promo', [
+                'date_expiration' => $dateExpirationObject->format('Y-m-d'),
+                'statut' => $statut,
+            ], ['id' => $id]);
+
+            $this->addFlash('success', 'Code promo modifié avec succès.');
+        } catch (Exception $e) {
+            $this->addFlash('error', 'Erreur modification code promo: '.$e->getMessage());
+        }
+
+        return $this->redirectToRoute('app_admin_offres');
+    }
+
+    #[Route('/promo-codes/{id}/delete', name: 'app_admin_promo_codes_delete', methods: ['POST'])]
+    public function promoCodeDelete(int $id, Request $request, Connection $connection): Response
+    {
+        if (!$this->isCsrfTokenValid('admin_promo_delete_'.$id, (string) $request->request->get('_token', ''))) {
+            $this->addFlash('error', 'Jeton CSRF invalide pour la suppression du code promo.');
+            return $this->redirectToRoute('app_admin_offres');
+        }
+
+        try {
+            $connection->delete('code_promo', ['id' => $id]);
+            $this->addFlash('success', 'Code promo supprimé avec succès.');
+        } catch (Exception $e) {
+            $this->addFlash('error', 'Erreur suppression code promo: '.$e->getMessage());
         }
 
         return $this->redirectToRoute('app_admin_offres');
@@ -712,6 +804,55 @@ class AdminController extends AbstractController
             'desactivee', 'desactive', 'inactif', 'inactive', 'brouillon', 'draft' => 'DESACTIVEE',
             default => strtoupper(trim($status)),
         };
+    }
+
+    private function normalizePromoStatus(string $status): string
+    {
+        return match (strtolower(trim($status))) {
+            'actif', 'active' => 'ACTIF',
+            'expire', 'expiré', 'expiree', 'expired' => 'EXPIRE',
+            'desactive', 'désactivé', 'desactivee', 'inactive', 'inactif', 'disabled' => 'DESACTIVE',
+            'utilise', 'utilisé', 'used' => 'UTILISE',
+            'bloque_abus', 'bloqué_abus', 'blocked_abuse' => 'BLOQUE_ABUS',
+            default => strtoupper(trim($status)),
+        };
+    }
+
+    private function normalizeSortDirection(string $direction): string
+    {
+        return strtolower(trim($direction)) === 'desc' ? 'desc' : 'asc';
+    }
+
+    private function offerSortSql(string $sort, string $direction): string
+    {
+        $column = match ($sort) {
+            'id' => 'o.id',
+            'titre' => 'o.titre',
+            'type' => 'o.type',
+            'pourcentage' => 'o.pourcentage',
+            'date_debut' => 'o.date_debut',
+            'date_fin' => 'o.date_fin',
+            'statut' => 'o.statut',
+            'lieu' => 'l.nom',
+            default => 'o.date_fin',
+        };
+
+        return $column.' '.strtoupper($direction);
+    }
+
+    private function promoSortSql(string $sort, string $direction): string
+    {
+        $column = match ($sort) {
+            'id' => 'cp.id',
+            'offre' => 'o.titre',
+            'user' => 'u.prenom',
+            'date_generation' => 'cp.date_generation',
+            'date_expiration' => 'cp.date_expiration',
+            'statut' => 'cp.statut',
+            default => 'cp.id',
+        };
+
+        return $column.' '.strtoupper($direction);
     }
 
     /**

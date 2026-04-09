@@ -16,6 +16,18 @@ class FrontController extends AbstractController
     #[Route('/home', name: 'app_home')]
     public function home(Connection $connection): Response
     {
+        $homeOffers = $this->enrichOffersCountdown($this->fetchAll($connection, "
+            SELECT o.id, o.titre, o.type, o.pourcentage, o.date_fin, l.nom AS lieu_nom, l.ville,
+                   CASE
+                       WHEN TIMESTAMPDIFF(HOUR, NOW(), CONCAT(o.date_fin, ' 23:59:59')) BETWEEN 0 AND 24 THEN 1
+                       ELSE 0
+                   END AS expiring_soon
+            FROM offre o
+            LEFT JOIN lieu l ON l.id = o.lieu_id
+            ORDER BY o.date_fin ASC
+            LIMIT 6
+        "));
+
         return $this->render('front/home/index.html.twig', [
             'active' => 'home',
             'stats' => $this->getFrontStats($connection),
@@ -38,13 +50,7 @@ class FrontController extends AbstractController
                 ORDER BY date_sortie ASC
                 LIMIT 6
             "),
-            'offres' => $this->fetchAll($connection, "
-                SELECT o.id, o.titre, o.type, o.pourcentage, o.date_fin, l.nom AS lieu_nom, l.ville
-                FROM offre o
-                LEFT JOIN lieu l ON l.id = o.lieu_id
-                ORDER BY o.date_fin ASC
-                LIMIT 6
-            "),
+            'offres' => $homeOffers,
             'events' => $this->fetchAll($connection, "
                 SELECT e.id, e.titre, e.type, e.date_debut, e.prix, l.nom AS lieu_nom, l.ville
                 FROM evenement e
@@ -93,10 +99,11 @@ class FrontController extends AbstractController
     public function offres(Request $request, Connection $connection, OffreManager $offreManager): Response
     {
         $lieuId = (int) $request->query->get('lieu', 0);
+        $offres = $this->enrichOffersCountdown($offreManager->findActiveByLieu($lieuId > 0 ? $lieuId : null));
 
         return $this->render('front/offre/index.html.twig', [
             'active' => 'offres',
-            'offres' => $offreManager->findActiveByLieu($lieuId > 0 ? $lieuId : null),
+            'offres' => $offres,
             'lieux' => $this->fetchAll($connection, 'SELECT id, nom FROM lieu ORDER BY nom ASC'),
             'selectedLieu' => $lieuId,
         ]);
@@ -107,7 +114,11 @@ class FrontController extends AbstractController
     {
         $offre = $connection->fetchAssociative(
             "SELECT o.id, o.titre, o.description, o.type, o.pourcentage, o.date_debut, o.date_fin, o.statut, o.lieu_id,
-                    l.nom AS lieu_nom, l.ville
+                    l.nom AS lieu_nom, l.ville,
+                    CASE
+                        WHEN TIMESTAMPDIFF(HOUR, NOW(), CONCAT(o.date_fin, ' 23:59:59')) BETWEEN 0 AND 24 THEN 1
+                        ELSE 0
+                    END AS expiring_soon
              FROM offre o
              LEFT JOIN lieu l ON l.id = o.lieu_id
              WHERE o.id = ?",
@@ -117,6 +128,8 @@ class FrontController extends AbstractController
         if (!$offre) {
             throw $this->createNotFoundException('Offre introuvable.');
         }
+
+        $offre = $this->enrichOfferCountdown($offre);
 
         $currentUser = $this->getUser();
         $userPromoCodes = [];
@@ -238,20 +251,31 @@ class FrontController extends AbstractController
             $expiration = $today->modify('+7 days');
         }
 
-        $code = sprintf('OFF-%d-U%d-%s', $id, (int) $user->getId(), strtoupper(substr(bin2hex(random_bytes(4)), 0, 8)));
-        $qrImageUrl = $this->buildQrImageUrl($code, $id, (int) $user->getId(), $expiration->format('Y-m-d'));
+        $activeCount = (int) $connection->fetchOne(
+            "SELECT COUNT(*) FROM code_promo
+             WHERE offre_id = ? AND user_id = ? AND statut = 'ACTIF'",
+            [$id, (int) $user->getId()]
+        );
+
+        if ($activeCount > 0) {
+            $blockedPromoId = $this->createPromoRecord($connection, $id, (int) $user->getId(), 'BLOQUE_ABUS', $today, $today);
+            $blockedPromoNumber = $this->formatPromoNumber($blockedPromoId);
+            $connection->update(
+                'code_promo',
+                ['qr_image_url' => $this->buildQrImageUrl($blockedPromoNumber)],
+                ['id' => $blockedPromoId]
+            );
+            $this->addFlash('error', 'Vous avez déjà un code promo actif pour cette offre. Cette tentative a été bloquée.');
+            return $this->redirectToRoute('app_offres_show', ['id' => $id]);
+        }
 
         try {
-            $connection->insert('code_promo', [
-                'offre_id' => $id,
-                'user_id' => (int) $user->getId(),
-                'qr_image_url' => $qrImageUrl,
-                'date_generation' => $today->format('Y-m-d'),
-                'date_expiration' => $expiration->format('Y-m-d'),
-                'statut' => 'ACTIF',
-            ]);
+            $promoId = $this->createPromoRecord($connection, $id, (int) $user->getId(), 'ACTIF', $today, $expiration);
+            $promoNumber = $this->formatPromoNumber($promoId);
+            $qrImageUrl = $this->buildQrImageUrl($promoNumber);
+            $connection->update('code_promo', ['qr_image_url' => $qrImageUrl], ['id' => $promoId]);
 
-            $this->addFlash('success', 'Code promo généré avec succès.');
+            $this->addFlash('success', 'Code promo généré avec succès: '.$promoNumber);
         } catch (\Throwable $e) {
             $this->addFlash('error', 'Erreur génération code promo: '.$e->getMessage());
         }
@@ -286,7 +310,11 @@ class FrontController extends AbstractController
         }
 
         if ((string) $promo['statut'] !== 'ACTIF') {
-            $this->addFlash('error', 'Ce code promo n\'est pas actif.');
+            if ((string) $promo['statut'] === 'BLOQUE_ABUS') {
+                $this->addFlash('error', 'Ce code promo a été bloqué pour abus.');
+            } else {
+                $this->addFlash('error', 'Ce code promo n\'est pas actif.');
+            }
             return $this->redirectToRoute('app_offres_show', ['id' => $offreId]);
         }
 
@@ -328,6 +356,46 @@ class FrontController extends AbstractController
         ];
     }
 
+    private function enrichOffersCountdown(array $offers): array
+    {
+        return array_map(fn (array $offer): array => $this->enrichOfferCountdown($offer), $offers);
+    }
+
+    private function enrichOfferCountdown(array $offer): array
+    {
+        $offer['countdown_label'] = null;
+        $offer['countdown_target'] = null;
+
+        if (!empty($offer['expiring_soon']) && !empty($offer['date_fin'])) {
+            $target = new \DateTimeImmutable((string) $offer['date_fin'] . ' 23:59:59');
+            $offer['countdown_target'] = $target->format(DATE_ATOM);
+            $offer['countdown_label'] = $this->formatCountdownLabel($target);
+        }
+
+        return $offer;
+    }
+
+    private function formatCountdownLabel(\DateTimeImmutable $target): string
+    {
+        $now = new \DateTimeImmutable('now');
+
+        if ($target <= $now) {
+            return 'Expirée';
+        }
+
+        $diff = $now->diff($target);
+
+        if ($diff->days > 0) {
+            return sprintf('%dj %dh %dm', $diff->days, $diff->h, $diff->i);
+        }
+
+        if ($diff->h > 0) {
+            return sprintf('%dh %dm', $diff->h, $diff->i);
+        }
+
+        return sprintf('%dm', $diff->i);
+    }
+
     private function fetchAll(Connection $connection, string $sql): array
     {
         try {
@@ -355,16 +423,27 @@ class FrontController extends AbstractController
         }
     }
 
-    private function buildQrImageUrl(string $code, int $offreId, int $userId, string $expirationDate): string
+    private function createPromoRecord(Connection $connection, int $offreId, int $userId, string $statut, \DateTimeImmutable $today, \DateTimeImmutable $expiration): int
     {
-        $payload = sprintf(
-            'PROMO:%s|OFFRE:%d|USER:%d|EXP:%s',
-            $code,
-            $offreId,
-            $userId,
-            $expirationDate
-        );
+        $connection->insert('code_promo', [
+            'offre_id' => $offreId,
+            'user_id' => $userId,
+            'qr_image_url' => 'pending',
+            'date_generation' => $today->format('Y-m-d'),
+            'date_expiration' => $expiration->format('Y-m-d'),
+            'statut' => $statut,
+        ]);
 
-        return 'https://api.qrserver.com/v1/create-qr-code/?size=280x280&data='.urlencode($payload);
+        return (int) $connection->lastInsertId();
+    }
+
+    private function buildQrImageUrl(string $promoNumber): string
+    {
+        return 'https://api.qrserver.com/v1/create-qr-code/?size=280x280&data='.urlencode($promoNumber);
+    }
+
+    private function formatPromoNumber(int|string $promoId): string
+    {
+        return 'CP'.str_pad((string) $promoId, 6, '0', STR_PAD_LEFT);
     }
 }
