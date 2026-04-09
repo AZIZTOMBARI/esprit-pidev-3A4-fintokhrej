@@ -313,12 +313,12 @@
 
             <div class="offer-field">
                 <label for="create_titre">Titre</label>
-                <input id="create_titre" class="offer-input" type="text" name="titre" required>
+                <input id="create_titre" class="offer-input" type="text" name="titre" minlength="3" maxlength="120" required>
             </div>
 
             <div class="offer-field">
                 <label for="create_type">Type</label>
-                <input id="create_type" class="offer-input" type="text" name="type" required>
+                <input id="create_type" class="offer-input" type="text" name="type" minlength="2" maxlength="60" required>
             </div>
 
             <div class="offer-field">
@@ -357,7 +357,7 @@
 
             <div class="offer-field offer-field--full">
                 <label for="create_description">Description</label>
-                <textarea id="create_description" class="offer-textarea" name="description" placeholder="Optionnel"></textarea>
+                <textarea id="create_description" class="offer-textarea" name="description" maxlength="1000" placeholder="Optionnel (max 1000 caractères)"></textarea>
             </div>
 
             <div class="offer-field offer-field--full">
@@ -449,11 +449,11 @@
 
                                         <div class="offer-field">
                                             <label>Titre</label>
-                                            <input class="offer-input" type="text" name="titre" value="{{ item.titre }}" required>
+                                            <input class="offer-input" type="text" name="titre" value="{{ item.titre }}" minlength="3" maxlength="120" required>
                                         </div>
                                         <div class="offer-field">
                                             <label>Type</label>
-                                            <input class="offer-input" type="text" name="type" value="{{ item.type }}" required>
+                                            <input class="offer-input" type="text" name="type" value="{{ item.type }}" minlength="2" maxlength="60" required>
                                         </div>
                                         <div class="offer-field">
                                             <label>Pourcentage</label>
@@ -486,7 +486,7 @@
                                         </div>
                                         <div class="offer-field offer-field--full">
                                             <label>Description</label>
-                                            <textarea class="offer-textarea" name="description">{{ item.description ?? '' }}</textarea>
+                                            <textarea class="offer-textarea" name="description" maxlength="1000">{{ item.description ?? '' }}</textarea>
                                         </div>
                                         <div class="offer-field offer-field--full">
                                             <button type="submit" class="offer-submit">Enregistrer</button>

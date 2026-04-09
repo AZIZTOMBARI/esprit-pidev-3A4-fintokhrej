@@ -864,14 +864,19 @@ class AdminController extends AbstractController
 
     private function normalizeOffrePayload(array $payload): array
     {
+        $titre = preg_replace('/\s+/', ' ', trim((string) ($payload['titre'] ?? '')));
+        $type = preg_replace('/\s+/', ' ', trim((string) ($payload['type'] ?? '')));
+        $description = trim((string) ($payload['description'] ?? ''));
+
         return [
-            'titre' => trim((string) ($payload['titre'] ?? '')),
-            'type' => trim((string) ($payload['type'] ?? '')),
+            'titre' => $titre,
+            'type' => $type,
+            'pourcentage_raw' => trim((string) ($payload['pourcentage'] ?? '')),
             'pourcentage' => isset($payload['pourcentage']) ? (float) $payload['pourcentage'] : -1,
             'date_debut' => trim((string) ($payload['date_debut'] ?? '')),
             'date_fin' => trim((string) ($payload['date_fin'] ?? '')),
             'statut' => $this->normalizeStatus(trim((string) ($payload['statut'] ?? ''))),
-            'description' => trim((string) ($payload['description'] ?? '')),
+            'description' => $description,
             'lieu_id' => isset($payload['lieu_id']) ? (int) $payload['lieu_id'] : 0,
         ];
     }
@@ -885,10 +890,18 @@ class AdminController extends AbstractController
 
         if ($payload['titre'] === '') {
             $errors[] = 'Le titre est obligatoire.';
+        } elseif (mb_strlen($payload['titre']) < 3 || mb_strlen($payload['titre']) > 120) {
+            $errors[] = 'Le titre doit contenir entre 3 et 120 caractères.';
         }
 
         if ($payload['type'] === '') {
             $errors[] = 'Le type est obligatoire.';
+        } elseif (mb_strlen($payload['type']) < 2 || mb_strlen($payload['type']) > 60) {
+            $errors[] = 'Le type doit contenir entre 2 et 60 caractères.';
+        }
+
+        if ($payload['description'] !== '' && mb_strlen($payload['description']) > 1000) {
+            $errors[] = 'La description ne doit pas dépasser 1000 caractères.';
         }
 
         if ($payload['statut'] === '') {
@@ -897,16 +910,20 @@ class AdminController extends AbstractController
             $errors[] = 'Le statut est invalide.';
         }
 
-        if ($payload['pourcentage'] < 0 || $payload['pourcentage'] > 100) {
+        if ($payload['pourcentage_raw'] === '' || !is_numeric($payload['pourcentage_raw'])) {
+            $errors[] = 'Le pourcentage est obligatoire et doit être un nombre.';
+        } elseif ($payload['pourcentage'] < 0 || $payload['pourcentage'] > 100) {
             $errors[] = 'Le pourcentage doit être entre 0 et 100.';
+        } elseif (preg_match('/^-?\d+(\.\d{1,2})?$/', $payload['pourcentage_raw']) !== 1) {
+            $errors[] = 'Le pourcentage accepte au maximum 2 chiffres après la virgule.';
         }
 
         if ($requireLieu && $payload['lieu_id'] <= 0) {
             $errors[] = 'Le lieu est obligatoire.';
         }
 
-        $dateDebut = \DateTimeImmutable::createFromFormat('Y-m-d', $payload['date_debut']);
-        $dateFin = \DateTimeImmutable::createFromFormat('Y-m-d', $payload['date_fin']);
+        $dateDebut = $this->parseStrictYmdDate($payload['date_debut']);
+        $dateFin = $this->parseStrictYmdDate($payload['date_fin']);
 
         if (!$dateDebut || !$dateFin) {
             $errors[] = 'Les dates début/fin sont obligatoires et doivent être au format YYYY-MM-DD.';
@@ -915,6 +932,20 @@ class AdminController extends AbstractController
         }
 
         return $errors;
+    }
+
+    private function parseStrictYmdDate(string $date): ?\DateTimeImmutable
+    {
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            return null;
+        }
+
+        $parsed = \DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+        if (!$parsed) {
+            return null;
+        }
+
+        return $parsed->format('Y-m-d') === $date ? $parsed : null;
     }
 
     private function normalizeStatus(string $status): string
