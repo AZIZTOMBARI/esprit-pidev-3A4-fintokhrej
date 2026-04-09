@@ -22,18 +22,6 @@ doctrine:
                 dir: '%kernel.project_dir%/src/Entity'
                 prefix: 'App\Entity'
                 alias: App
-        #attention na7ihom imba3id 
-        schema_ignore_classes:
-            - App\Entity\AnnonceSortie
-            - App\Entity\Badge
-            - App\Entity\BadgeRecompense
-            - App\Entity\Lieu
-            - App\Entity\Notification
-            - App\Entity\Offre
-            - App\Entity\OffreBadgeUser
-            - App\Entity\PollOption
-            - App\Entity\SortieTask
-            - App\Entity\User
 
 when@test:
     doctrine:

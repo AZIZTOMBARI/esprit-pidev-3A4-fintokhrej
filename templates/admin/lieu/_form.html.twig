@@ -1,0 +1,45 @@
+{{ form_start(form, { attr: { class: 'lieu-form-card', enctype: 'multipart/form-data' } }) }}
+    {{ form_errors(form) }}
+
+    <div class="row g-3">
+        <div class="col-12">
+            {{ form_row(form.offre) }}
+        </div>
+        <div class="col-md-6">{{ form_row(form.nom) }}</div>
+        <div class="col-md-6">{{ form_row(form.ville) }}</div>
+        <div class="col-md-6">{{ form_row(form.adresse) }}</div>
+        <div class="col-md-6">{{ form_row(form.telephone) }}</div>
+        <div class="col-md-6">{{ form_row(form.siteWeb) }}</div>
+        <div class="col-md-6">{{ form_row(form.instagram) }}</div>
+        <div class="col-12">{{ form_row(form.description) }}</div>
+        <div class="col-md-6">{{ form_row(form.budgetMin) }}</div>
+        <div class="col-md-6">{{ form_row(form.budgetMax) }}</div>
+        <div class="col-md-6">{{ form_row(form.categorie) }}</div>
+        <div class="col-md-6">{{ form_row(form.type) }}</div>
+        <div class="col-md-6">{{ form_row(form.latitude) }}</div>
+        <div class="col-md-6">{{ form_row(form.longitude) }}</div>
+        <div class="col-12">
+            {% set rawImage = lieu is defined and lieu.imageUrl is not null ? lieu.imageUrl : '' %}
+            {% if rawImage %}
+                {% if rawImage starts with 'http://' or rawImage starts with 'https://' %}
+                    {% set imageSrc = rawImage %}
+                {% elseif rawImage starts with 'theme/' or rawImage starts with 'uploads/' %}
+                    {% set imageSrc = asset(rawImage) %}
+                {% else %}
+                    {% set imageSrc = asset(rawImage) %}
+                {% endif %}
+
+                <div class="lieu-image-preview mb-3">
+                    <img src="{{ imageSrc }}" alt="Image actuelle du lieu" class="img-fluid rounded-4 border" style="max-height:240px;object-fit:cover;">
+                </div>
+            {% endif %}
+        </div>
+        <div class="col-md-6">{{ form_row(form.imageUrl) }}</div>
+        <div class="col-md-6">{{ form_row(form.imageFile) }}</div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 mt-4">
+        <button class="primary-btn" type="submit">{{ button_label|default('Enregistrer') }}</button>
+        <a href="{{ path('app_admin_lieu_index') }}" class="secondary-btn">Annuler</a>
+    </div>
+{{ form_end(form) }}
