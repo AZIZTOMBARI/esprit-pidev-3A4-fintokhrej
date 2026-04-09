@@ -6,6 +6,9 @@
     --auth-border: #d0d7e2;
     --auth-accent: #111827;
     --auth-accent-2: #0f172a;
+    --auth-danger: #c61f3a;
+    --auth-danger-deep: #8b1b2c;
+    --auth-danger-soft: #fff1f4;
 }
 
 * {
@@ -202,6 +205,54 @@ body {
     color: #b91c1c;
     font-size: 12px;
     line-height: 1.35;
+}
+
+.auth-field-error:empty {
+    display: none;
+}
+
+.auth-field-error .ft-error-stack {
+    margin-top: 0;
+}
+
+.auth-field-error .ft-field-error,
+.auth-error .ft-field-error {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    color: var(--auth-danger-deep);
+    background: linear-gradient(180deg, #fff8fa 0%, var(--auth-danger-soft) 100%);
+    border: 1px solid rgba(198, 31, 58, 0.35);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.auth-field-error .ft-field-error__icon,
+.auth-error .ft-field-error__icon {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--auth-danger), #e44c65);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    flex: 0 0 18px;
+}
+
+.auth-field input.is-invalid,
+.auth-field select.is-invalid,
+.auth-field textarea.is-invalid,
+.auth-field input[aria-invalid="true"],
+.auth-field select[aria-invalid="true"],
+.auth-field textarea[aria-invalid="true"] {
+    border-color: var(--auth-danger);
+    background: linear-gradient(180deg, #fffefe 0%, #fff6f8 100%);
+    box-shadow: 0 0 0 3px rgba(198,31,58,.15);
 }
 
 .auth-submit {

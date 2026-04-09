@@ -12,10 +12,16 @@
         {% set adminRawImage = app.user ? (app.user.imageUrl|default('')) : '' %}
         {% if adminRawImage and (adminRawImage starts with 'http://' or adminRawImage starts with 'https://') %}
             {% set adminImageSrc = adminRawImage %}
+        {% elseif adminRawImage and (adminRawImage starts with '/theme/' or adminRawImage starts with '/uploads/') %}
+            {% set adminImageSrc = asset(adminRawImage|trim('/')) %}
         {% elseif adminRawImage and (adminRawImage starts with 'theme/' or adminRawImage starts with 'uploads/') %}
-            {% set adminImageSrc = asset(adminRawImage) %}
+            {% set adminImageSrc = asset(adminRawImage|trim('/')) %}
+        {% elseif adminRawImage and (adminRawImage starts with '/public/' or adminRawImage starts with 'public/') %}
+            {% set adminImageSrc = asset(adminRawImage|replace({'/public/': '', 'public/': ''})|trim('/')) %}
+        {% elseif adminRawImage and ('uploads/' in adminRawImage) %}
+            {% set adminImageSrc = asset(adminRawImage|split('uploads/')|last|trim('/')|replace({'users/': 'uploads/users/'}) ) %}
         {% elseif adminRawImage and adminRawImage != 'default.png' %}
-            {% set adminImageSrc = asset('uploads/users/' ~ adminRawImage) %}
+            {% set adminImageSrc = asset('uploads/users/' ~ adminRawImage|trim('/')) %}
         {% else %}
             {% set adminImageSrc = asset('theme/images/logo.png') %}
         {% endif %}

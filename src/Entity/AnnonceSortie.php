@@ -6,6 +6,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Symfony\Component\Validator\Constraints as Assert;
 
 use App\Repository\AnnonceSortieRepository;
 
@@ -44,7 +45,9 @@ class AnnonceSortie
         return $this;
     }
 
-    #[ORM\Column(type: 'string', nullable: false)]
+    #[ORM\Column(type: 'string', length: 140, nullable: false)]
+    #[Assert\NotBlank(message: 'Le titre est obligatoire.')]
+    #[Assert\Length(max: 140, maxMessage: 'Le titre ne doit pas depasser {{ limit }} caracteres.')]
     private ?string $titre = null;
 
     public function getTitre(): ?string
@@ -59,6 +62,7 @@ class AnnonceSortie
     }
 
     #[ORM\Column(type: 'text', nullable: true)]
+    #[Assert\Length(max: 5000, maxMessage: 'La description est trop longue.')]
     private ?string $description = null;
 
     public function getDescription(): ?string
@@ -72,7 +76,16 @@ class AnnonceSortie
         return $this;
     }
 
-    #[ORM\Column(type: 'string', nullable: false)]
+    #[ORM\Column(type: 'string', length: 80, nullable: false)]
+    #[Assert\NotBlank(message: 'La ville est obligatoire.')]
+    #[Assert\Choice(
+        choices: [
+            'Tunis', 'Ariana', 'Ben Arous', 'Manouba', 'Nabeul', 'Zaghouan', 'Bizerte', 'Beja',
+            'Jendouba', 'Kef', 'Siliana', 'Sousse', 'Monastir', 'Mahdia', 'Sfax', 'Kairouan',
+            'Kasserine', 'Sidi Bouzid', 'Gabes', 'Medenine', 'Tataouine', 'Gafsa', 'Tozeur', 'Kebili'
+        ],
+        message: 'Veuillez choisir une ville tunisienne valide.'
+    )]
     private ?string $ville = null;
 
     public function getVille(): ?string
@@ -86,7 +99,9 @@ class AnnonceSortie
         return $this;
     }
 
-    #[ORM\Column(type: 'string', nullable: false)]
+    #[ORM\Column(type: 'string', length: 255, nullable: false)]
+    #[Assert\NotBlank(message: 'Le lieu est obligatoire.')]
+    #[Assert\Length(max: 255, maxMessage: 'Le lieu ne doit pas depasser {{ limit }} caracteres.')]
     private ?string $lieu_texte = null;
 
     public function getLieu_texte(): ?string
@@ -100,7 +115,9 @@ class AnnonceSortie
         return $this;
     }
 
-    #[ORM\Column(type: 'string', nullable: false)]
+    #[ORM\Column(type: 'string', length: 255, nullable: false)]
+    #[Assert\NotBlank(message: 'Le point de rencontre est obligatoire.')]
+    #[Assert\Length(max: 255, maxMessage: 'Le point de rencontre est trop long.')]
     private ?string $point_rencontre = null;
 
     public function getPoint_rencontre(): ?string
@@ -114,7 +131,9 @@ class AnnonceSortie
         return $this;
     }
 
-    #[ORM\Column(type: 'string', nullable: false)]
+    #[ORM\Column(type: 'string', length: 80, nullable: false)]
+    #[Assert\NotBlank(message: 'Le type d activite est obligatoire.')]
+    #[Assert\Length(max: 80, maxMessage: 'Le type d activite ne doit pas depasser {{ limit }} caracteres.')]
     private ?string $type_activite = null;
 
     public function getType_activite(): ?string
@@ -129,6 +148,8 @@ class AnnonceSortie
     }
 
     #[ORM\Column(type: 'datetime', nullable: false)]
+    #[Assert\NotNull(message: 'La date de sortie est obligatoire.')]
+    #[Assert\GreaterThan('today', message: 'La date de sortie doit etre superieure a aujourd hui.')]
     private ?\DateTimeInterface $date_sortie = null;
 
     public function getDate_sortie(): ?\DateTimeInterface
@@ -142,7 +163,9 @@ class AnnonceSortie
         return $this;
     }
 
-    #[ORM\Column(type: 'decimal', nullable: false)]
+    #[ORM\Column(type: 'decimal', precision: 10, scale: 2, nullable: false)]
+    #[Assert\NotNull(message: 'Le budget est obligatoire. Mettez 0 pour Gratuit.')]
+    #[Assert\GreaterThanOrEqual(value: 0, message: 'Le budget doit etre positif ou nul (0 pour Gratuit).')]
     private ?float $budget_max = null;
 
     public function getBudget_max(): ?float
@@ -157,6 +180,8 @@ class AnnonceSortie
     }
 
     #[ORM\Column(type: 'integer', nullable: false)]
+    #[Assert\NotNull(message: 'Le nombre de places est obligatoire.')]
+    #[Assert\Positive(message: 'Le nombre de places doit etre strictement positif.')]
     private ?int $nb_places = null;
 
     public function getNb_places(): ?int
@@ -170,7 +195,8 @@ class AnnonceSortie
         return $this;
     }
 
-    #[ORM\Column(type: 'string', nullable: true)]
+    #[ORM\Column(type: 'string', length: 500, nullable: true)]
+    #[Assert\Length(max: 500, maxMessage: 'L URL de l image ne doit pas depasser {{ limit }} caracteres.')]
     private ?string $image_url = null;
 
     public function getImage_url(): ?string
@@ -185,7 +211,9 @@ class AnnonceSortie
     }
 
     #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $statut = null;
+    #[Assert\NotBlank(message: 'Le statut est obligatoire.')]
+    #[Assert\Choice(choices: ['OUVERTE', 'CLOTUREE', 'ANNULEE', 'TERMINEE'], message: 'Statut invalide.')]
+    private ?string $statut = 'OUVERTE';
 
     public function getStatut(): ?string
     {
@@ -199,6 +227,7 @@ class AnnonceSortie
     }
 
     #[ORM\Column(type: 'text', nullable: true)]
+    #[Assert\Json(message: 'Les questions doivent etre au format JSON valide.')]
     private ?string $questions_json = null;
 
     public function getQuestions_json(): ?string
@@ -403,7 +432,7 @@ class AnnonceSortie
         return $this->lieu_texte;
     }
 
-    public function setLieuTexte(string $lieu_texte): static
+    public function setLieuTexte(?string $lieu_texte): static
     {
         $this->lieu_texte = $lieu_texte;
 
@@ -415,7 +444,7 @@ class AnnonceSortie
         return $this->point_rencontre;
     }
 
-    public function setPointRencontre(string $point_rencontre): static
+    public function setPointRencontre(?string $point_rencontre): static
     {
         $this->point_rencontre = $point_rencontre;
 
@@ -427,31 +456,31 @@ class AnnonceSortie
         return $this->type_activite;
     }
 
-    public function setTypeActivite(string $type_activite): static
+    public function setTypeActivite(?string $type_activite): static
     {
         $this->type_activite = $type_activite;
 
         return $this;
     }
 
-    public function getDateSortie(): ?\DateTime
+    public function getDateSortie(): ?\DateTimeInterface
     {
         return $this->date_sortie;
     }
 
-    public function setDateSortie(\DateTime $date_sortie): static
+    public function setDateSortie(?\DateTimeInterface $date_sortie): static
     {
         $this->date_sortie = $date_sortie;
 
         return $this;
     }
 
-    public function getBudgetMax(): ?string
+    public function getBudgetMax(): ?float
     {
         return $this->budget_max;
     }
 
-    public function setBudgetMax(string $budget_max): static
+    public function setBudgetMax(?float $budget_max): static
     {
         $this->budget_max = $budget_max;
 
@@ -463,7 +492,7 @@ class AnnonceSortie
         return $this->nb_places;
     }
 
-    public function setNbPlaces(int $nb_places): static
+    public function setNbPlaces(?int $nb_places): static
     {
         $this->nb_places = $nb_places;
 

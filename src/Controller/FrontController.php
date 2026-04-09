@@ -13,6 +13,10 @@ class FrontController extends AbstractController
     #[Route('/home', name: 'app_home')]
     public function home(Connection $connection): Response
     {
+        if ($redirect = $this->redirectAdminToBack()) {
+            return $redirect;
+        }
+
         return $this->render('front/home/index.html.twig', [
             'active' => 'home',
             'stats' => $this->getFrontStats($connection),
@@ -61,6 +65,10 @@ class FrontController extends AbstractController
     #[Route('/lieux', name: 'app_lieux')]
     public function lieux(Connection $connection): Response
     {
+        if ($redirect = $this->redirectAdminToBack()) {
+            return $redirect;
+        }
+
         return $this->render('front/lieu/index.html.twig', [
             'active' => 'lieux',
             'places' => $this->fetchAll($connection, "
@@ -74,11 +82,15 @@ class FrontController extends AbstractController
     #[Route('/sorties', name: 'app_sorties')]
     public function sorties(Connection $connection): Response
     {
+        if ($redirect = $this->redirectAdminToBack()) {
+            return $redirect;
+        }
+
         return $this->render('front/sortie/index.html.twig', [
             'active' => 'sorties',
             'sorties' => $this->fetchAll($connection, "
-                SELECT s.id, s.titre, s.description, s.ville, s.type_activite, s.date_sortie, s.budget_max, s.nb_places, s.statut,
-                       u.prenom, u.nom
+                SELECT s.id, s.user_id, s.titre, s.description, s.ville, s.lieu_texte, s.point_rencontre, s.type_activite, s.date_sortie, s.budget_max, s.nb_places, s.statut, s.image_url, s.questions_json,
+                       u.prenom, u.nom, u.imageUrl AS user_image_url
                 FROM annonce_sortie s
                 LEFT JOIN user u ON u.id = s.user_id
                 ORDER BY s.date_sortie ASC
@@ -89,6 +101,10 @@ class FrontController extends AbstractController
     #[Route('/offres', name: 'app_offres')]
     public function offres(Connection $connection): Response
     {
+        if ($redirect = $this->redirectAdminToBack()) {
+            return $redirect;
+        }
+
         return $this->render('front/offre/index.html.twig', [
             'active' => 'offres',
             'offres' => $this->fetchAll($connection, "
@@ -104,6 +120,10 @@ class FrontController extends AbstractController
     #[Route('/evenements', name: 'app_evenements')]
     public function evenements(Connection $connection): Response
     {
+        if ($redirect = $this->redirectAdminToBack()) {
+            return $redirect;
+        }
+
         return $this->render('front/evenement/index.html.twig', [
             'active' => 'evenements',
             'events' => $this->fetchAll($connection, "
@@ -151,5 +171,14 @@ class FrontController extends AbstractController
         } catch (Exception) {
             return 0;
         }
+    }
+
+    private function redirectAdminToBack(): ?Response
+    {
+        if ($this->isGranted('ROLE_ADMIN')) {
+            return $this->redirectToRoute('app_admin_dashboard');
+        }
+
+        return null;
     }
 }

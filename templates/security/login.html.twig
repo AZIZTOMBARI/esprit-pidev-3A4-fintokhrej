@@ -3,7 +3,7 @@
 {% block title %}Connexion{% endblock %}
 
 {% block stylesheets %}
-    <link rel="stylesheet" href="{{ asset('styles/auth.css') }}">
+    <link rel="stylesheet" href="{{ asset('styles/auth.css') }}?v=20260409d">
 {% endblock %}
 
 {% block body %}
@@ -33,17 +33,19 @@
                         <div class="auth-error">{{ error.messageKey|trans(error.messageData, 'security') }}</div>
                     {% endif %}
 
-                    <form method="post">
+                    <form method="post" novalidate data-login-form>
                         <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
 
                         <div class="auth-field">
                             <label for="username">Your Email</label>
-                            <input id="username" type="email" name="email" value="{{ last_username }}" required>
+                            <input id="username" type="email" name="email" value="{{ last_username }}" required data-login-email>
+                            <div class="auth-field-error" data-login-error-for="email"></div>
                         </div>
 
                         <div class="auth-field">
                             <label for="password">Password</label>
-                            <input id="password" type="password" name="password" required>
+                            <input id="password" type="password" name="password" required data-login-password>
+                            <div class="auth-field-error" data-login-error-for="password"></div>
                         </div>
 
                         <button class="auth-submit" type="submit">Login</button>
