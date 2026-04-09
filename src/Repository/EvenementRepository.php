@@ -25,6 +25,38 @@ class EvenementRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    public function findUpcomingWithFilters(?string $query, ?string $type, ?string $prix): array
+    {
+        $qb = $this->createQueryBuilder('e')
+            ->leftJoin('e.lieu', 'l')
+            ->addSelect('l')
+            ->where('e.dateDebut > :now')
+            ->andWhere('e.statut = :ouvert')
+            ->setParameter('now', new \DateTime())
+            ->setParameter('ouvert', 'OUVERT');
+
+        $query = $query ? trim($query) : '';
+        if ($query !== '') {
+            $qb->andWhere('LOWER(e.titre) LIKE :q OR LOWER(l.nom) LIKE :q OR LOWER(l.ville) LIKE :q')
+                ->setParameter('q', '%'.strtolower($query).'%');
+        }
+
+        if ($type && in_array($type, Evenement::TYPES_VALIDES, true)) {
+            $qb->andWhere('e.type = :type')
+                ->setParameter('type', $type);
+        }
+
+        if ($prix === 'gratuit') {
+            $qb->andWhere('e.prix = 0');
+        } elseif ($prix === 'payant') {
+            $qb->andWhere('e.prix > 0');
+        }
+
+        return $qb->orderBy('e.dateDebut', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
     public function findWithFilters(
         ?string $query,
         ?string $statut,

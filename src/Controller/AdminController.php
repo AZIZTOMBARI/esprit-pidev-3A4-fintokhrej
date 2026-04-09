@@ -234,13 +234,10 @@ class AdminController extends AbstractController
         ]);
     }
 
-    #[Route('/evenements', name: 'app_admin_evenements')]
-    public function evenements(Connection $connection): Response
+    #[Route('/evenements-legacy', name: 'app_admin_evenements_legacy')]
+    public function evenementsLegacy(): Response
     {
-        return $this->render('admin/evenement/index.html.twig', [
-            'active' => 'evenements',
-            'evenements' => $this->fetchAll($connection, 'SELECT id, titre, description, date_debut as dateDebut, date_fin as dateFin, type, prix, statut, capacite_max as capaciteMax, image_url as imageUrl FROM evenement ORDER BY date_debut ASC'),
-        ]);
+        return $this->redirectToRoute('app_admin_evenements');
     }
 
     private function fetchAll(Connection $connection, string $sql, array $params = []): array

@@ -8,6 +8,8 @@ use App\Entity\Paiement;
 use App\Repository\EvenementRepository;
 use App\Repository\InscriptionRepository;
 use App\Service\EvenementService;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -23,13 +25,24 @@ class EvenementController extends AbstractController
     ) {}
 
     #[Route('', name: 'app_evenements', methods: ['GET'])]
-    public function index(EvenementRepository $repository): Response
+    public function index(Request $request, EvenementRepository $repository): Response
     {
-        $evenements = $repository->findUpcoming();
+        $filters = [
+            'q' => trim((string) $request->query->get('q', '')),
+            'type' => (string) $request->query->get('type', ''),
+            'prix' => (string) $request->query->get('prix', ''),
+        ];
+
+        $evenements = $repository->findUpcomingWithFilters(
+            $filters['q'],
+            $filters['type'],
+            $filters['prix']
+        );
 
         return $this->render('front/evenement/index.html.twig', [
             'active' => 'evenements',
             'events' => $evenements,
+            'filters' => $filters,
         ]);
     }
 
@@ -157,16 +170,33 @@ class EvenementController extends AbstractController
 
         // POST : soumettre le paiement
         $methode = $request->request->get('methode', Paiement::METHODE_CARTE);
+        $nomCarte = trim((string) $request->request->get('nom_carte', ''));
+        $quatreDerniers = trim((string) $request->request->get('quatre_derniers', ''));
 
         if (!in_array($methode, Paiement::METHODES_VALIDES)) {
             $this->addFlash('error', 'Méthode de paiement invalide.');
             return $this->redirectToRoute('app_inscription_paiement', ['id' => $inscription->getId()]);
         }
 
+        if ($methode === Paiement::METHODE_CARTE) {
+            if ($nomCarte === '') {
+                $this->addFlash('error', 'Le nom sur la carte est obligatoire.');
+                return $this->redirectToRoute('app_inscription_paiement', ['id' => $inscription->getId()]);
+            }
+            if (!preg_match('/^\d{4}$/', $quatreDerniers)) {
+                $this->addFlash('error', 'Les 4 derniers chiffres doivent contenir exactement 4 chiffres.');
+                return $this->redirectToRoute('app_inscription_paiement', ['id' => $inscription->getId()]);
+            }
+        }
+
         try {
             $paiement = $this->evenementService->effectuerPaiement($inscription, $methode);
 
             if ($paiement->estReussi()) {
+                $session = $request->getSession();
+                if ($session) {
+                    $session->getFlashBag()->set('error', []);
+                }
                 $this->addFlash('success', sprintf(
                     '✅ Paiement réussi ! Référence: %s. Vos tickets ont été générés.',
                     $paiement->getReferenceCode()
@@ -207,12 +237,54 @@ class EvenementController extends AbstractController
     }
 
     /**
+     * Télécharger les tickets au format PDF
+     */
+    #[Route('/inscription/{id<\\d+>}/tickets/pdf', name: 'app_inscription_tickets_pdf', methods: ['GET'])]
+    #[IsGranted('IS_AUTHENTICATED')]
+    public function telechargerTicketsPdf(Inscription $inscription): Response
+    {
+        if ($inscription->getUser() !== $this->getUser()) {
+            throw $this->createAccessDeniedException('Accès non autorisé.');
+        }
+
+        if ($inscription->getStatut() !== Inscription::STATUT_PAYEE) {
+            $this->addFlash('error', 'Le PDF est disponible uniquement après paiement.');
+            return $this->redirectToRoute('app_mon_profil_inscriptions');
+        }
+
+        $options = new Options();
+        $options->set('defaultFont', 'DejaVu Sans');
+
+        $dompdf = new Dompdf($options);
+        $html = $this->renderView('front/evenement/tickets-pdf.html.twig', [
+            'inscription' => $inscription,
+            'tickets' => $inscription->getTickets(),
+        ]);
+
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        $filename = 'tickets-'.$inscription->getId().'.pdf';
+
+        return new Response($dompdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        ]);
+    }
+
+    /**
      * Afficher mes inscriptions
      */
     #[Route('/mes-inscriptions', name: 'app_mon_profil_inscriptions', methods: ['GET'])]
     #[IsGranted('IS_AUTHENTICATED')]
-    public function mesInscriptions(InscriptionRepository $repo): Response
+    public function mesInscriptions(Request $request, InscriptionRepository $repo): Response
     {
+        $session = $request->getSession();
+        if ($session && $session->getFlashBag()->has('success')) {
+            $session->getFlashBag()->set('error', []);
+        }
+
         $user = $this->getUser();
         $inscriptions = $repo->findBy(['user' => $user], ['dateCreation' => 'DESC']);
 

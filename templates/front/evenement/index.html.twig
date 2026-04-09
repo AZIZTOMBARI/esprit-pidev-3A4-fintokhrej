@@ -4,6 +4,7 @@
 
 {% block front_content %}
 <section>
+    {% set filters = filters|default({ q: '', type: '', prix: '' }) %}
     <div class="section-head">
         <div>
             <h1 class="section-title">Événements à venir</h1>
@@ -12,9 +13,44 @@
         <a href="{{ path('app_home') }}" class="outline-btn">Retour accueil</a>
     </div>
 
+    <div class="listing-card event-filter-card">
+        <div class="section-head" style="margin-bottom: 10px;">
+            <div>
+                <h2 class="section-title" style="font-size: 1.1rem;">Recherche et filtres</h2>
+                <p class="section-subtitle">Affiner les événements proposés.</p>
+            </div>
+            <a href="{{ path('app_evenements') }}" class="outline-btn">Réinitialiser</a>
+        </div>
+        <form method="get" class="event-filter-grid">
+            <div class="event-filter-field">
+                <label>Recherche</label>
+                <input type="text" name="q" value="{{ filters.q }}" placeholder="Titre ou lieu">
+            </div>
+            <div class="event-filter-field">
+                <label>Type</label>
+                <select name="type">
+                    <option value="">Tous les types</option>
+                    <option value="PUBLIC" {{ filters.type == 'PUBLIC' ? 'selected' : '' }}>Public</option>
+                    <option value="PRIVE" {{ filters.type == 'PRIVE' ? 'selected' : '' }}>Privé</option>
+                </select>
+            </div>
+            <div class="event-filter-field">
+                <label>Prix</label>
+                <select name="prix">
+                    <option value="">Tous</option>
+                    <option value="gratuit" {{ filters.prix == 'gratuit' ? 'selected' : '' }}>Gratuit</option>
+                    <option value="payant" {{ filters.prix == 'payant' ? 'selected' : '' }}>Payant</option>
+                </select>
+            </div>
+            <div class="event-filter-field event-filter-actions">
+                <button type="submit" class="cta-btn">Filtrer</button>
+            </div>
+        </form>
+    </div>
+
     <div class="listing-grid">
         {% for event in events %}
-            <article class="listing-card">
+            <article class="listing-card event-card">
                 {% set rawImage = event.imageUrl|default('') %}
                 {% if rawImage and (rawImage starts with 'http://' or rawImage starts with 'https://') %}
                     {% set imageSrc = rawImage %}
@@ -33,7 +69,7 @@
                     {% endif %}
                 </div>
                 
-                <div class="listing-card__top">
+                <div class="listing-card__top event-card__body">
                     <div>
                         <h3>{{ event.titre }}</h3>
                         <p>{{ event.dateDebut|date('d/m/Y') }} • 
@@ -44,23 +80,17 @@
                             {% endif %}
                         </p>
                     </div>
-                    {% if event.prix > 0 %}
-                        <span class="price-pill">{{ event.prix }} TND</span>
-                    {% endif %}
+                    <span class="price-pill">{% if event.prix > 0 %}{{ event.prix }} TND{% else %}Gratuit{% endif %}</span>
                 </div>
 
-                <div class="meta-row">
+                <div class="meta-row event-card__meta">
                     <span>🗓 {{ event.dateDebut|date('d/m/Y H:i') }}{% if event.dateFin is defined %} • {{ event.dateFin|date('H:i') }}{% endif %}</span>
                     <span>👥 {% if event.placesRestantes is defined %}{{ event.placesRestantes }}{% else %}{{ event.capaciteMax ?? '?' }}{% endif %} places restantes</span>
-                    <span>🏷 {{ event.type|default('PUBLIC') }}</span>
-                    <span>✅ {{ event.statut|default('OUVERT') }}</span>
+                    <span class="badge-soft">{{ event.type|default('PUBLIC') }}</span>
+                    <span class="badge-soft">{{ event.statut|default('OUVERT') }}</span>
                 </div>
 
-                {% if event.description %}
-                    <p style="margin-top: 10px; font-size: 0.95rem;">{{ event.description|slice(0, 120) }}...</p>
-                {% endif %}
-
-                <a href="{{ path('app_evenement_show', {id: event.id}) }}" class="cta-btn" style="margin-top: 15px; display: block; text-align: center;">
+                <a href="{{ path('app_evenement_show', {id: event.id}) }}" class="cta-btn event-card__cta" style="margin-top: 15px; display: inline-flex; justify-content: center;">
                     Participer
                 </a>
             </article>
@@ -69,4 +99,59 @@
         {% endfor %}
     </div>
 </section>
+
+<style>
+    .event-filter-card {
+        margin-bottom: 18px;
+    }
+    .event-filter-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+    }
+    .event-filter-field {
+        display: grid;
+        gap: 6px;
+    }
+    .event-filter-field label {
+        font-size: 13px;
+        font-weight: 700;
+        color: #334155;
+    }
+    .event-filter-field input,
+    .event-filter-field select {
+        width: 100%;
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        padding: 10px 12px;
+        font-size: 14px;
+        background: #fff;
+        color: #0f172a;
+        outline: none;
+    }
+    .event-filter-field input:focus,
+    .event-filter-field select:focus {
+        border-color: #38bdf8;
+        box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+    }
+    .event-filter-actions {
+        display: flex;
+        align-items: end;
+    }
+    .event-card {
+        display: flex;
+        flex-direction: column;
+    }
+    .event-card__body {
+        flex: 1;
+    }
+    .event-card__meta {
+        align-items: center;
+    }
+    .event-card__cta {
+        margin-top: auto;
+        align-self: center;
+        min-width: 160px;
+    }
+</style>
 {% endblock %}

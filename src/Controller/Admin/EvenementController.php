@@ -56,9 +56,15 @@ class EvenementController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}', name: 'app_admin_evenement_show', methods: ['GET'])]
-    public function show(Evenement $evenement): Response
+    #[Route('/{id<\\d+>}', name: 'app_admin_evenement_show', methods: ['GET'])]
+    public function show(int $id, EvenementRepository $repository): Response
     {
+        $evenement = $repository->find($id);
+        if (!$evenement) {
+            $this->addFlash('error', 'Événement introuvable.');
+            return $this->redirectToRoute('app_admin_evenements');
+        }
+
         $stats = $this->evenementService->getStatistiquesEvenement($evenement);
 
         return $this->render('admin/evenement/show.html.twig', [
@@ -102,9 +108,15 @@ class EvenementController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}/edit', name: 'app_admin_evenements_edit', methods: ['GET', 'POST'])]
-    public function edit(Request $request, Evenement $evenement): Response
+    #[Route('/{id<\\d+>}/edit', name: 'app_admin_evenements_edit', methods: ['GET', 'POST'])]
+    public function edit(Request $request, int $id, EvenementRepository $repository): Response
     {
+        $evenement = $repository->find($id);
+        if (!$evenement) {
+            $this->addFlash('error', 'Événement introuvable.');
+            return $this->redirectToRoute('app_admin_evenements');
+        }
+
         $form = $this->createForm(EvenementType::class, $evenement);
         $form->handleRequest($request);
 
@@ -135,9 +147,15 @@ class EvenementController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}/delete', name: 'app_admin_evenements_delete', methods: ['POST'])]
-    public function delete(Request $request, Evenement $evenement): Response
+    #[Route('/{id<\\d+>}/delete', name: 'app_admin_evenements_delete', methods: ['POST'])]
+    public function delete(Request $request, int $id, EvenementRepository $repository): Response
     {
+        $evenement = $repository->find($id);
+        if (!$evenement) {
+            $this->addFlash('error', 'Événement introuvable.');
+            return $this->redirectToRoute('app_admin_evenements');
+        }
+
         if ($this->isCsrfTokenValid('delete'.$evenement->getId(), $request->get('_token'))) {
             $this->em->remove($evenement);
             $this->em->flush();
@@ -149,9 +167,15 @@ class EvenementController extends AbstractController
 
     // ==================== GESTION DES INSCRIPTIONS ====================
 
-    #[Route('/{id}/inscriptions', name: 'app_admin_inscriptions', methods: ['GET'])]
-    public function gererInscriptions(Evenement $evenement, InscriptionRepository $repo): Response
+    #[Route('/{id<\\d+>}/inscriptions', name: 'app_admin_inscriptions', methods: ['GET'])]
+    public function gererInscriptions(int $id, EvenementRepository $repository, InscriptionRepository $repo): Response
     {
+        $evenement = $repository->find($id);
+        if (!$evenement) {
+            $this->addFlash('error', 'Événement introuvable.');
+            return $this->redirectToRoute('app_admin_evenements');
+        }
+
         $inscriptionsEnAttente = $repo->findInscriptionsEnAttente($evenement);
         $inscriptions = $repo->findBy(['evenement' => $evenement], ['dateCreation' => 'DESC']);
         $stats = $this->evenementService->getStatistiquesEvenement($evenement);

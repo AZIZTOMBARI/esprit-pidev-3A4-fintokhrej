@@ -36,6 +36,7 @@ class Evenement
     private ?string $titre = null;
 
     #[ORM\Column(type: 'text', nullable: true)]
+    #[Assert\Length(max: 2000)]
     private ?string $description = null;
 
     #[ORM\Column(name: 'date_debut', type: 'datetime')]
@@ -56,9 +57,11 @@ class Evenement
     private ?Lieu $lieu = null;
 
     #[ORM\Column(length: 10)]
+    #[Assert\Choice(choices: self::STATUTS_VALIDES, message: 'Statut invalide.')]
     private string $statut = 'OUVERT';
 
     #[ORM\Column(length: 10)]
+    #[Assert\Choice(choices: self::TYPES_VALIDES, message: 'Type invalide.')]
     private string $type = 'PUBLIC';
 
     #[ORM\Column(name: 'image_url', length: 500, nullable: true)]
@@ -85,9 +88,9 @@ class Evenement
     public function getDescription(): ?string { return $this->description; }
     public function setDescription(?string $description): self { $this->description = $description; return $this; }
     public function getDateDebut(): ?\DateTimeInterface { return $this->dateDebut; }
-    public function setDateDebut(\DateTimeInterface $dateDebut): self { $this->dateDebut = $dateDebut; return $this; }
+    public function setDateDebut(?\DateTimeInterface $dateDebut): self { $this->dateDebut = $dateDebut; return $this; }
     public function getDateFin(): ?\DateTimeInterface { return $this->dateFin; }
-    public function setDateFin(\DateTimeInterface $dateFin): self { $this->dateFin = $dateFin; return $this; }
+    public function setDateFin(?\DateTimeInterface $dateFin): self { $this->dateFin = $dateFin; return $this; }
     public function getCapaciteMax(): ?int { return $this->capaciteMax; }
     public function setCapaciteMax(int $capaciteMax): self { $this->capaciteMax = $capaciteMax; return $this; }
     public function getLieu(): ?Lieu { return $this->lieu; }
