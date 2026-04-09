@@ -267,10 +267,16 @@
                 {% set rawImage = user.imageUrl|default('') %}
                 {% if rawImage and (rawImage starts with 'http://' or rawImage starts with 'https://') %}
                     {% set imageSrc = rawImage %}
+                {% elseif rawImage and (rawImage starts with '/theme/' or rawImage starts with '/uploads/') %}
+                    {% set imageSrc = asset(rawImage|trim('/')) %}
                 {% elseif rawImage and (rawImage starts with 'theme/' or rawImage starts with 'uploads/') %}
-                    {% set imageSrc = asset(rawImage) %}
+                    {% set imageSrc = asset(rawImage|trim('/')) %}
+                {% elseif rawImage and (rawImage starts with '/public/' or rawImage starts with 'public/') %}
+                    {% set imageSrc = asset(rawImage|replace({'/public/': '', 'public/': ''})|trim('/')) %}
+                {% elseif rawImage and ('uploads/' in rawImage) %}
+                    {% set imageSrc = asset(rawImage|split('uploads/')|last|trim('/')|replace({'users/': 'uploads/users/'}) ) %}
                 {% elseif rawImage and rawImage != 'default.png' %}
-                    {% set imageSrc = asset('uploads/users/' ~ rawImage) %}
+                    {% set imageSrc = asset('uploads/users/' ~ rawImage|trim('/')) %}
                 {% else %}
                     {% set imageSrc = asset('theme/images/logo.png') %}
                 {% endif %}

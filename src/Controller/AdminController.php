@@ -334,7 +334,7 @@ class AdminController extends AbstractController
     {
         return $this->render('admin/sortie/index.html.twig', [
             'active' => 'sorties',
-            'sorties' => $this->fetchAll($connection, 'SELECT id, titre, ville, type_activite, date_sortie, nb_places, statut FROM annonce_sortie ORDER BY date_sortie ASC'),
+            'sorties' => $this->fetchAll($connection, 'SELECT s.id, s.user_id, s.titre, s.description, s.ville, s.lieu_texte, s.point_rencontre, s.type_activite, s.date_sortie, s.budget_max, s.nb_places, s.statut, s.image_url, s.questions_json, u.prenom, u.nom, u.imageUrl AS user_image_url FROM annonce_sortie s LEFT JOIN user u ON u.id = s.user_id ORDER BY s.date_sortie ASC'),
         ]);
     }
 

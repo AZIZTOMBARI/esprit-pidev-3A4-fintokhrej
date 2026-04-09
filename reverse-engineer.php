@@ -7,7 +7,7 @@ $dbHost = '127.0.0.1';
 $dbName = 'fintokhrej';
 $dbUser = 'root';
 $dbPass = '';
-$dbPort = 3306;
+$dbPort = 3307;
 
 // Entity namespace and output directory
 $namespace = 'App\\Entity';

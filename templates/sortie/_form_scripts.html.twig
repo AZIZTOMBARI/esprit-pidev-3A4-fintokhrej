@@ -1,0 +1,214 @@
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+    (function () {
+        function parseLatLng(raw) {
+            if (!raw || typeof raw !== 'string') return null;
+            const parts = raw.split(',').map(function (x) { return Number(String(x).trim()); });
+            if (parts.length !== 2 || Number.isNaN(parts[0]) || Number.isNaN(parts[1])) return null;
+            return parts;
+        }
+
+        function ready(fn) {
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', fn);
+            } else {
+                fn();
+            }
+        }
+
+        ready(function () {
+            const mapEl = document.getElementById('sortie-map');
+            if (!mapEl || typeof L === 'undefined') return;
+
+            const cityInput = document.getElementById('{{ form.ville.vars.id }}');
+            const pointInput = document.getElementById('{{ form.point_rencontre.vars.id }}');
+            const activityInput = document.getElementById('{{ form.type_activite.vars.id }}');
+            const activityOtherWrap = document.getElementById('type-activite-autre-wrap');
+            const activityOtherInput = document.getElementById('{{ form.type_activite_autre.vars.id }}');
+            const freeInput = document.getElementById('{{ form.budget_gratuit.vars.id }}');
+            const budgetInput = document.getElementById('{{ form.budget_max.vars.id }}');
+            const questionsInput = document.getElementById('{{ form.questions_json.vars.id }}');
+            const questionInput = document.getElementById('question-input');
+            const questionAdd = document.getElementById('question-add');
+            const questionList = document.getElementById('question-list');
+
+            const cityCoords = {
+                'Tunis': [36.8065, 10.1815], 'Ariana': [36.8625, 10.1956], 'Ben Arous': [36.7545, 10.2217],
+                'Manouba': [36.8080, 10.0958], 'Nabeul': [36.4561, 10.7376], 'Zaghouan': [36.4029, 10.1429],
+                'Bizerte': [37.2744, 9.8739], 'Beja': [36.7333, 9.1833], 'Jendouba': [36.5011, 8.7800],
+                'Kef': [36.1742, 8.7049], 'Siliana': [36.0833, 9.3667], 'Sousse': [35.8256, 10.6411],
+                'Monastir': [35.7770, 10.8262], 'Mahdia': [35.5047, 11.0622], 'Sfax': [34.7406, 10.7603],
+                'Kairouan': [35.6781, 10.0963], 'Kasserine': [35.1674, 8.8365], 'Sidi Bouzid': [35.0382, 9.4849],
+                'Gabes': [33.8815, 10.0982], 'Medenine': [33.3549, 10.5055], 'Tataouine': [32.9297, 10.4518],
+                'Gafsa': [34.4250, 8.7842], 'Tozeur': [33.9197, 8.1335], 'Kebili': [33.7044, 8.9690]
+            };
+
+            const defaultCenter = [34.0, 9.0];
+            const initialPoint = parseLatLng(pointInput ? pointInput.value : '');
+            const initialCity = cityInput ? cityInput.value : '';
+            const initialCenter = initialPoint || cityCoords[initialCity] || defaultCenter;
+
+            const map = L.map(mapEl, { zoomControl: true }).setView(initialCenter, initialPoint ? 13 : 6);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+
+            let marker = L.marker(initialCenter, { draggable: true }).addTo(map);
+            function updatePointInput(latlng) {
+                if (!pointInput) return;
+                pointInput.value = latlng.lat.toFixed(6) + ',' + latlng.lng.toFixed(6);
+            }
+            updatePointInput(marker.getLatLng());
+            marker.on('dragend', function () { updatePointInput(marker.getLatLng()); });
+            map.on('click', function (e) {
+                marker.setLatLng(e.latlng);
+                updatePointInput(marker.getLatLng());
+            });
+
+            async function fetchCityCoordinates(cityName) {
+                if (!cityName) return null;
+
+                const query = encodeURIComponent(cityName + ', Tunisia');
+                const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${query}`;
+
+                try {
+                    const response = await fetch(url, {
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    });
+
+                    if (!response.ok) return null;
+                    const payload = await response.json();
+                    if (!Array.isArray(payload) || payload.length === 0) return null;
+
+                    const lat = Number(payload[0].lat);
+                    const lon = Number(payload[0].lon);
+                    if (Number.isNaN(lat) || Number.isNaN(lon)) return null;
+
+                    return [lat, lon];
+                } catch (_) {
+                    return null;
+                }
+            }
+
+            async function recenterToCity(cityName, syncMarker) {
+                if (!cityName) return;
+
+                let coords = cityCoords[cityName] || null;
+                if (!coords) {
+                    coords = await fetchCityCoordinates(cityName);
+                    if (coords) {
+                        cityCoords[cityName] = coords;
+                    }
+                }
+
+                if (!coords) {
+                    coords = defaultCenter;
+                }
+
+                map.flyTo(coords, 11, { duration: 0.7 });
+                if (syncMarker) {
+                    marker.setLatLng(coords);
+                    updatePointInput(marker.getLatLng());
+                }
+            }
+
+            if (cityInput) {
+                cityInput.addEventListener('change', function () {
+                    recenterToCity(cityInput.value, true);
+                });
+
+                // On create pages, city immediately drives map center and marker.
+                // On edit pages, keep the saved marker position if already present.
+                if (!initialPoint && cityInput.value) {
+                    recenterToCity(cityInput.value, true);
+                }
+            }
+
+            function updateActivityOtherVisibility() {
+                if (!activityInput || !activityOtherWrap) return;
+                const show = activityInput.value === '__autre__';
+                activityOtherWrap.style.display = show ? 'block' : 'none';
+                if (!show && activityOtherInput) {
+                    activityOtherInput.value = '';
+                }
+            }
+            updateActivityOtherVisibility();
+            if (activityInput) {
+                activityInput.addEventListener('change', updateActivityOtherVisibility);
+            }
+
+            function updateBudgetState() {
+                if (!freeInput || !budgetInput) return;
+                if (freeInput.checked) {
+                    budgetInput.value = '0';
+                    budgetInput.setAttribute('readonly', 'readonly');
+                } else {
+                    budgetInput.removeAttribute('readonly');
+                }
+            }
+            updateBudgetState();
+            if (freeInput) {
+                freeInput.addEventListener('change', updateBudgetState);
+            }
+
+            let questions = [];
+            try {
+                const parsed = JSON.parse((questionsInput && questionsInput.value) ? questionsInput.value : '[]');
+                if (Array.isArray(parsed)) {
+                    questions = parsed.filter(function (x) {
+                        return typeof x === 'string' && x.trim() !== '';
+                    });
+                }
+            } catch (e) {
+                questions = [];
+            }
+
+            function syncQuestions() {
+                if (questionsInput) {
+                    questionsInput.value = JSON.stringify(questions);
+                }
+            }
+
+            function renderQuestions() {
+                if (!questionList) return;
+                questionList.innerHTML = '';
+                questions.forEach(function (q, idx) {
+                    const li = document.createElement('li');
+                    const text = document.createElement('span');
+                    text.textContent = q;
+
+                    const removeBtn = document.createElement('button');
+                    removeBtn.type = 'button';
+                    removeBtn.className = 'outline-btn';
+                    removeBtn.textContent = 'Retirer';
+                    removeBtn.addEventListener('click', function () {
+                        questions.splice(idx, 1);
+                        syncQuestions();
+                        renderQuestions();
+                    });
+
+                    li.appendChild(text);
+                    li.appendChild(removeBtn);
+                    questionList.appendChild(li);
+                });
+            }
+
+            if (questionAdd && questionInput) {
+                questionAdd.addEventListener('click', function () {
+                    const value = questionInput.value.trim();
+                    if (!value) return;
+                    questions.push(value);
+                    questionInput.value = '';
+                    syncQuestions();
+                    renderQuestions();
+                });
+            }
+
+            renderQuestions();
+            syncQuestions();
+        });
+    })();
+</script>
