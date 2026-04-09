@@ -35,6 +35,9 @@
                     {% if item.nb_places is defined %}<span>👥 {{ item.nb_places }} places</span>{% endif %}
                     {% if item.statut is defined %}<span>✅ {{ item.statut }}</span>{% endif %}
                 </div>
+                <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+                    <a href="{{ path('app_lieu_show', {id: item.id}) }}" class="cta-btn" style="text-decoration:none;">Voir détails</a>
+                </div>
                 {% if item.description is defined and item.description %}
                     <p style="margin-top:14px;">{{ item.description }}</p>
                 {% endif %}

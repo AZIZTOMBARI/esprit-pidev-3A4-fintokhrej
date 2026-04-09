@@ -1,0 +1,353 @@
+{% extends 'front/base_front.html.twig' %}
+
+{% block title %}{{ lieu.nom }} | Détails lieu{% endblock %}
+
+{% block front_content %}
+<section>
+    {% for message in app.flashes('success') %}
+        <div class="users-feedback users-feedback--success" style="margin-bottom:10px;">{{ message }}</div>
+    {% endfor %}
+    {% for message in app.flashes('error') %}
+        <div class="users-feedback users-feedback--error" style="margin-bottom:10px;">{{ message }}</div>
+    {% endfor %}
+
+    <div class="section-head">
+        <div>
+            <h1 class="section-title">{{ lieu.nom }}</h1>
+            <p class="section-subtitle">{{ lieu.ville }} · {{ lieu.categorie|replace({'_':' '})|title }} · {{ lieu.type|replace({'_':' '})|title }}</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <a href="{{ path('app_lieux') }}" class="outline-btn" style="text-decoration:none;">← Retour</a>
+            <button type="button" class="outline-btn" onclick="copyShareLink()">⤴ Partager</button>
+            {% if lieu.latitude is not null and lieu.longitude is not null %}
+                <a href="https://www.google.com/maps?q={{ lieu.latitude }},{{ lieu.longitude }}" target="_blank" rel="noopener" class="cta-btn" style="text-decoration:none;">🗺 Maps</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="lieu-details-grid">
+        <div class="left-col app-card">
+            {% if galleryImages is defined and galleryImages|length > 0 %}
+                {% set firstImage = galleryImages|first %}
+                {% if firstImage starts with 'http://' or firstImage starts with 'https://' %}
+                    {% set firstImageSrc = firstImage %}
+                {% elseif firstImage starts with 'theme/' or firstImage starts with 'uploads/' %}
+                    {% set firstImageSrc = asset(firstImage) %}
+                {% else %}
+                    {% set firstImageSrc = asset('uploads/lieux/' ~ firstImage) %}
+                {% endif %}
+                <img id="heroImage" src="{{ firstImageSrc }}" alt="{{ lieu.nom }}" class="hero-img">
+                <div class="thumbs-row">
+                    {% for img in galleryImages %}
+                        {% if img starts with 'http://' or img starts with 'https://' %}
+                            {% set src = img %}
+                        {% elseif img starts with 'theme/' or img starts with 'uploads/' %}
+                            {% set src = asset(img) %}
+                        {% else %}
+                            {% set src = asset('uploads/lieux/' ~ img) %}
+                        {% endif %}
+                        <img src="{{ src }}" class="thumb-img" alt="Miniature" onclick="setHero('{{ src }}', this)">
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="img-placeholder">Aucune image disponible</div>
+            {% endif %}
+
+            <div class="details-block">
+                <h3>À propos</h3>
+                <p>{{ lieu.description ?: 'Aucune description disponible.' }}</p>
+            </div>
+
+            <div class="details-block">
+                <h3>Horaires d'ouverture</h3>
+                {% if horaires is not empty %}
+                    <ul class="horaires-list">
+                        {% for h in horaires %}
+                            <li>
+                                <strong>{{ h.jour|replace({'_':' '})|title }}:</strong>
+                                {% if h.ouvert %}
+                                    {{ h.heure_ouverture_1 ?: '--:--' }} - {{ h.heure_fermeture_1 ?: '--:--' }}
+                                    {% if h.heure_ouverture_2 or h.heure_fermeture_2 %}
+                                        / {{ h.heure_ouverture_2 ?: '--:--' }} - {{ h.heure_fermeture_2 ?: '--:--' }}
+                                    {% endif %}
+                                {% else %}
+                                    Fermé
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="muted">Aucun horaire renseigné.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="right-col">
+            <div class="app-card info-card">
+                <h3>Informations</h3>
+                <p><strong>Catégorie:</strong> {{ lieu.categorie|replace({'_':' '})|title }}</p>
+                <p><strong>Type:</strong> {{ lieu.type|replace({'_':' '})|title }}</p>
+                <p>
+                    <strong>Budget:</strong>
+                    {% if lieu.budget_min is not null or lieu.budget_max is not null %}
+                        {{ lieu.budget_min is not null ? lieu.budget_min|number_format(2, ',', ' ') : '—' }}
+                        —
+                        {{ lieu.budget_max is not null ? lieu.budget_max|number_format(2, ',', ' ') : '—' }} TND
+                    {% else %}
+                        Non renseigné
+                    {% endif %}
+                </p>
+                <p><strong>Adresse:</strong> {{ lieu.adresse ?: 'Non renseignée' }}</p>
+                <p><strong>Téléphone:</strong> {{ lieu.telephone ?: 'Non renseigné' }}</p>
+                {% if lieu.site_web %}
+                    <p><a href="{{ lieu.site_web }}" target="_blank" rel="noopener" class="text-link">🌐 Site web</a></p>
+                {% endif %}
+                {% if lieu.instagram %}
+                    <p><a href="https://instagram.com/{{ lieu.instagram|replace({'@':''}) }}" target="_blank" rel="noopener" class="text-link">📸 Instagram</a></p>
+                {% endif %}
+            </div>
+
+            <div class="app-card info-card">
+                <h3>Offres liées</h3>
+                {% if offres is not empty %}
+                    <ul class="compact-list">
+                        {% for offre in offres %}
+                            <li>
+                                <strong>{{ offre.titre }}</strong>
+                                {% if offre.pourcentage is not null %}
+                                    <span class="badge-soft badge-gold">{{ offre.pourcentage }}%</span>
+                                {% endif %}
+                                {% if offre.date_fin %}
+                                    <div class="muted">Expire le {{ offre.date_fin|date('d/m/Y') }}</div>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="muted">Aucune offre liée.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="app-card avis-card" style="margin-top:16px;">
+        <div class="section-head">
+            <div>
+                <h2 class="section-title">Avis des visiteurs / {{ evaluationStats.total|default(0) }}</h2>
+                <p class="section-subtitle">Moyenne: {{ evaluationStats.moyenne is not null ? evaluationStats.moyenne ~ '/5' : '—' }}</p>
+            </div>
+            {% if not app.user %}
+                <a href="{{ path('app_login') }}" class="cta-btn" style="text-decoration:none;">Se connecter pour noter</a>
+            {% endif %}
+        </div>
+
+        <input type="text" id="avisSearchField" class="users-input" placeholder="Rechercher dans les avis..." style="max-width:420px;margin-bottom:12px;">
+
+        {% if app.user %}
+            {% if currentUserEvaluation %}
+                <form method="post" action="{{ path('app_lieu_evaluation_update', {id: lieu.id, evaluationId: currentUserEvaluation.id}) }}" class="users-form-card" style="margin-top:0;">
+                    <input type="hidden" name="_token" value="{{ csrf_token('front_eval_update_' ~ currentUserEvaluation.id) }}">
+                    <h3 style="margin-top:0;">Modifier mon avis</h3>
+                    <div class="users-form-grid" style="grid-template-columns:120px 1fr;">
+                        <div class="users-field">
+                            <label for="my_note">Note (1-5)</label>
+                            <input id="my_note" type="number" class="users-input" min="1" max="5" step="1" name="note" required value="{{ currentUserEvaluation.note }}">
+                        </div>
+                        <div class="users-field">
+                            <label for="my_commentaire">Commentaire</label>
+                            <textarea id="my_commentaire" name="commentaire" class="users-input" rows="3" maxlength="1000" placeholder="Votre expérience...">{{ currentUserEvaluation.commentaire }}</textarea>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+                        <button type="submit" class="users-submit">Mettre à jour</button>
+                    </div>
+                </form>
+                <form method="post" action="{{ path('app_lieu_evaluation_delete', {id: lieu.id, evaluationId: currentUserEvaluation.id}) }}" onsubmit="return confirm('Supprimer votre avis ?');" style="margin-top:10px;">
+                    <input type="hidden" name="_token" value="{{ csrf_token('front_eval_delete_' ~ currentUserEvaluation.id) }}">
+                    <button type="submit" class="outline-btn" style="color:#b91c1c;border-color:#fecaca;">Supprimer mon avis</button>
+                </form>
+            {% else %}
+                <form method="post" action="{{ path('app_lieu_evaluation_create', {id: lieu.id}) }}" class="users-form-card" style="margin-top:0;">
+                    <input type="hidden" name="_token" value="{{ csrf_token('front_eval_create_' ~ lieu.id) }}">
+                    <h3 style="margin-top:0;">Ajouter un avis</h3>
+                    <div class="users-form-grid" style="grid-template-columns:120px 1fr;">
+                        <div class="users-field">
+                            <label for="new_note">Note (1-5)</label>
+                            <input id="new_note" type="number" class="users-input" min="1" max="5" step="1" name="note" required>
+                        </div>
+                        <div class="users-field">
+                            <label for="new_commentaire">Commentaire</label>
+                            <textarea id="new_commentaire" name="commentaire" class="users-input" rows="3" maxlength="1000" placeholder="Votre expérience..."></textarea>
+                        </div>
+                    </div>
+                    <div style="margin-top:10px;">
+                        <button type="submit" class="users-submit">Publier</button>
+                    </div>
+                </form>
+            {% endif %}
+        {% endif %}
+
+        <div id="avisList" style="display:grid;gap:10px;margin-top:10px;">
+            {% for e in evaluations %}
+                <article class="info-card avis-item" data-avis-search="{{ (e.prenom|default('') ~ ' ' ~ e.nom|default('') ~ ' ' ~ e.commentaire|default(''))|lower }}">
+                    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+                        <strong>{{ e.prenom|default('Utilisateur') }} {{ e.nom|default('') }}</strong>
+                        <span class="badge-soft">⭐ {{ e.note }}/5</span>
+                    </div>
+                    <p style="margin:8px 0 0 0;">{{ e.commentaire ?: 'Sans commentaire.' }}</p>
+                    <div class="muted" style="margin-top:6px;">
+                        {{ (e.updated_at ?: e.date_evaluation)|date('d/m/Y H:i') }}
+                    </div>
+                </article>
+            {% else %}
+                <div class="empty-state">Aucun avis pour le moment.</div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<style>
+    .users-feedback {
+        border-radius: 14px;
+        padding: 12px 14px;
+        border: 1px solid transparent;
+        font-weight: 600;
+    }
+    .users-feedback--success {
+        border-color: #86efac;
+        background: #f0fdf4;
+        color: #166534;
+    }
+    .users-feedback--error {
+        border-color: #fca5a5;
+        background: #fef2f2;
+        color: #991b1b;
+    }
+    .users-form-card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 18px;
+        padding: 16px;
+    }
+    .users-form-grid {
+        display: grid;
+        gap: 12px;
+    }
+    .users-field {
+        display: grid;
+        gap: 6px;
+    }
+    .users-input {
+        width: 100%;
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        padding: 10px 12px;
+        font-size: 14px;
+        background: #fff;
+        color: #0f172a;
+        outline: none;
+    }
+    .users-input:focus {
+        border-color: #38bdf8;
+        box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+    }
+    .users-submit {
+        border: 0;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #0ea5e9, #2563eb);
+        color: #fff;
+        font-weight: 700;
+        padding: 11px 18px;
+        cursor: pointer;
+    }
+    .lieu-details-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
+        gap: 16px;
+    }
+    .left-col, .right-col {
+        min-width: 0;
+    }
+    .hero-img {
+        width: 100%;
+        height: 400px;
+        object-fit: cover;
+        border-radius: 16px;
+    }
+    .img-placeholder {
+        width: 100%;
+        height: 280px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #dbeafe, #f8fafc);
+        color: #64748b;
+        font-weight: 700;
+    }
+    .thumbs-row {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding: 8px 0;
+    }
+    .thumb-img {
+        width: 86px;
+        height: 62px;
+        object-fit: cover;
+        border-radius: 10px;
+        border: 2px solid transparent;
+        cursor: pointer;
+    }
+    .thumb-img:hover { border-color: #38bdf8; }
+    .details-block {
+        margin-top: 12px;
+        padding: 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        background: #f8fafc;
+    }
+    .details-block h3 { margin-top: 0; margin-bottom: 8px; }
+    .horaires-list { margin: 0; padding-left: 18px; }
+    .info-card { padding: 12px; border-radius: 14px; border: 1px solid #e2e8f0; background: #fff; }
+    .right-col { display: grid; gap: 12px; }
+    .compact-list { margin: 0; padding-left: 18px; display: grid; gap: 8px; }
+    .muted { color: #64748b; font-size: 13px; }
+    @media (max-width: 1024px) {
+        .lieu-details-grid { grid-template-columns: 1fr; }
+        .hero-img { height: 300px; }
+    }
+</style>
+
+<script>
+    function setHero(src, thumb) {
+        const hero = document.getElementById('heroImage');
+        if (hero) {
+            hero.src = src;
+        }
+        document.querySelectorAll('.thumb-img').forEach(function (el) {
+            el.style.borderColor = 'transparent';
+        });
+        if (thumb) {
+            thumb.style.borderColor = '#38bdf8';
+        }
+    }
+
+    function copyShareLink() {
+        navigator.clipboard.writeText(window.location.href).then(function () {
+            alert('Lien copié dans le presse-papiers.');
+        });
+    }
+
+    const avisSearchField = document.getElementById('avisSearchField');
+    if (avisSearchField) {
+        avisSearchField.addEventListener('input', function () {
+            const query = this.value.toLowerCase().trim();
+            document.querySelectorAll('.avis-item').forEach(function (item) {
+                const text = item.getAttribute('data-avis-search') || '';
+                item.style.display = text.includes(query) ? '' : 'none';
+            });
+        });
+    }
+</script>
+{% endblock %}
