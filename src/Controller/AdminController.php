@@ -29,6 +29,63 @@ class AdminController extends AbstractController
         ]);
     }
 
+    #[Route('/dashboard-offres', name: 'app_admin_dashboard_offres')]
+    public function dashboardOffres(Connection $connection): Response
+    {
+        $offerStats = [
+            'total' => $this->fetchValue($connection, 'SELECT COUNT(*) FROM offre'),
+            'active' => $this->fetchValue($connection, "SELECT COUNT(*) FROM offre WHERE LOWER(statut) IN ('actif', 'active')"),
+            'expiringSoon' => $this->fetchValue($connection, "SELECT COUNT(*) FROM offre WHERE TIMESTAMPDIFF(HOUR, NOW(), CONCAT(date_fin, ' 23:59:59')) BETWEEN 0 AND 24"),
+            'expired' => $this->fetchValue($connection, "SELECT COUNT(*) FROM offre WHERE date_fin < CURDATE() OR LOWER(statut) IN ('expiree', 'expire', 'expired')"),
+        ];
+
+        $promoStats = [
+            'total' => $this->fetchValue($connection, 'SELECT COUNT(*) FROM code_promo'),
+            'active' => $this->fetchValue($connection, "SELECT COUNT(*) FROM code_promo WHERE LOWER(statut) = 'actif'"),
+            'used' => $this->fetchValue($connection, "SELECT COUNT(*) FROM code_promo WHERE LOWER(statut) = 'utilise'"),
+            'blocked' => $this->fetchValue($connection, "SELECT COUNT(*) FROM code_promo WHERE LOWER(statut) = 'bloque_abus'"),
+        ];
+
+        $reservationStats = [
+            'total' => $this->fetchValue($connection, 'SELECT COUNT(*) FROM reservation_offre'),
+            'pending' => $this->fetchValue($connection, "SELECT COUNT(*) FROM reservation_offre WHERE LOWER(statut) = 'en_attente'"),
+            'confirmed' => $this->fetchValue($connection, "SELECT COUNT(*) FROM reservation_offre WHERE LOWER(statut) = 'confirmée' OR LOWER(statut) = 'confirmee'"),
+            'refused' => $this->fetchValue($connection, "SELECT COUNT(*) FROM reservation_offre WHERE LOWER(statut) = 'refusée' OR LOWER(statut) = 'refusee'"),
+        ];
+
+        return $this->render('admin/dashboard/offres.html.twig', [
+            'active' => 'dashboard_offres',
+            'offerStats' => $offerStats,
+            'promoStats' => $promoStats,
+            'reservationStats' => $reservationStats,
+            'recentOffers' => $this->fetchAll($connection, "
+                SELECT o.id, o.titre, o.type, o.pourcentage, o.date_fin, o.statut, l.nom AS lieu_nom,
+                       CASE
+                           WHEN TIMESTAMPDIFF(HOUR, NOW(), CONCAT(o.date_fin, ' 23:59:59')) BETWEEN 0 AND 24 THEN 1
+                           ELSE 0
+                       END AS expiring_soon
+                FROM offre o
+                LEFT JOIN lieu l ON l.id = o.lieu_id
+                ORDER BY o.date_fin ASC, o.id DESC
+                LIMIT 8
+            "),
+            'recentPromos' => $this->fetchAll($connection, "
+                SELECT cp.id, cp.statut, cp.date_generation, cp.date_expiration, o.titre AS offre_titre
+                FROM code_promo cp
+                LEFT JOIN offre o ON o.id = cp.offre_id
+                ORDER BY cp.id DESC
+                LIMIT 8
+            "),
+            'recentReservations' => $this->fetchAll($connection, "
+                SELECT r.id, r.statut, r.date_reservation, r.nombre_personnes, o.titre AS offre_titre
+                FROM reservation_offre r
+                LEFT JOIN offre o ON o.id = r.offre_id
+                ORDER BY r.id DESC
+                LIMIT 8
+            "),
+        ]);
+    }
+
     #[Route('/users', name: 'app_admin_users')]
     public function users(Request $request, Connection $connection): Response
     {

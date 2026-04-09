@@ -6,6 +6,42 @@
 {% block stylesheets %}
     {{ parent() }}
     <style>
+        .admin-offer-hero {
+            margin-bottom: 18px;
+            padding: 18px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.08), rgba(37, 99, 235, 0.04));
+            border: 1px solid rgba(59, 130, 246, 0.12);
+        }
+
+        .admin-offer-hero__row {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .admin-offer-hero__badges {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .mini-kpi {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.85);
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            font-size: 12px;
+            font-weight: 700;
+            color: #334155;
+        }
+
         .offer-feedback {
             border-radius: 14px;
             padding: 12px 14px;
@@ -32,6 +68,7 @@
             border: 1px solid #e5e7eb;
             border-radius: 18px;
             padding: 18px;
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.04);
         }
 
         .offer-form-grid {
@@ -126,6 +163,68 @@
             flex-wrap: wrap;
         }
 
+        .data-table tbody tr {
+            transition: background-color 0.2s ease, transform 0.2s ease;
+        }
+
+        .data-table tbody tr:hover {
+            background: rgba(248, 250, 252, 0.92);
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+        }
+
+        .status-pill--active,
+        .status-pill--actif {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-pill--expired,
+        .status-pill--expiree,
+        .status-pill--expire {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .status-pill--inactive,
+        .status-pill--desactivee,
+        .status-pill--desactive {
+            background: #e2e8f0;
+            color: #334155;
+        }
+
+        .promo-code-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, #e0f2fe, #dbeafe);
+            color: #0f172a;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+        }
+
+        .promo-actions-tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            font-size: 12px;
+            font-weight: 700;
+            color: #334155;
+        }
+
         .promo-inline-actions {
             display: flex;
             gap: 8px;
@@ -160,6 +259,22 @@
 {% endblock %}
 
 {% block admin_content %}
+    <div class="admin-offer-hero">
+        <div class="admin-offer-hero__row">
+            <div>
+                <h1 class="section-title" style="margin-bottom:6px;">Gestion des offres</h1>
+                <p class="section-subtitle" style="margin-bottom:0;">Une vue plus claire pour créer, filtrer et suivre les offres, les codes promo et les réservations.</p>
+                <div class="admin-offer-hero__badges">
+                    <span class="mini-kpi">{{ stats.total }} offres</span>
+                    <span class="mini-kpi">{{ stats.actives }} actives</span>
+                    <span class="mini-kpi">{{ promoCodes|length }} promos</span>
+                    <span class="mini-kpi">{{ reservations|length }} réservations</span>
+                </div>
+            </div>
+            <a href="{{ path('app_admin_dashboard') }}" class="outline-btn">Retour dashboard</a>
+        </div>
+    </div>
+
     {% for message in app.flashes('success') %}
         <div class="offer-feedback offer-feedback--success">{{ message }}</div>
     {% endfor %}
@@ -257,7 +372,6 @@
                 <h2 class="section-title">Gestion des offres</h2>
                 <p class="section-subtitle">Liste, filtrage, modification et suppression.</p>
             </div>
-            <a href="{{ path('app_admin_dashboard') }}" class="outline-btn">Retour dashboard</a>
         </div>
 
         <div class="offer-toolbar">
@@ -323,7 +437,9 @@
                         <td>{{ attribute(item, "pourcentage") }}</td>
                         <td>{{ item.date_debut ? item.date_debut|date("d/m/Y") : "-" }}</td>
                         <td>{{ item.date_fin ? item.date_fin|date("d/m/Y") : "-" }}</td>
-                        <td>{{ attribute(item, "statut") }}</td>
+                        <td>
+                            <span class="status-pill status-pill--{{ item.statut|lower }}">{{ attribute(item, "statut") }}</span>
+                        </td>
                         <td>
                             <div class="offer-actions">
                                 <details>
@@ -477,13 +593,13 @@
                         <td>{{ promo.id }}</td>
                         <td>{{ promo.offre_titre ?? ('#' ~ promo.offre_id) }}</td>
                         <td>{{ (promo.prenom ?? '') ~ ' ' ~ (promo.nom ?? '') }}</td>
-                        <td style="font-weight:700; letter-spacing:0.5px;">CP{{ '%06d'|format(promo.id) }}</td>
+                        <td><span class="promo-code-pill">CP{{ '%06d'|format(promo.id) }}</span></td>
                         <td>
-                            <a href="{{ promo.qr_image_url }}" target="_blank" rel="noopener">QR</a>
+                            <a href="{{ promo.qr_image_url }}" target="_blank" rel="noopener" class="promo-actions-tag">QR</a>
                         </td>
                         <td>{{ promo.date_generation ? promo.date_generation|date('d/m/Y') : '-' }}</td>
                         <td>{{ promo.date_expiration ? promo.date_expiration|date('d/m/Y') : '-' }}</td>
-                        <td>{{ promo.statut }}</td>
+                        <td><span class="status-pill status-pill--{{ promo.statut|lower|replace({'_':'-'}) }}">{{ promo.statut }}</span></td>
                         <td>
                             <div class="promo-inline-actions">
                                 <details>
