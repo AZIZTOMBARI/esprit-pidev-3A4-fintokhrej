@@ -1,0 +1,26 @@
+{{ form_start(form, { attr: { class: 'lieu-form-card' } }) }}
+    {{ form_errors(form) }}
+
+    <div class="lieu-form-grid">
+        <div class="lieu-field lieu-field--full">{{ form_row(form.offre) }}</div>
+        <div class="lieu-field">{{ form_row(form.nom) }}</div>
+        <div class="lieu-field">{{ form_row(form.ville) }}</div>
+        <div class="lieu-field">{{ form_row(form.adresse) }}</div>
+        <div class="lieu-field">{{ form_row(form.telephone) }}</div>
+        <div class="lieu-field">{{ form_row(form.siteWeb) }}</div>
+        <div class="lieu-field">{{ form_row(form.instagram) }}</div>
+        <div class="lieu-field lieu-field--full">{{ form_row(form.description) }}</div>
+        <div class="lieu-field">{{ form_row(form.budgetMin) }}</div>
+        <div class="lieu-field">{{ form_row(form.budgetMax) }}</div>
+        <div class="lieu-field">{{ form_row(form.categorie) }}</div>
+        <div class="lieu-field">{{ form_row(form.type) }}</div>
+        <div class="lieu-field">{{ form_row(form.latitude) }}</div>
+        <div class="lieu-field">{{ form_row(form.longitude) }}</div>
+        <div class="lieu-field lieu-field--full">{{ form_row(form.imageUrl) }}</div>
+    </div>
+
+    <div class="lieu-actions">
+        <button class="primary-btn" type="submit">{{ button_label|default('Enregistrer') }}</button>
+        <a href="{{ path('app_admin_lieux') }}" class="outline-btn">Retour à la liste</a>
+    </div>
+{{ form_end(form) }}

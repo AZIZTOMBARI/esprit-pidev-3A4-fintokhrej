@@ -207,15 +207,6 @@ class AdminController extends AbstractController
         return $this->redirectToRoute('app_admin_users');
     }
 
-    #[Route('/lieux', name: 'app_admin_lieux')]
-    public function lieux(Connection $connection): Response
-    {
-        return $this->render('admin/lieu/index.html.twig', [
-            'active' => 'lieux',
-            'places' => $this->fetchAll($connection, 'SELECT id, nom, ville, categorie, type, budget_min, budget_max FROM lieu ORDER BY id DESC'),
-        ]);
-    }
-
     #[Route('/sorties', name: 'app_admin_sorties')]
     public function sorties(Connection $connection): Response
     {
