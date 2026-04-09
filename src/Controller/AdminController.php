@@ -90,16 +90,37 @@ class AdminController extends AbstractController
     public function users(Request $request, Connection $connection): Response
     {
         $query = trim((string) $request->query->get('q', ''));
+        $perPage = 3;
+        $page = max(1, (int) $request->query->get('page', 1));
 
         if ($query !== '') {
             $likeQuery = '%'.$query.'%';
+            $filters = [$likeQuery, $likeQuery, $likeQuery, $likeQuery, $likeQuery];
+            $countRows = $this->fetchAll(
+                $connection,
+                'SELECT COUNT(*) AS total FROM user WHERE LOWER(prenom) LIKE LOWER(?) OR LOWER(nom) LIKE LOWER(?) OR LOWER(email) LIKE LOWER(?) OR LOWER(telephone) LIKE LOWER(?) OR LOWER(role) LIKE LOWER(?)',
+                $filters
+            );
+            $totalFiltered = (int) ($countRows[0]['total'] ?? 0);
+            $pageCount = max(1, (int) ceil($totalFiltered / $perPage));
+            $page = min($page, $pageCount);
+            $offset = ($page - 1) * $perPage;
+
             $users = $this->fetchAll(
                 $connection,
-                'SELECT id, prenom, nom, email, telephone, role, imageUrl FROM user WHERE LOWER(prenom) LIKE LOWER(?) OR LOWER(nom) LIKE LOWER(?) OR LOWER(email) LIKE LOWER(?) OR LOWER(telephone) LIKE LOWER(?) OR LOWER(role) LIKE LOWER(?) ORDER BY id ASC',
-                [$likeQuery, $likeQuery, $likeQuery, $likeQuery, $likeQuery]
+                'SELECT id, prenom, nom, email, telephone, role, imageUrl FROM user WHERE LOWER(prenom) LIKE LOWER(?) OR LOWER(nom) LIKE LOWER(?) OR LOWER(email) LIKE LOWER(?) OR LOWER(telephone) LIKE LOWER(?) OR LOWER(role) LIKE LOWER(?) ORDER BY id ASC LIMIT '.$perPage.' OFFSET '.$offset,
+                $filters
             );
         } else {
-            $users = $this->fetchAll($connection, 'SELECT id, prenom, nom, email, telephone, role, imageUrl FROM user ORDER BY id ASC');
+            $totalFiltered = $this->fetchValue($connection, 'SELECT COUNT(*) FROM user');
+            $pageCount = max(1, (int) ceil($totalFiltered / $perPage));
+            $page = min($page, $pageCount);
+            $offset = ($page - 1) * $perPage;
+
+            $users = $this->fetchAll(
+                $connection,
+                'SELECT id, prenom, nom, email, telephone, role, imageUrl FROM user ORDER BY id ASC LIMIT '.$perPage.' OFFSET '.$offset
+            );
         }
 
         return $this->render('admin/user/index.html.twig', [
@@ -112,6 +133,10 @@ class AdminController extends AbstractController
                 'visiteurs' => $this->fetchValue($connection, "SELECT COUNT(*) FROM user WHERE role = 'visiteur'"),
             ],
             'users' => $users,
+            'page' => $page,
+            'pageCount' => $pageCount,
+            'perPage' => $perPage,
+            'totalFiltered' => $totalFiltered,
         ]);
     }
 
@@ -143,8 +168,23 @@ class AdminController extends AbstractController
             return $this->redirectToRoute('app_admin_users');
         }
 
+        if (!$this->isValidHumanName($nom) || !$this->isValidHumanName($prenom)) {
+            $this->addFlash('error', 'Nom et prénom doivent contenir 2 à 50 lettres (espaces, tirets et apostrophes autorisés).');
+            return $this->redirectToRoute('app_admin_users');
+        }
+
+        if ($telephone !== '' && !$this->isValidPhoneNumber($telephone)) {
+            $this->addFlash('error', 'Téléphone invalide. Format attendu: +216 12 345 678');
+            return $this->redirectToRoute('app_admin_users');
+        }
+
         if (strlen($password) < 8) {
             $this->addFlash('error', 'Le mot de passe doit contenir au moins 8 caractères.');
+            return $this->redirectToRoute('app_admin_users');
+        }
+
+        if (!$this->isStrongPassword($password)) {
+            $this->addFlash('error', 'Mot de passe trop faible (majuscule, minuscule, chiffre et caractère spécial requis).');
             return $this->redirectToRoute('app_admin_users');
         }
 
@@ -209,6 +249,16 @@ class AdminController extends AbstractController
             return $this->redirectToRoute('app_admin_users');
         }
 
+        if (!$this->isValidHumanName($nom) || !$this->isValidHumanName($prenom)) {
+            $this->addFlash('error', 'Nom et prénom doivent contenir 2 à 50 lettres (espaces, tirets et apostrophes autorisés).');
+            return $this->redirectToRoute('app_admin_users');
+        }
+
+        if ($telephone !== '' && !$this->isValidPhoneNumber($telephone)) {
+            $this->addFlash('error', 'Téléphone invalide. Format attendu: +216 12 345 678');
+            return $this->redirectToRoute('app_admin_users');
+        }
+
         if (!in_array($role, ['admin', 'abonne', 'visiteur'], true)) {
             $role = 'abonne';
         }
@@ -231,6 +281,11 @@ class AdminController extends AbstractController
             if ($password !== '') {
                 if (strlen($password) < 8) {
                     $this->addFlash('error', 'Le nouveau mot de passe doit contenir au moins 8 caractères.');
+                    return $this->redirectToRoute('app_admin_users');
+                }
+
+                if (!$this->isStrongPassword($password)) {
+                    $this->addFlash('error', 'Nouveau mot de passe trop faible (majuscule, minuscule, chiffre et caractère spécial requis).');
                     return $this->redirectToRoute('app_admin_users');
                 }
 
@@ -842,6 +897,21 @@ class AdminController extends AbstractController
             'active' => 'evenements',
             'events' => $this->fetchAll($connection, 'SELECT id, titre, date_debut, date_fin, type, prix, statut FROM evenement ORDER BY date_debut ASC'),
         ]);
+    }
+
+    private function isValidHumanName(string $value): bool
+    {
+        return (bool) preg_match('/^[\\p{L}\\s\\-\']{2,50}$/u', $value);
+    }
+
+    private function isValidPhoneNumber(string $value): bool
+    {
+        return (bool) preg_match('/^\\+?[0-9\\s\\-]{8,16}$/', $value);
+    }
+
+    private function isStrongPassword(string $value): bool
+    {
+        return (bool) preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^\\w\\s]).{8,}$/', $value);
     }
 
     private function fetchAll(Connection $connection, string $sql, array $params = []): array

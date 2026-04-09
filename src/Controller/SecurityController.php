@@ -20,10 +20,6 @@ class SecurityController extends AbstractController
     #[Route('/', name: 'app_intro')]
     public function intro(): Response
     {
-        if ($this->getUser() instanceof User) {
-            return $this->redirectAccordingToRole($this->getUser());
-        }
-
         return $this->render('security/intro.html.twig');
     }
 

@@ -83,6 +83,205 @@ class FrontController extends AbstractController
         ]);
     }
 
+    #[Route('/lieux/{id}', name: 'app_lieu_show', methods: ['GET'], requirements: ['id' => '\\d+'])]
+    public function lieuShow(int $id, Connection $connection): Response
+    {
+        $lieu = $connection->fetchAssociative(
+            "SELECT id, nom, ville, adresse, categorie, type, budget_min, budget_max, description, telephone, site_web, instagram, image_url, latitude, longitude
+             FROM lieu
+             WHERE id = ?",
+            [$id]
+        );
+
+        if (!$lieu) {
+            throw $this->createNotFoundException('Lieu introuvable.');
+        }
+
+        $galleryImages = $connection->fetchFirstColumn(
+            'SELECT image_url FROM lieu_image WHERE lieu_id = ? ORDER BY ordre ASC, id ASC',
+            [$id]
+        );
+
+        if (($galleryImages === [] || $galleryImages === null) && !empty($lieu['image_url'])) {
+            $galleryImages = [(string) $lieu['image_url']];
+        }
+
+        $horaires = $connection->fetchAllAssociative(
+            "SELECT jour, ouvert,
+                    TIME_FORMAT(heure_ouverture_1, '%H:%i') AS heure_ouverture_1,
+                    TIME_FORMAT(heure_fermeture_1, '%H:%i') AS heure_fermeture_1,
+                    TIME_FORMAT(heure_ouverture_2, '%H:%i') AS heure_ouverture_2,
+                    TIME_FORMAT(heure_fermeture_2, '%H:%i') AS heure_fermeture_2
+             FROM lieu_horaire
+             WHERE lieu_id = ?
+             ORDER BY id ASC",
+            [$id]
+        );
+
+        $offres = $connection->fetchAllAssociative(
+            "SELECT id, titre, pourcentage, date_fin
+             FROM offre
+             WHERE lieu_id = ?
+             ORDER BY date_fin ASC, id DESC",
+            [$id]
+        );
+
+        $evaluations = $connection->fetchAllAssociative(
+            "SELECT e.id, e.user_id, e.note, e.commentaire, e.date_evaluation, e.updated_at, u.prenom, u.nom
+             FROM evaluation_lieu e
+             LEFT JOIN user u ON u.id = e.user_id
+             WHERE e.lieu_id = ?
+             ORDER BY COALESCE(e.updated_at, e.date_evaluation) DESC",
+            [$id]
+        );
+
+        $evaluationStats = $connection->fetchAssociative(
+            'SELECT COUNT(*) AS total, ROUND(AVG(note), 1) AS moyenne FROM evaluation_lieu WHERE lieu_id = ?',
+            [$id]
+        ) ?: ['total' => 0, 'moyenne' => null];
+
+        $currentUserEvaluation = null;
+        $user = $this->getUser();
+        if ($user instanceof User) {
+            $currentUserEvaluation = $connection->fetchAssociative(
+                'SELECT id, note, commentaire, date_evaluation, updated_at FROM evaluation_lieu WHERE lieu_id = ? AND user_id = ? LIMIT 1',
+                [$id, $user->getId()]
+            );
+        }
+
+        return $this->render('front/lieu/show.html.twig', [
+            'active' => 'lieux',
+            'lieu' => $lieu,
+            'galleryImages' => $galleryImages ?? [],
+            'horaires' => $horaires,
+            'offres' => $offres,
+            'evaluations' => $evaluations,
+            'evaluationStats' => $evaluationStats,
+            'currentUserEvaluation' => $currentUserEvaluation,
+            'notificationData' => $this->getNotificationData($connection),
+        ]);
+    }
+
+    #[Route('/lieux/{id}/evaluations', name: 'app_lieu_evaluation_create', methods: ['POST'], requirements: ['id' => '\\d+'])]
+    public function createLieuEvaluation(int $id, Request $request, Connection $connection): Response
+    {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            $this->addFlash('error', 'Veuillez vous connecter pour ajouter un avis.');
+            return $this->redirectToRoute('app_login');
+        }
+
+        if (!$this->isCsrfTokenValid('front_eval_create_'.$id, (string) $request->request->get('_token', ''))) {
+            $this->addFlash('error', 'Jeton CSRF invalide.');
+            return $this->redirectToRoute('app_lieu_show', ['id' => $id]);
+        }
+
+        $note = (int) $request->request->get('note', 0);
+        $commentaire = trim((string) $request->request->get('commentaire', ''));
+        if ($note < 1 || $note > 5) {
+            $this->addFlash('error', 'La note doit être comprise entre 1 et 5.');
+            return $this->redirectToRoute('app_lieu_show', ['id' => $id]);
+        }
+
+        $existing = $connection->fetchOne(
+            'SELECT id FROM evaluation_lieu WHERE lieu_id = ? AND user_id = ? LIMIT 1',
+            [$id, $user->getId()]
+        );
+
+        if ($existing) {
+            $this->addFlash('error', 'Vous avez déjà laissé un avis.');
+            return $this->redirectToRoute('app_lieu_show', ['id' => $id]);
+        }
+
+        try {
+            $connection->insert('evaluation_lieu', [
+                'lieu_id' => $id,
+                'user_id' => $user->getId(),
+                'note' => $note,
+                'commentaire' => $commentaire !== '' ? $commentaire : null,
+                'date_evaluation' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
+                'updated_at' => null,
+            ]);
+            $this->addFlash('success', 'Avis publié avec succès.');
+        } catch (\Throwable) {
+            $this->addFlash('error', 'Impossible de publier cet avis pour le moment.');
+        }
+
+        return $this->redirectToRoute('app_lieu_show', ['id' => $id]);
+    }
+
+    #[Route('/lieux/{id}/evaluations/{evaluationId}/update', name: 'app_lieu_evaluation_update', methods: ['POST'], requirements: ['id' => '\\d+', 'evaluationId' => '\\d+'])]
+    public function updateLieuEvaluation(int $id, int $evaluationId, Request $request, Connection $connection): Response
+    {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            $this->addFlash('error', 'Veuillez vous connecter pour modifier un avis.');
+            return $this->redirectToRoute('app_login');
+        }
+
+        if (!$this->isCsrfTokenValid('front_eval_update_'.$evaluationId, (string) $request->request->get('_token', ''))) {
+            $this->addFlash('error', 'Jeton CSRF invalide.');
+            return $this->redirectToRoute('app_lieu_show', ['id' => $id]);
+        }
+
+        $ownedEvaluation = $connection->fetchOne(
+            'SELECT id FROM evaluation_lieu WHERE id = ? AND lieu_id = ? AND user_id = ? LIMIT 1',
+            [$evaluationId, $id, $user->getId()]
+        );
+
+        if (!$ownedEvaluation) {
+            $this->addFlash('error', 'Avis introuvable ou non autorisé.');
+            return $this->redirectToRoute('app_lieu_show', ['id' => $id]);
+        }
+
+        $note = (int) $request->request->get('note', 0);
+        $commentaire = trim((string) $request->request->get('commentaire', ''));
+        if ($note < 1 || $note > 5) {
+            $this->addFlash('error', 'La note doit être comprise entre 1 et 5.');
+            return $this->redirectToRoute('app_lieu_show', ['id' => $id]);
+        }
+
+        $connection->update('evaluation_lieu', [
+            'note' => $note,
+            'commentaire' => $commentaire !== '' ? $commentaire : null,
+            'updated_at' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
+        ], [
+            'id' => $evaluationId,
+        ]);
+
+        $this->addFlash('success', 'Avis mis à jour.');
+
+        return $this->redirectToRoute('app_lieu_show', ['id' => $id]);
+    }
+
+    #[Route('/lieux/{id}/evaluations/{evaluationId}/delete', name: 'app_lieu_evaluation_delete', methods: ['POST'], requirements: ['id' => '\\d+', 'evaluationId' => '\\d+'])]
+    public function deleteLieuEvaluation(int $id, int $evaluationId, Request $request, Connection $connection): Response
+    {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            $this->addFlash('error', 'Veuillez vous connecter pour supprimer un avis.');
+            return $this->redirectToRoute('app_login');
+        }
+
+        if (!$this->isCsrfTokenValid('front_eval_delete_'.$evaluationId, (string) $request->request->get('_token', ''))) {
+            $this->addFlash('error', 'Jeton CSRF invalide.');
+            return $this->redirectToRoute('app_lieu_show', ['id' => $id]);
+        }
+
+        $deleted = $connection->executeStatement(
+            'DELETE FROM evaluation_lieu WHERE id = ? AND lieu_id = ? AND user_id = ?',
+            [$evaluationId, $id, $user->getId()]
+        );
+
+        if ($deleted > 0) {
+            $this->addFlash('success', 'Avis supprimé.');
+        } else {
+            $this->addFlash('error', 'Avis introuvable ou non autorisé.');
+        }
+
+        return $this->redirectToRoute('app_lieu_show', ['id' => $id]);
+    }
+
     #[Route('/sorties', name: 'app_sorties')]
     public function sorties(Connection $connection): Response
     {

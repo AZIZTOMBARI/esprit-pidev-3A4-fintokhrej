@@ -126,6 +126,46 @@
             border-radius: 16px;
         }
 
+        .users-pagination {
+            margin-top: 18px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .users-page-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 38px;
+            height: 38px;
+            padding: 0 12px;
+            border-radius: 10px;
+            border: 1px solid #d1d5db;
+            background: #fff;
+            color: #0f172a;
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        .users-page-link:hover {
+            border-color: #93c5fd;
+            background: #eff6ff;
+        }
+
+        .users-page-link.is-active {
+            border-color: #2563eb;
+            background: #2563eb;
+            color: #fff;
+        }
+
+        .users-page-link.is-disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
         @media (max-width: 980px) {
             .users-form-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -183,22 +223,22 @@
 
             <div class="users-field">
                 <label for="add_nom">Nom</label>
-                <input id="add_nom" class="users-input" type="text" name="nom" placeholder="Nom" required>
+                <input id="add_nom" class="users-input" type="text" name="nom" placeholder="Nom" minlength="2" maxlength="50" pattern="[A-Za-zÀ-ÿ\s\-']+" title="2 à 50 lettres, espaces, tirets ou apostrophes." required>
             </div>
 
             <div class="users-field">
                 <label for="add_prenom">Prénom</label>
-                <input id="add_prenom" class="users-input" type="text" name="prenom" placeholder="Prénom" required>
+                <input id="add_prenom" class="users-input" type="text" name="prenom" placeholder="Prénom" minlength="2" maxlength="50" pattern="[A-Za-zÀ-ÿ\s\-']+" title="2 à 50 lettres, espaces, tirets ou apostrophes." required>
             </div>
 
             <div class="users-field">
                 <label for="add_email">Email</label>
-                <input id="add_email" class="users-input" type="email" name="email" placeholder="email@exemple.com" required>
+                <input id="add_email" class="users-input" type="email" name="email" placeholder="email@exemple.com" maxlength="180" required>
             </div>
 
             <div class="users-field">
                 <label for="add_telephone">Téléphone</label>
-                <input id="add_telephone" class="users-input" type="text" name="telephone" placeholder="Optionnel">
+                <input id="add_telephone" class="users-input" type="text" name="telephone" placeholder="Optionnel" pattern="^\+?[0-9\s\-]{8,16}$" title="Ex: +216 12 345 678">
             </div>
 
             <div class="users-field">
@@ -212,7 +252,7 @@
 
             <div class="users-field">
                 <label for="add_password">Mot de passe</label>
-                <input id="add_password" class="users-input" type="password" name="password" placeholder="Minimum 8 caractères" minlength="8" required>
+                <input id="add_password" class="users-input" type="password" name="password" placeholder="Minimum 8 caractères" minlength="8" pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}" title="Min 8 caractères avec majuscule, minuscule, chiffre et caractère spécial." required>
             </div>
 
             <div class="users-field users-field--full">
@@ -248,19 +288,19 @@
                             <input type="hidden" name="_token" value="{{ csrf_token('admin_user_edit_' ~ user.id) }}">
                             <div class="users-field">
                                 <label>Nom</label>
-                                <input class="users-input" type="text" name="nom" value="{{ user.nom }}" required>
+                                <input class="users-input" type="text" name="nom" value="{{ user.nom }}" minlength="2" maxlength="50" pattern="[A-Za-zÀ-ÿ\s\-']+" title="2 à 50 lettres, espaces, tirets ou apostrophes." required>
                             </div>
                             <div class="users-field">
                                 <label>Prénom</label>
-                                <input class="users-input" type="text" name="prenom" value="{{ user.prenom }}" required>
+                                <input class="users-input" type="text" name="prenom" value="{{ user.prenom }}" minlength="2" maxlength="50" pattern="[A-Za-zÀ-ÿ\s\-']+" title="2 à 50 lettres, espaces, tirets ou apostrophes." required>
                             </div>
                             <div class="users-field">
                                 <label>Email</label>
-                                <input class="users-input" type="email" name="email" value="{{ user.email }}" required>
+                                <input class="users-input" type="email" name="email" value="{{ user.email }}" maxlength="180" required>
                             </div>
                             <div class="users-field">
                                 <label>Téléphone</label>
-                                <input class="users-input" type="text" name="telephone" value="{{ user.telephone }}" placeholder="Téléphone">
+                                <input class="users-input" type="text" name="telephone" value="{{ user.telephone }}" placeholder="Téléphone" pattern="^\+?[0-9\s\-]{8,16}$" title="Ex: +216 12 345 678">
                             </div>
                             <div class="users-field">
                                 <label>Rôle</label>
@@ -272,7 +312,7 @@
                             </div>
                             <div class="users-field">
                                 <label>Nouveau mot de passe</label>
-                                <input class="users-input" type="password" name="password" placeholder="Laisser vide pour ne pas changer">
+                                <input class="users-input" type="password" name="password" placeholder="Laisser vide pour ne pas changer" minlength="8" pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}" title="Min 8 caractères avec majuscule, minuscule, chiffre et caractère spécial.">
                             </div>
                             <div class="users-field users-field--full">
                                 <button type="submit" class="users-submit">Enregistrer les modifications</button>
@@ -296,5 +336,38 @@
             </div>
         {% endfor %}
     </div>
+
+    {% if pageCount is defined and pageCount > 1 %}
+        <nav class="users-pagination" aria-label="Pagination utilisateurs">
+            {% set prevPage = page > 1 ? page - 1 : 1 %}
+            {% set nextPage = page < pageCount ? page + 1 : pageCount %}
+
+            <a
+                class="users-page-link {{ page <= 1 ? 'is-disabled' : '' }}"
+                href="{{ path('app_admin_users', {q: searchQuery, page: prevPage}) }}"
+                aria-label="Page précédente"
+            >
+                Précédent
+            </a>
+
+            {% for i in 1..pageCount %}
+                <a
+                    class="users-page-link {{ i == page ? 'is-active' : '' }}"
+                    href="{{ path('app_admin_users', {q: searchQuery, page: i}) }}"
+                    aria-current="{{ i == page ? 'page' : 'false' }}"
+                >
+                    {{ i }}
+                </a>
+            {% endfor %}
+
+            <a
+                class="users-page-link {{ page >= pageCount ? 'is-disabled' : '' }}"
+                href="{{ path('app_admin_users', {q: searchQuery, page: nextPage}) }}"
+                aria-label="Page suivante"
+            >
+                Suivant
+            </a>
+        </nav>
+    {% endif %}
 
 {% endblock %}
