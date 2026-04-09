@@ -1,166 +1,382 @@
 {% extends 'admin/base_admin.html.twig' %}
 
 {% block title %}Gestion des lieux | Fin Tokhroj{% endblock %}
-{% block admin_page_title %}Gestion des lieux{% endblock %}
+{% block admin_page_title %}Lieux{% endblock %}
 
 {% block stylesheets %}
     {{ parent() }}
-    {{ include('admin/lieu/_styles.html.twig') }}
+    <style>
+        .users-feedback {
+            border-radius: 14px;
+            padding: 12px 14px;
+            margin-bottom: 12px;
+            border: 1px solid transparent;
+            font-weight: 600;
+        }
+
+        .users-feedback--success {
+            border-color: #86efac;
+            background: #f0fdf4;
+            color: #166534;
+        }
+
+        .users-feedback--error {
+            border-color: #fca5a5;
+            background: #fef2f2;
+            color: #991b1b;
+        }
+
+        .users-form-card {
+            margin: 18px 0 22px;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 18px;
+            padding: 18px;
+        }
+
+        .users-form-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .users-field {
+            display: grid;
+            gap: 6px;
+        }
+
+        .users-field--full {
+            grid-column: 1 / -1;
+        }
+
+        .users-field label {
+            font-size: 13px;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        .users-input,
+        .users-select {
+            width: 100%;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 10px 12px;
+            font-size: 14px;
+            background: #fff;
+            color: #0f172a;
+            outline: none;
+        }
+
+        .users-input:focus,
+        .users-select:focus {
+            border-color: #38bdf8;
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+        }
+
+        .users-submit {
+            border: 0;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #0ea5e9, #2563eb);
+            color: #fff;
+            font-weight: 700;
+            padding: 11px 18px;
+            cursor: pointer;
+        }
+
+        .users-card-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        .user-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 320px));
+            gap: 16px;
+            justify-content: start;
+        }
+
+        .user-card {
+            width: 100%;
+            max-width: 320px;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 18px;
+            padding: 12px;
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.04);
+        }
+
+        .user-card img {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #dbeafe, #f8fafc);
+        }
+
+        .lieu-image-placeholder {
+            width: 100%;
+            height: 180px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #dbeafe, #f8fafc);
+            color: #64748b;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .lieu-badge {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #fff;
+            margin-right: 6px;
+            margin-top: 4px;
+        }
+
+        .badge-cafe { background-color: #fd7e14; }
+        .badge-resto { background-color: #dc3545; }
+        .badge-resto_bar { background-color: #e83e8c; }
+        .badge-lieu_public { background-color: #20c997; }
+        .badge-parc_attraction { background-color: #6f42c1; }
+        .badge-musee { background-color: #6610f2; }
+        .badge-plage { background-color: #17a2b8; }
+        .badge-centre_commercial { background-color: #007bff; }
+        .badge-default { background-color: #334155; }
+
+        .lieu-type-public {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .lieu-type-prive {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .lieux-pagination {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-top: 24px;
+        }
+
+        .lieux-pagination a,
+        .lieux-pagination span {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 36px;
+            height: 36px;
+            padding: 0 10px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            color: #334155;
+            text-decoration: none;
+            transition: background .15s;
+        }
+
+        .lieux-pagination a:hover {
+            background: #f1f5f9;
+        }
+
+        .lieux-pagination .active {
+            background: linear-gradient(135deg, #0ea5e9, #2563eb);
+            color: #fff;
+            border-color: transparent;
+        }
+
+        .lieux-pagination .disabled {
+            opacity: .4;
+            pointer-events: none;
+        }
+
+        @media (max-width: 980px) {
+            .users-form-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 680px) {
+            .users-form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 {% endblock %}
 
 {% block admin_content %}
-    {{ include('admin/lieu/_flashes.html.twig') }}
+    {% for message in app.flashes('success') %}
+        <div class="users-feedback users-feedback--success">{{ message }}</div>
+    {% endfor %}
+    {% for message in app.flashes('error') %}
+        <div class="users-feedback users-feedback--error">{{ message }}</div>
+    {% endfor %}
 
     <div class="section-head">
         <div>
             <h2 class="section-title">Gestion des lieux</h2>
-            <p class="section-subtitle">Créer, consulter, filtrer, trier et supprimer les lieux depuis l'espace admin.</p>
+            <p class="section-subtitle">Créer, consulter, filtrer et gérer les lieux depuis l'espace admin.</p>
         </div>
-        <div class="lieu-page-actions">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
             <a href="{{ path('app_admin_lieu_new') }}" class="primary-btn">Nouveau lieu</a>
             <a href="{{ path('app_admin_dashboard') }}" class="secondary-btn">Retour dashboard</a>
         </div>
     </div>
 
-    <div class="lieu-search-card">
-        <form method="get" action="{{ path('app_admin_lieu_index') }}" class="row g-3 align-items-end">
-            <div class="col-md-4">
-                <label class="form-label fw-bold">Recherche</label>
-                <input type="text" name="q" value="{{ searchQuery }}" class="form-control" placeholder="Nom ou ville">
+    <div class="users-form-card">
+        <div class="section-head">
+            <div>
+                <h2 class="section-title">Recherche et filtres</h2>
+                <p class="section-subtitle">{{ totalItems }} lieu(x) trouvé(s)</p>
             </div>
-            <div class="col-md-3">
-                <label class="form-label fw-bold">Catégorie</label>
-                <select name="categorie" class="form-select">
+        </div>
+
+        <form method="get" action="{{ path('app_admin_lieu_index') }}" class="users-form-grid">
+            <div class="users-field">
+                <label for="search_q">Recherche</label>
+                <input id="search_q" class="users-input" type="text" name="q" value="{{ searchQuery }}" placeholder="Nom ou ville">
+            </div>
+
+            <div class="users-field">
+                <label for="search_categorie">Catégorie</label>
+                <select id="search_categorie" class="users-select" name="categorie">
                     <option value="">Toutes les catégories</option>
                     {% for categorie in categorieCases %}
                         <option value="{{ categorie.value }}" {{ currentCategorie == categorie.value ? 'selected' : '' }}>{{ categorie.label }}</option>
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-3">
-                <label class="form-label fw-bold">Type</label>
-                <select name="type" class="form-select">
+
+            <div class="users-field">
+                <label for="search_type">Type</label>
+                <select id="search_type" class="users-select" name="type">
                     <option value="">Tous les types</option>
                     {% for type in typeCases %}
                         <option value="{{ type.value }}" {{ currentType == type.value ? 'selected' : '' }}>{{ type.label }}</option>
                     {% endfor %}
                 </select>
             </div>
-            <input type="hidden" name="sort" value="{{ currentSort }}">
-            <input type="hidden" name="dir" value="{{ currentDirection }}">
-            <div class="col-md-2">
-                <button type="submit" class="primary-btn w-100">Filtrer</button>
+
+            <div class="users-field">
+                <label for="search_sort">Tri</label>
+                <select id="search_sort" class="users-select" name="sort">
+                    <option value="id" {{ currentSort == 'id' ? 'selected' : '' }}>ID</option>
+                    <option value="nom" {{ currentSort == 'nom' ? 'selected' : '' }}>Nom</option>
+                    <option value="ville" {{ currentSort == 'ville' ? 'selected' : '' }}>Ville</option>
+                    <option value="categorie" {{ currentSort == 'categorie' ? 'selected' : '' }}>Catégorie</option>
+                    <option value="type" {{ currentSort == 'type' ? 'selected' : '' }}>Type</option>
+                    <option value="budget" {{ currentSort == 'budget' ? 'selected' : '' }}>Budget</option>
+                </select>
+            </div>
+
+            <div class="users-field">
+                <label for="search_dir">Ordre</label>
+                <select id="search_dir" class="users-select" name="dir">
+                    <option value="ASC" {{ currentDirection == 'ASC' ? 'selected' : '' }}>Croissant</option>
+                    <option value="DESC" {{ currentDirection == 'DESC' ? 'selected' : '' }}>Décroissant</option>
+                </select>
+            </div>
+
+            <div class="users-field users-field--full" style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button type="submit" class="users-submit">Filtrer</button>
+                <a href="{{ path('app_admin_lieu_index') }}" class="secondary-btn">Réinitialiser</a>
             </div>
         </form>
-        <div class="lieu-search-actions">
-            <a href="{{ path('app_admin_lieu_index') }}" class="secondary-btn">Réinitialiser</a>
-            <span class="text-muted">{{ totalItems }} lieu(x) trouvé(s)</span>
-        </div>
     </div>
 
-    <div class="lieu-card table-responsive">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
-                <tr>
-                    {% set baseQuery = app.request.query.all|merge({'page': 1}) %}
-                    {% set nextIdDir = currentSort == 'id' and currentDirection == 'ASC' ? 'DESC' : 'ASC' %}
-                    {% set nextNomDir = currentSort == 'nom' and currentDirection == 'ASC' ? 'DESC' : 'ASC' %}
-                    {% set nextVilleDir = currentSort == 'ville' and currentDirection == 'ASC' ? 'DESC' : 'ASC' %}
-                    {% set nextCategorieDir = currentSort == 'categorie' and currentDirection == 'ASC' ? 'DESC' : 'ASC' %}
-                    {% set nextTypeDir = currentSort == 'type' and currentDirection == 'ASC' ? 'DESC' : 'ASC' %}
-                    {% set nextBudgetDir = currentSort == 'budget' and currentDirection == 'ASC' ? 'DESC' : 'ASC' %}
-                    <th><a class="lieu-sort-link" href="{{ path('app_admin_lieu_index', baseQuery|merge({'sort': 'id', 'dir': nextIdDir})) }}">ID</a></th>
-                    <th><a class="lieu-sort-link" href="{{ path('app_admin_lieu_index', baseQuery|merge({'sort': 'nom', 'dir': nextNomDir})) }}">Nom</a></th>
-                    <th><a class="lieu-sort-link" href="{{ path('app_admin_lieu_index', baseQuery|merge({'sort': 'ville', 'dir': nextVilleDir})) }}">Ville</a></th>
-                    <th><a class="lieu-sort-link" href="{{ path('app_admin_lieu_index', baseQuery|merge({'sort': 'categorie', 'dir': nextCategorieDir})) }}">Catégorie</a></th>
-                    <th><a class="lieu-sort-link" href="{{ path('app_admin_lieu_index', baseQuery|merge({'sort': 'type', 'dir': nextTypeDir})) }}">Type</a></th>
-                    <th><a class="lieu-sort-link" href="{{ path('app_admin_lieu_index', baseQuery|merge({'sort': 'budget', 'dir': nextBudgetDir})) }}">Budget</a></th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for lieu in lieux %}
-                    {% set categoryValue = lieu.categorie ? lieu.categorie.value : '' %}
-                    {% set categoryClassMap = {
-                        'CAFE': 'bg-warning text-dark',
-                        'RESTO': 'bg-danger',
-                        'RESTO_BAR': 'bg-dark',
-                        'LIEU_PUBLIC': 'bg-primary',
-                        'PARC_ATTRACTION': 'bg-success',
-                        'MUSEE': 'bg-info text-dark',
-                        'PLAGE': 'bg-info text-dark',
-                        'CENTRE_COMMERCIAL': 'bg-secondary'
-                    } %}
-                    {% set categoryClass = categoryClassMap[categoryValue]|default('bg-primary') %}
-                    <tr>
-                        <td>{{ lieu.id }}</td>
-                        <td class="fw-semibold">{{ lieu.nom }}</td>
-                        <td>{{ lieu.ville }}</td>
-                        <td><span class="badge {{ categoryClass }}">{{ lieu.categorie ? lieu.categorie.label : '—' }}</span></td>
-                        <td>
-                            {% if lieu.type %}
-                                {% if lieu.type.value == 'PUBLIC' %}
-                                    <span class="badge bg-success">{{ lieu.type.label }}</span>
-                                {% else %}
-                                    <span class="badge bg-warning text-dark">{{ lieu.type.label }}</span>
-                                {% endif %}
-                            {% else %}
-                                —
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if lieu.budgetMin is not null or lieu.budgetMax is not null %}
-                                {{ lieu.budgetMin is not null ? lieu.budgetMin|number_format(2, ',', ' ') : '—' }}
-                                —
-                                {{ lieu.budgetMax is not null ? lieu.budgetMax|number_format(2, ',', ' ') : '—' }}
-                                TND
-                            {% else %}
-                                —
-                            {% endif %}
-                        </td>
-                        <td>
-                            <div class="d-flex flex-wrap gap-2">
-                                <a href="{{ path('app_admin_lieu_show', {id: lieu.id}) }}" class="btn btn-light btn-sm border">Voir</a>
-                                <a href="{{ path('app_admin_lieu_edit', {id: lieu.id}) }}" class="btn btn-primary btn-sm">Modifier</a>
-                                <form method="post" action="{{ path('app_admin_lieu_delete', {id: lieu.id}) }}" onsubmit="return confirm('Supprimer ce lieu ?');">
-                                    <input type="hidden" name="_token" value="{{ csrf_token('delete_lieu_' ~ lieu.id) }}">
-                                    <button type="submit" class="btn btn-danger btn-sm">Supprimer</button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
+    <div class="user-list">
+        {% for lieu in lieux %}
+            {% set categoryValue = lieu.categorie ? lieu.categorie.value : '' %}
+            {% set categoryClassMap = {
+                'CAFE': 'badge-cafe',
+                'RESTO': 'badge-resto',
+                'RESTO_BAR': 'badge-resto_bar',
+                'LIEU_PUBLIC': 'badge-lieu_public',
+                'PARC_ATTRACTION': 'badge-parc_attraction',
+                'MUSEE': 'badge-musee',
+                'PLAGE': 'badge-plage',
+                'CENTRE_COMMERCIAL': 'badge-centre_commercial'
+            } %}
+            {% set categoryClass = categoryClassMap[categoryValue]|default('badge-default') %}
+
+            {% set rawImage = lieu.imageUrl|default('') %}
+            {% if rawImage and (rawImage starts with 'http://' or rawImage starts with 'https://') %}
+                {% set imageSrc = rawImage %}
+            {% elseif rawImage and (rawImage starts with 'theme/' or rawImage starts with 'uploads/') %}
+                {% set imageSrc = asset(rawImage) %}
+            {% elseif rawImage and rawImage != 'default.png' %}
+                {% set imageSrc = asset('uploads/lieux/' ~ rawImage) %}
+            {% else %}
+                {% set imageSrc = '' %}
+            {% endif %}
+
+            <article class="user-card">
+                {% if imageSrc %}
+                    <img src="{{ imageSrc }}" alt="{{ lieu.nom }}" onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.style.display='flex';">
+                    <div class="lieu-image-placeholder" style="display:none;">Aucune image</div>
                 {% else %}
-                    <tr>
-                        <td colspan="7">
-                            <div class="lieu-empty-state">
-                                {% if searchQuery or currentCategorie or currentType %}
-                                    Aucun lieu ne correspond aux filtres actifs.
-                                {% else %}
-                                    Aucun lieu enregistré.
-                                {% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                    <div class="lieu-image-placeholder">Aucune image</div>
+                {% endif %}
+
+                <h3>{{ lieu.nom }}</h3>
+                <p><i class="bi bi-geo-alt"></i> {{ lieu.ville }}</p>
+
+                <div>
+                    <span class="lieu-badge {{ categoryClass }}">{{ lieu.categorie ? lieu.categorie.label : '—' }}</span>
+                    {% if lieu.type %}
+                        <span class="lieu-badge {{ lieu.type.value == 'PUBLIC' ? 'lieu-type-public' : 'lieu-type-prive' }}">{{ lieu.type.label }}</span>
+                    {% endif %}
+                </div>
+
+                <p style="margin-top:8px;">
+                    <strong>Budget :</strong>
+                    {% if lieu.budgetMin is not null or lieu.budgetMax is not null %}
+                        {{ lieu.budgetMin is not null ? lieu.budgetMin|number_format(2, ',', ' ') : '—' }}
+                        —
+                        {{ lieu.budgetMax is not null ? lieu.budgetMax|number_format(2, ',', ' ') : '—' }} TND
+                    {% else %}
+                        Non renseigné
+                    {% endif %}
+                </p>
+
+                <div class="users-card-actions">
+                    <a href="{{ path('app_admin_lieu_show', {id: lieu.id}) }}" class="outline-btn" style="text-decoration:none;">Voir</a>
+                    <a href="{{ path('app_admin_lieu_edit', {id: lieu.id}) }}" class="outline-btn" style="text-decoration:none;">Modifier</a>
+                    <form method="post" action="{{ path('app_admin_lieu_delete', {id: lieu.id}) }}" onsubmit="return confirm('Supprimer ce lieu ?');">
+                        <input type="hidden" name="_token" value="{{ csrf_token('delete_lieu_' ~ lieu.id) }}">
+                        <button type="submit" class="outline-btn" style="color:#b91c1c;border-color:#fecaca;">Supprimer</button>
+                    </form>
+                </div>
+            </article>
+        {% else %}
+            <div class="empty-state">
+                {% if searchQuery %}
+                    Aucun lieu ne correspond à "{{ searchQuery }}".
+                {% else %}
+                    Aucun lieu disponible.
+                {% endif %}
+            </div>
+        {% endfor %}
     </div>
 
     {% if pageCount > 1 %}
-        <nav class="lieu-pagination" aria-label="Pagination des lieux">
-            <ul class="pagination mb-0">
-                <li class="page-item {{ page <= 1 ? 'disabled' : '' }}">
-                    <a class="page-link" href="{{ page > 1 ? path('app_admin_lieu_index', app.request.query.all|merge({'page': page - 1})) : '#' }}">Précédent</a>
-                </li>
-                {% for currentPage in 1..pageCount %}
-                    <li class="page-item {{ currentPage == page ? 'active' : '' }}">
-                        <a class="page-link" href="{{ path('app_admin_lieu_index', app.request.query.all|merge({'page': currentPage})) }}">{{ currentPage }}</a>
-                    </li>
-                {% endfor %}
-                <li class="page-item {{ page >= pageCount ? 'disabled' : '' }}">
-                    <a class="page-link" href="{{ page < pageCount ? path('app_admin_lieu_index', app.request.query.all|merge({'page': page + 1})) : '#' }}">Suivant</a>
-                </li>
-            </ul>
+        <nav class="lieux-pagination" aria-label="Pagination des lieux">
+            <a class="{{ page <= 1 ? 'disabled' : '' }}" href="{{ page > 1 ? path('app_admin_lieu_index', app.request.query.all|merge({'page': page - 1})) : '#' }}">Précédent</a>
+            {% for currentPage in 1..pageCount %}
+                <a class="{{ currentPage == page ? 'active' : '' }}" href="{{ path('app_admin_lieu_index', app.request.query.all|merge({'page': currentPage})) }}">{{ currentPage }}</a>
+            {% endfor %}
+            <a class="{{ page >= pageCount ? 'disabled' : '' }}" href="{{ page < pageCount ? path('app_admin_lieu_index', app.request.query.all|merge({'page': page + 1})) : '#' }}">Suivant</a>
         </nav>
     {% endif %}
 {% endblock %}
