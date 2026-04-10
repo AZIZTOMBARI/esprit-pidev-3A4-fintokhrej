@@ -330,11 +330,29 @@ class AdminController extends AbstractController
     }
 
     #[Route('/sorties', name: 'app_admin_sorties')]
-    public function sorties(Connection $connection): Response
+    public function sorties(Request $request, Connection $connection): Response
     {
+        $page = max(1, (int) $request->query->get('page', 1));
+        $pageSize = 6;
+        $total = (int) $connection->fetchOne('SELECT COUNT(*) FROM annonce_sortie');
+        $totalPages = max(1, (int) ceil($total / $pageSize));
+        $page = min($page, $totalPages);
+        $offset = ($page - 1) * $pageSize;
+
         return $this->render('admin/sortie/index.html.twig', [
             'active' => 'sorties',
-            'sorties' => $this->fetchAll($connection, 'SELECT s.id, s.user_id, s.titre, s.description, s.ville, s.lieu_texte, s.point_rencontre, s.type_activite, s.date_sortie, s.budget_max, s.nb_places, s.statut, s.image_url, s.questions_json, u.prenom, u.nom, u.imageUrl AS user_image_url FROM annonce_sortie s LEFT JOIN user u ON u.id = s.user_id ORDER BY s.date_sortie ASC'),
+            'sorties' => $this->fetchAll(
+                $connection,
+                'SELECT s.id, s.user_id, s.titre, s.description, s.ville, s.lieu_texte, s.point_rencontre, s.type_activite, s.date_sortie, s.budget_max, s.nb_places, s.statut, s.image_url, s.questions_json, u.prenom, u.nom, u.imageUrl AS user_image_url
+                 FROM annonce_sortie s
+                 LEFT JOIN user u ON u.id = s.user_id
+                 ORDER BY s.date_sortie ASC, s.id DESC
+                 LIMIT '.$pageSize.' OFFSET '.$offset
+            ),
+            'page' => $page,
+            'pageSize' => $pageSize,
+            'total' => $total,
+            'totalPages' => $totalPages,
         ]);
     }
 

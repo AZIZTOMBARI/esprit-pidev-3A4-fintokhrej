@@ -2,6 +2,73 @@
 
 {% block title %}Sorties | Fin Tokhroj{% endblock %}
 
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .sortie-pagination {
+            margin-top: 18px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: nowrap;
+            gap: 8px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            white-space: nowrap;
+            scrollbar-width: thin;
+            padding-bottom: 4px;
+            -webkit-mask-image: linear-gradient(to right, transparent 0, #000 22px, #000 calc(100% - 22px), transparent 100%);
+            mask-image: linear-gradient(to right, transparent 0, #000 22px, #000 calc(100% - 22px), transparent 100%);
+        }
+
+        .sortie-page-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 38px;
+            height: 38px;
+            padding: 0 12px;
+            flex: 0 0 auto;
+            border-radius: 10px;
+            border: 1px solid #d1d5db;
+            background: #fff;
+            color: #0f172a;
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        .sortie-page-link:hover {
+            border-color: #93c5fd;
+            background: #eff6ff;
+        }
+
+        .sortie-page-link.is-active {
+            border-color: #2563eb;
+            background: #2563eb;
+            color: #fff;
+        }
+
+        .sortie-page-link.is-disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .sortie-page-indicator {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 38px;
+            padding: 0 12px;
+            border-radius: 10px;
+            border: 1px solid #d1d5db;
+            background: #f8fafc;
+            color: #334155;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+    </style>
+{% endblock %}
+
 {% block front_content %}
 <section>
     <div class="section-head">
@@ -16,7 +83,7 @@
     </div>
 
     {% if app.user %}
-        <section class="sortie-notification-board notification-root" data-notification-root data-feed-url="{{ path('app_notifications_feed') }}" data-read-all-url="{{ path('app_notifications_read_all') }}" data-notification-inline="true">
+        <section class="sortie-notification-board notification-root" data-notification-root data-feed-url="{{ path('app_notifications_api_feed') }}" data-read-all-url="{{ path('app_notifications_api_read_all') }}" data-notification-inline="true">
             <div class="sortie-notification-board__head">
                 <div>
                     <h3>Notifications sorties</h3>
@@ -130,9 +197,14 @@
                     <p style="margin-top:14px;">{{ item.description }}</p>
                 {% endif %}
                 {% set canManage = is_granted('ROLE_ADMIN') or (app.user and item.user_id is defined and item.user_id and app.user.id == item.user_id) %}
+                {% set isParticipationBlocked = item.statut is defined and item.statut in ['CLOTUREE', 'TERMINEE', 'ANNULEE'] %}
                 <div class="btn-row" style="margin-top: 12px;">
                     {% if app.user and item.user_id is defined and item.user_id and app.user.id == item.user_id %}
                         <a href="{{ path('app_sorties_show', {id: item.id}) }}#demandes-attente" class="outline-btn"><span class="btn-icon">&#128065;</span>Voir participations</a>
+                    {% elseif isParticipationBlocked %}
+                        <button type="button" class="outline-btn" disabled aria-disabled="true" title="Participation indisponible pour ce statut">
+                            <span class="btn-icon">&#128274;</span>Participation indisponible
+                        </button>
                     {% else %}
                         <a href="{{ path('app_sorties_show', {id: item.id}) }}" class="outline-btn"><span class="btn-icon">&#128279;</span>participer</a>
                     {% endif %}
@@ -151,6 +223,41 @@
     </div>
     <div class="empty-state" data-sortie-empty hidden>Aucune sortie ne correspond à votre recherche.</div>
 
+    {% if totalPages is defined and totalPages >= 1 %}
+        <nav class="sortie-pagination" aria-label="Pagination sorties">
+            {% set prevPage = page > 1 ? page - 1 : 1 %}
+            {% set nextPage = page < totalPages ? page + 1 : totalPages %}
+
+            <a
+                class="sortie-page-link {{ page <= 1 ? 'is-disabled' : '' }}"
+                href="{{ path('app_sorties', {page: prevPage}) }}"
+                aria-label="Page précédente"
+            >
+                Précédent
+            </a>
+
+            {% for i in 1..totalPages %}
+                <a
+                    class="sortie-page-link {{ i == page ? 'is-active' : '' }}"
+                    href="{{ path('app_sorties', {page: i}) }}"
+                    aria-current="{{ i == page ? 'page' : 'false' }}"
+                >
+                    {{ i }}
+                </a>
+            {% endfor %}
+
+            <span class="sortie-page-indicator">Page {{ page }} / {{ totalPages }}</span>
+
+            <a
+                class="sortie-page-link {{ page >= totalPages ? 'is-disabled' : '' }}"
+                href="{{ path('app_sorties', {page: nextPage}) }}"
+                aria-label="Page suivante"
+            >
+                Suivant
+            </a>
+        </nav>
+    {% endif %}
+
     <div class="sortie-modal" id="sortie-detail-modal" hidden>
         <div class="sortie-modal__backdrop" data-sortie-modal-close></div>
         <div class="sortie-modal__panel" role="dialog" aria-modal="true" aria-labelledby="sortie-modal-title">
@@ -159,6 +266,7 @@
             <h3 id="sortie-modal-title"></h3>
             <p id="sortie-modal-description"></p>
             <div class="meta-row" id="sortie-modal-meta"></div>
+            <div id="sortie-modal-point-map" class="sortie-modal__point-map" hidden></div>
             <div id="sortie-modal-questions" class="sortie-modal__questions"></div>
         </div>
     </div>

@@ -3,6 +3,73 @@
 {% block title %}Gestion des sorties | Fin Tokhroj{% endblock %}
 {% block admin_page_title %}Gestion des sorties{% endblock %}
 
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .users-pagination {
+            margin-top: 18px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: nowrap;
+            gap: 8px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            white-space: nowrap;
+            scrollbar-width: thin;
+            padding-bottom: 4px;
+            -webkit-mask-image: linear-gradient(to right, transparent 0, #000 22px, #000 calc(100% - 22px), transparent 100%);
+            mask-image: linear-gradient(to right, transparent 0, #000 22px, #000 calc(100% - 22px), transparent 100%);
+        }
+
+        .users-page-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 38px;
+            height: 38px;
+            padding: 0 12px;
+            flex: 0 0 auto;
+            border-radius: 10px;
+            border: 1px solid #d1d5db;
+            background: #fff;
+            color: #0f172a;
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        .users-page-link:hover {
+            border-color: #93c5fd;
+            background: #eff6ff;
+        }
+
+        .users-page-link.is-active {
+            border-color: #2563eb;
+            background: #2563eb;
+            color: #fff;
+        }
+
+        .users-page-link.is-disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .users-page-indicator {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 38px;
+            padding: 0 12px;
+            border-radius: 10px;
+            border: 1px solid #d1d5db;
+            background: #f8fafc;
+            color: #334155;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+    </style>
+{% endblock %}
+
 {% block admin_content %}
     <div class="admin-table-card">
         <div class="section-head">
@@ -16,7 +83,7 @@
             </div>
         </div>
 
-        <section class="sortie-notification-board notification-root" data-notification-root data-feed-url="{{ path('app_notifications_feed') }}" data-read-all-url="{{ path('app_notifications_read_all') }}" data-notification-inline="true">
+        <section class="sortie-notification-board notification-root" data-notification-root data-feed-url="{{ path('app_notifications_api_feed') }}" data-read-all-url="{{ path('app_notifications_api_read_all') }}" data-notification-inline="true">
             <div class="sortie-notification-board__head">
                 <div>
                     <h3>Centre notifications sorties</h3>
@@ -65,8 +132,8 @@
 
         <div class="listing-grid sortie-grid" data-sortie-list>
             {% for item in sorties %}
+                {% set cardImage = item.image_url is defined and item.image_url ? (item.image_url starts with 'http' ? item.image_url : '/' ~ item.image_url|trim('/')) : null %}
                 <article class="listing-card sortie-card" data-sortie-detail data-sortie-id="{{ item.id|default(0) }}" data-sortie-title="{{ attribute(item, 'titre')|e('html_attr') }}" data-sortie-city="{{ (item.ville|default(''))|e('html_attr') }}" data-sortie-type="{{ (item.type_activite|default(''))|e('html_attr') }}" data-sortie-date="{{ item.date_sortie is defined and item.date_sortie ? item.date_sortie|date('d/m/Y H:i') : '-' }}" data-sortie-date-ts="{{ item.date_sortie is defined and item.date_sortie ? item.date_sortie|date('U') : '' }}" data-sortie-places="{{ (item.nb_places|default('-'))|e('html_attr') }}" data-sortie-budget="{{ (item.budget_max|default('-'))|e('html_attr') }}" data-sortie-status="{{ (item.statut|default('-'))|e('html_attr') }}" data-sortie-description="{{ (item.description|default('Aucune description'))|striptags|e('html_attr') }}" data-sortie-lieu="{{ (item.lieu_texte|default('-'))|e('html_attr') }}" data-sortie-point="{{ (item.point_rencontre|default('-'))|e('html_attr') }}" data-sortie-questions="{{ (item.questions_json|default(''))|e('html_attr') }}" data-sortie-createur="{{ ((item.prenom|default('') ~ ' ' ~ item.nom|default(''))|trim ?: 'Inconnu')|e('html_attr') }}" data-sortie-image="{{ (cardImage|default(''))|e('html_attr') }}">
-                    {% set cardImage = item.image_url is defined and item.image_url ? (item.image_url starts with 'http' ? item.image_url : '/' ~ item.image_url|trim('/')) : null %}
                     <div class="cover-thumb" style="overflow:hidden;">
                         {% if cardImage %}
                             <img src="{{ cardImage }}" alt="Image {{ attribute(item, 'titre') }}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;">
@@ -153,6 +220,41 @@
         </div>
         <div class="empty-state" data-sortie-empty hidden>Aucune sortie ne correspond à votre recherche.</div>
 
+        {% if totalPages is defined and totalPages >= 1 %}
+            <nav class="users-pagination" aria-label="Pagination sorties">
+                {% set prevPage = page > 1 ? page - 1 : 1 %}
+                {% set nextPage = page < totalPages ? page + 1 : totalPages %}
+
+                <a
+                    class="users-page-link {{ page <= 1 ? 'is-disabled' : '' }}"
+                    href="{{ path('app_admin_sorties', {page: prevPage}) }}"
+                    aria-label="Page précédente"
+                >
+                    Précédent
+                </a>
+
+                {% for i in 1..totalPages %}
+                    <a
+                        class="users-page-link {{ i == page ? 'is-active' : '' }}"
+                        href="{{ path('app_admin_sorties', {page: i}) }}"
+                        aria-current="{{ i == page ? 'page' : 'false' }}"
+                    >
+                        {{ i }}
+                    </a>
+                {% endfor %}
+
+                <span class="users-page-indicator">Page {{ page }} / {{ totalPages }}</span>
+
+                <a
+                    class="users-page-link {{ page >= totalPages ? 'is-disabled' : '' }}"
+                    href="{{ path('app_admin_sorties', {page: nextPage}) }}"
+                    aria-label="Page suivante"
+                >
+                    Suivant
+                </a>
+            </nav>
+        {% endif %}
+
         <div class="sortie-modal" id="sortie-detail-modal" hidden>
             <div class="sortie-modal__backdrop" data-sortie-modal-close></div>
             <div class="sortie-modal__panel" role="dialog" aria-modal="true" aria-labelledby="sortie-modal-title">
@@ -161,6 +263,7 @@
                 <h3 id="sortie-modal-title"></h3>
                 <p id="sortie-modal-description"></p>
                 <div class="meta-row" id="sortie-modal-meta"></div>
+                <div id="sortie-modal-point-map" class="sortie-modal__point-map" hidden></div>
                 <div id="sortie-modal-questions" class="sortie-modal__questions"></div>
             </div>
         </div>

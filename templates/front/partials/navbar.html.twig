@@ -21,59 +21,13 @@
     </nav>
 
     <div class="front-tools">
-        {% set notifItems = notificationData.items|default([]) %}
-        {% set notifUnread = notificationData.unreadCount|default(0) %}
-        <div class="search-pill">
+        <form id="global-search-form" method="get" action="{{ path('app_global_search') }}" class="search-pill" role="search" aria-label="Recherche globale">
             <span>🔎</span>
-            <input type="text" placeholder="Rechercher...">
-        </div>
-        <button class="cta-btn">Go</button>
-        {% if app.user %}
-            <details style="position:relative;">
-                <summary class="icon-btn" aria-label="Notifications" style="list-style:none; position:relative;">
-                    🔔
-                    {% if notifUnread > 0 %}
-                        <span style="position:absolute; top:-6px; right:-6px; min-width:18px; height:18px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; background:#ef4444; color:#fff; font-size:11px; font-weight:800; padding:0 4px;">{{ notifUnread }}</span>
-                    {% endif %}
-                </summary>
-                <div style="position:absolute; right:0; top:50px; width:340px; max-width:92vw; background:#fff; border:1px solid #d7e1ef; border-radius:16px; box-shadow:0 18px 35px rgba(15, 23, 42, .14); padding:10px; z-index:50;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px;">
-                        <strong style="color:#143d71;">Notifications</strong>
-                        {% if notifUnread > 0 %}
-                            <form method="post" action="{{ path('app_notifications_read_all') }}">
-                                <input type="hidden" name="_token" value="{{ csrf_token('notifications_read_all') }}">
-                                <button type="submit" class="outline-btn" style="padding:7px 10px; font-size:12px;">Tout marquer lu</button>
-                            </form>
-                        {% endif %}
-                    </div>
-
-                    <div style="display:grid; gap:8px; max-height:320px; overflow:auto;">
-                        {% for notif in notifItems %}
-                            <div style="border:1px solid #e2e8f0; border-radius:12px; padding:9px 10px; background:{{ notif.read_at ? '#fff' : '#eff6ff' }};">
-                                <div style="display:flex; justify-content:space-between; gap:8px; align-items:flex-start;">
-                                    <div>
-                                        <div style="font-weight:800; color:#0f172a; font-size:13px;">{{ notif.title }}</div>
-                                        <div style="font-size:12px; color:#475569; margin-top:2px;">{{ notif.body }}</div>
-                                        <div style="font-size:11px; color:#94a3b8; margin-top:4px;">{{ notif.created_at ? notif.created_at|date('d/m/Y H:i') : '' }}</div>
-                                    </div>
-                                    {% if not notif.read_at %}
-                                        <form method="post" action="{{ path('app_notifications_read', {id: notif.id}) }}">
-                                            <input type="hidden" name="_token" value="{{ csrf_token('notification_read_' ~ notif.id) }}">
-                                            <button type="submit" class="outline-btn" style="padding:6px 8px; font-size:11px;">Lu</button>
-                                        </form>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        {% else %}
-                            <div style="padding:12px; border:1px dashed #cbd5e1; border-radius:12px; color:#64748b; font-size:13px;">Aucune notification pour le moment.</div>
-                        {% endfor %}
-                    </div>
-                </div>
-            </details>
-        {% else %}
-            <button class="icon-btn" aria-label="Notifications">🔔</button>
-        {% endif %}
-        <button class="icon-btn" aria-label="Mode sombre">◐</button>
+            <input type="search" name="q" value="{{ app.request.query.get('q') }}" placeholder="Rechercher partout..." minlength="2" required>
+            <input type="hidden" name="from" value="navbar">
+        </form>
+        <button class="cta-btn" type="submit" form="global-search-form">Go</button>
+        <button class="icon-btn" aria-label="Mode sombre" data-theme-toggle title="Mode sombre">◐</button>
         {% if app.user %}
             {% set chip = app.user %}
             <a href="{{ path('app_logout') }}" class="cta-btn" style="text-decoration:none;display:inline-flex;align-items:center;">Déconnexion</a>

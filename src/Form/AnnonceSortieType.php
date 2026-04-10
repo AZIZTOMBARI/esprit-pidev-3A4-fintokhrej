@@ -37,6 +37,8 @@ class AnnonceSortieType extends AbstractType
         'Visite culturelle',
         'Soirée',
         'Restaurant',
+        'Cinéma',
+
         'Autre',
     ];
 
@@ -80,6 +82,7 @@ class AnnonceSortieType extends AbstractType
                     'Visite culturelle' => 'Visite culturelle',
                     'Soiree' => 'Soiree',
                     'Restaurant' => 'Restaurant',
+                    'Cinéma' => 'Cinéma',
                     'Autre' => '__autre__',
                 ],
             ])

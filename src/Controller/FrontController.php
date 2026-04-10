@@ -48,7 +48,7 @@ class FrontController extends AbstractController
                 LIMIT 6
             "),
             'sorties' => $this->fetchAll($connection, "
-                SELECT id, titre, ville, type_activite, date_sortie, budget_max, statut
+                SELECT id, titre, ville, type_activite, date_sortie, budget_max, statut, nb_places, image_url, lieu_texte
                 FROM annonce_sortie
                 ORDER BY date_sortie ASC
                 LIMIT 6
@@ -303,18 +303,106 @@ class FrontController extends AbstractController
     }
 
     #[Route('/sorties', name: 'app_sorties')]
-    public function sorties(Connection $connection): Response
+    public function sorties(Request $request, Connection $connection): Response
     {
+        $page = max(1, (int) $request->query->get('page', 1));
+        $pageSize = 6;
+        $total = (int) $connection->fetchOne('SELECT COUNT(*) FROM annonce_sortie');
+        $totalPages = max(1, (int) ceil($total / $pageSize));
+        $page = min($page, $totalPages);
+        $offset = ($page - 1) * $pageSize;
+
         return $this->render('front/sortie/index.html.twig', [
             'active' => 'sorties',
-            'sorties' => $this->fetchAll($connection, "
-                SELECT s.id, s.user_id, s.titre, s.description, s.ville, s.lieu_texte, s.point_rencontre,
-                       s.type_activite, s.date_sortie, s.budget_max, s.nb_places, s.statut, s.image_url, s.questions_json,
-                       u.prenom, u.nom, u.imageUrl AS user_image_url
-                FROM annonce_sortie s
-                LEFT JOIN user u ON u.id = s.user_id
-                ORDER BY s.date_sortie ASC
-            "),
+            'sorties' => $this->fetchAll(
+                $connection,
+                'SELECT s.id, s.user_id, s.titre, s.description, s.ville, s.lieu_texte, s.point_rencontre,
+                        s.type_activite, s.date_sortie, s.budget_max, s.nb_places, s.statut, s.image_url, s.questions_json,
+                        u.prenom, u.nom, u.imageUrl AS user_image_url
+                 FROM annonce_sortie s
+                 LEFT JOIN user u ON u.id = s.user_id
+                 ORDER BY s.date_sortie ASC
+                 LIMIT '.$pageSize.' OFFSET '.$offset
+            ),
+            'page' => $page,
+            'pageSize' => $pageSize,
+            'total' => $total,
+            'totalPages' => $totalPages,
+            'notificationData' => $this->getNotificationData($connection),
+        ]);
+    }
+
+    #[Route('/search', name: 'app_global_search', methods: ['GET'])]
+    public function globalSearch(Request $request, Connection $connection): Response
+    {
+        $raw = trim((string) $request->query->get('q', ''));
+        $query = mb_substr($raw, 0, 80);
+
+        $sorties = [];
+        $lieux = [];
+        $offres = [];
+        $evenements = [];
+        $users = [];
+
+        if ($query !== '' && mb_strlen($query) >= 2) {
+            $like = '%'.$query.'%';
+
+            $sorties = $this->fetchAll($connection,
+                'SELECT id, titre, ville, type_activite, date_sortie, statut
+                 FROM annonce_sortie
+                 WHERE titre LIKE ? OR ville LIKE ? OR type_activite LIKE ? OR description LIKE ? OR lieu_texte LIKE ?
+                 ORDER BY date_sortie DESC
+                 LIMIT 8',
+                [$like, $like, $like, $like, $like]
+            );
+
+            $lieux = $this->fetchAll($connection,
+                'SELECT id, nom, ville, categorie, type
+                 FROM lieu
+                 WHERE nom LIKE ? OR ville LIKE ? OR categorie LIKE ? OR type LIKE ? OR adresse LIKE ?
+                 ORDER BY nom ASC
+                 LIMIT 8',
+                [$like, $like, $like, $like, $like]
+            );
+
+            $offres = $this->fetchAll($connection,
+                'SELECT o.id, o.titre, o.type, o.pourcentage, o.date_fin, l.nom AS lieu_nom
+                 FROM offre o
+                 LEFT JOIN lieu l ON l.id = o.lieu_id
+                 WHERE o.titre LIKE ? OR o.type LIKE ? OR o.description LIKE ? OR l.nom LIKE ?
+                 ORDER BY o.date_fin DESC
+                 LIMIT 8',
+                [$like, $like, $like, $like]
+            );
+
+            $evenements = $this->fetchAll($connection,
+                'SELECT e.id, e.titre, e.type, e.date_debut, l.nom AS lieu_nom, l.ville
+                 FROM evenement e
+                 LEFT JOIN lieu l ON l.id = e.lieu_id
+                 WHERE e.titre LIKE ? OR e.type LIKE ? OR e.description LIKE ? OR l.nom LIKE ? OR l.ville LIKE ?
+                 ORDER BY e.date_debut DESC
+                 LIMIT 8',
+                [$like, $like, $like, $like, $like]
+            );
+
+            $users = $this->fetchAll($connection,
+                'SELECT id, prenom, nom, role
+                 FROM user
+                 WHERE prenom LIKE ? OR nom LIKE ? OR email LIKE ?
+                 ORDER BY prenom ASC, nom ASC
+                 LIMIT 8',
+                [$like, $like, $like]
+            );
+        }
+
+        return $this->render('front/search/index.html.twig', [
+            'active' => null,
+            'query' => $query,
+            'sorties' => $sorties,
+            'lieux' => $lieux,
+            'offres' => $offres,
+            'evenements' => $evenements,
+            'users' => $users,
             'notificationData' => $this->getNotificationData($connection),
         ]);
     }

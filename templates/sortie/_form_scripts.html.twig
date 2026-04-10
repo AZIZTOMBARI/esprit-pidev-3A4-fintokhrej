@@ -22,6 +22,8 @@
 
             const cityInput = document.getElementById('{{ form.ville.vars.id }}');
             const pointInput = document.getElementById('{{ form.point_rencontre.vars.id }}');
+            const mapSearchInput = document.getElementById('sortie-map-search');
+            const mapSearchSuggestions = document.getElementById('sortie-map-suggestions');
             const activityInput = document.getElementById('{{ form.type_activite.vars.id }}');
             const activityOtherWrap = document.getElementById('type-activite-autre-wrap');
             const activityOtherInput = document.getElementById('{{ form.type_activite_autre.vars.id }}');
@@ -48,22 +50,157 @@
             const initialCity = cityInput ? cityInput.value : '';
             const initialCenter = initialPoint || cityCoords[initialCity] || defaultCenter;
 
-            const map = L.map(mapEl, { zoomControl: true }).setView(initialCenter, initialPoint ? 13 : 6);
+            const map = L.map(mapEl, {
+                zoomControl: true,
+                preferCanvas: true,
+                zoomAnimation: true,
+                markerZoomAnimation: true,
+                inertia: true,
+            }).setView(initialCenter, initialPoint ? 13 : 6);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 maxZoom: 19,
                 attribution: '&copy; OpenStreetMap contributors'
             }).addTo(map);
 
             let marker = L.marker(initialCenter, { draggable: true }).addTo(map);
+            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
             function updatePointInput(latlng) {
                 if (!pointInput) return;
                 pointInput.value = latlng.lat.toFixed(6) + ',' + latlng.lng.toFixed(6);
             }
+            function setMarkerAndSync(latlng) {
+                marker.setLatLng(latlng);
+                updatePointInput(marker.getLatLng());
+            }
+
+            function invalidateMapSize() {
+                map.invalidateSize({ animate: false, pan: false });
+            }
+
+            requestAnimationFrame(invalidateMapSize);
+            setTimeout(invalidateMapSize, 220);
+            window.addEventListener('resize', invalidateMapSize);
+            if ('ResizeObserver' in window) {
+                const ro = new ResizeObserver(function () {
+                    invalidateMapSize();
+                });
+                ro.observe(mapEl);
+            }
+
             updatePointInput(marker.getLatLng());
             marker.on('dragend', function () { updatePointInput(marker.getLatLng()); });
             map.on('click', function (e) {
-                marker.setLatLng(e.latlng);
-                updatePointInput(marker.getLatLng());
+                setMarkerAndSync(e.latlng);
+            });
+
+            let addressSearchTimer = null;
+            let addressAbortController = null;
+
+            function hideAddressSuggestions() {
+                if (!mapSearchSuggestions) return;
+                mapSearchSuggestions.hidden = true;
+                mapSearchSuggestions.innerHTML = '';
+            }
+
+            function renderAddressSuggestions(items) {
+                if (!mapSearchSuggestions) return;
+
+                if (!Array.isArray(items) || items.length === 0) {
+                    mapSearchSuggestions.innerHTML = '<div class="map-search-empty">Aucune adresse trouvée.</div>';
+                    mapSearchSuggestions.hidden = false;
+                    return;
+                }
+
+                mapSearchSuggestions.innerHTML = items.map(function (item, idx) {
+                    const name = String(item.display_name || '').replace(/"/g, '&quot;');
+                    const lat = String(item.lat || '');
+                    const lon = String(item.lon || '');
+                    const shortLabel = name.split(',').slice(0, 2).join(',').trim() || name;
+
+                    return '<button type="button" class="map-search-suggestion" data-lat="' + lat + '" data-lon="' + lon + '" data-label="' + name + '">'
+                        + shortLabel
+                        + '<small>' + name + '</small>'
+                        + '</button>';
+                }).join('');
+
+                mapSearchSuggestions.hidden = false;
+
+                mapSearchSuggestions.querySelectorAll('.map-search-suggestion').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        const lat = Number(btn.getAttribute('data-lat'));
+                        const lon = Number(btn.getAttribute('data-lon'));
+                        if (Number.isNaN(lat) || Number.isNaN(lon)) return;
+
+                        const coords = [lat, lon];
+                        if (mapSearchInput) {
+                            mapSearchInput.value = btn.getAttribute('data-label') || '';
+                        }
+
+                        map.flyTo(coords, 14, { duration: 0.7 });
+                        setMarkerAndSync(coords);
+                        hideAddressSuggestions();
+                    });
+                });
+            }
+
+            async function searchAddressSuggestions(query) {
+                if (!query || query.trim().length < 3) {
+                    hideAddressSuggestions();
+                    return;
+                }
+
+                if (addressAbortController) {
+                    addressAbortController.abort();
+                }
+                addressAbortController = new AbortController();
+
+                const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&countrycodes=tn&limit=6&q=' + encodeURIComponent(query);
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'GET',
+                        signal: addressAbortController.signal,
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        hideAddressSuggestions();
+                        return;
+                    }
+
+                    const payload = await response.json();
+                    renderAddressSuggestions(Array.isArray(payload) ? payload : []);
+                } catch (_) {
+                    hideAddressSuggestions();
+                }
+            }
+
+            if (mapSearchInput) {
+                mapSearchInput.addEventListener('input', function () {
+                    const query = mapSearchInput.value;
+                    if (addressSearchTimer) {
+                        window.clearTimeout(addressSearchTimer);
+                    }
+                    addressSearchTimer = window.setTimeout(function () {
+                        searchAddressSuggestions(query);
+                    }, 220);
+                });
+
+                mapSearchInput.addEventListener('focus', function () {
+                    if (mapSearchInput.value.trim().length >= 3) {
+                        searchAddressSuggestions(mapSearchInput.value.trim());
+                    }
+                });
+            }
+
+            document.addEventListener('click', function (event) {
+                const target = event.target;
+                if (!mapSearchSuggestions || !mapSearchInput) return;
+                if (mapSearchSuggestions.contains(target) || mapSearchInput.contains(target)) return;
+                hideAddressSuggestions();
             });
 
             async function fetchCityCoordinates(cityName) {
@@ -108,10 +245,13 @@
                     coords = defaultCenter;
                 }
 
-                map.flyTo(coords, 11, { duration: 0.7 });
+                if (prefersReducedMotion) {
+                    map.setView(coords, 11);
+                } else {
+                    map.flyTo(coords, 11, { duration: 0.7 });
+                }
                 if (syncMarker) {
-                    marker.setLatLng(coords);
-                    updatePointInput(marker.getLatLng());
+                    setMarkerAndSync(coords);
                 }
             }
 

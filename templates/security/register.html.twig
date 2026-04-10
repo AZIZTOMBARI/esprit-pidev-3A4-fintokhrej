@@ -3,35 +3,66 @@
 {% block title %}Inscription{% endblock %}
 
 {% block stylesheets %}
-    <link rel="stylesheet" href="{{ asset('styles/auth.css') }}?v=20260409d">
+    <link rel="stylesheet" href="{{ asset('styles/auth.css') }}?v=20260410d">
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script src="{{ asset('theme/js/auth-wow.js') }}?v=20260410b" defer></script>
 {% endblock %}
 
 {% block body %}
-    <div class="auth-page">
+    <div class="auth-page auth-page--register">
+        <div class="auth-ambient" aria-hidden="true">
+            <span class="auth-orb auth-orb--one"></span>
+            <span class="auth-orb auth-orb--two"></span>
+            <span class="auth-orb auth-orb--three"></span>
+            <span class="auth-grid-glow"></span>
+        </div>
         <div class="auth-layout">
             <aside class="auth-visual">
-                <img src="{{ asset('theme/images/logo.png') }}" alt="Fin Tokhroj">
+                <div class="auth-map-scene" aria-hidden="true">
+                    <div class="auth-map-noise"></div>
+                    <svg class="auth-map-svg" viewBox="0 0 520 680" role="presentation">
+                        <defs>
+                            <linearGradient id="tnMapGradientRegister" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#57d0e8" stop-opacity="0.9"/>
+                                <stop offset="55%" stop-color="#2b82bc" stop-opacity="0.82"/>
+                                <stop offset="100%" stop-color="#14528e" stop-opacity="0.88"/>
+                            </linearGradient>
+                        </defs>
+                        <path class="auth-map-outline" style="fill:url(#tnMapGradientRegister);" d="M246 28l30 8 12 20 36 12 30 26 8 42-9 34 18 26 34 20 12 40-9 44-36 23 6 30-26 35-38 19-10 36-28 36-10 54-40 33-42-11-30-33-10-35-32-31-8-39-33-28-9-42 14-37-20-36 7-31 29-22 5-44 30-26 14-30 32-11 15-29z"/>
+                        <path class="auth-map-route" d="M232 60 C244 98, 258 130, 278 170 C296 208, 306 248, 300 286 C293 330, 272 366, 252 404 C232 442, 222 483, 230 522 C236 558, 246 592, 258 628"/>
+                        <circle class="auth-map-city city-bizerte" cx="232" cy="60" r="7"/>
+                        <circle class="auth-map-city city-tunis" cx="246" cy="82" r="8"/>
+                        <circle class="auth-map-city city-sousse" cx="282" cy="258" r="8"/>
+                        <circle class="auth-map-city city-sfax" cx="252" cy="430" r="8"/>
+                        <circle class="auth-map-city city-djerba" cx="258" cy="628" r="9"/>
+                    </svg>
+                    <span class="auth-map-city-pill pill-bizerte">Bizerte</span>
+                    <span class="auth-map-city-pill pill-tunis">Tunis</span>
+                    <span class="auth-map-city-pill pill-sousse">Sousse</span>
+                    <span class="auth-map-city-pill pill-sfax">Sfax</span>
+                    <span class="auth-map-city-pill pill-djerba">Djerba</span>
+                    <span class="auth-map-drone"></span>
+                </div>
                 <div class="auth-visual-overlay"></div>
+                <div class="auth-brand">FinTokhroj Experience</div>
                 <div class="auth-tagline">
-                    <h2>Start your journey</h2>
-                    <p>Create your account to access bookings, favorites and alerts.</p>
+                    <h2>Commence ton aventure</h2>
+                    <p>Cree ton compte pour acceder aux reservations, favoris et alertes.</p>
                 </div>
             </aside>
 
             <section class="auth-form-wrap">
-                <div class="auth-switch"><a href="{{ path('app_login') }}">Sign in</a></div>
+                <div class="auth-switch"><a href="{{ path('app_login') }}">Connexion</a></div>
 
                 <div class="auth-card">
-                    <h1 class="auth-title">Create your account</h1>
-                    <p class="auth-subtitle">Register in less than one minute</p>
+                    <p class="auth-kicker">Nouveau compte</p>
+                    <h1 class="auth-title">Cree ton compte</h1>
+                    <p class="auth-subtitle">Inscription en moins d'une minute</p>
 
-                    {% if form_errors(form) is not empty %}
-                        <div class="auth-error">
-                            {{ form_errors(form) }}
-                        </div>
-                    {% endif %}
-
-                    {{ form_start(form, { attr: { novalidate: 'novalidate' } }) }}
+                    {{ form_start(form, { attr: { novalidate: 'novalidate', 'data-auth-morph': 'true' } }) }}
 
                         <div class="auth-field">
                             {{ form_label(form.nom) }}
@@ -119,10 +150,13 @@
                             <div class="auth-field-error">{{ form_errors(form.plainPassword.second) }}</div>
                         </div>
 
-                        <button class="auth-submit" type="submit">Create account</button>
+                        <button class="auth-submit" type="submit">
+                            <span class="auth-submit__label">Creer mon compte</span>
+                            <span class="auth-submit__spinner" aria-hidden="true"></span>
+                        </button>
                     {{ form_end(form) }}
 
-                    <p class="auth-footer">Already have an account? <a href="{{ path('app_login') }}">Sign in</a></p>
+                    <p class="auth-footer">Tu as deja un compte ? <a href="{{ path('app_login') }}">Connecte-toi</a></p>
                 </div>
             </section>
         </div>

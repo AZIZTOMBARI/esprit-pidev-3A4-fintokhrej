@@ -2,8 +2,61 @@
 
 {% block title %}{{ sortie.titre }} | Sortie{% endblock %}
 
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .sortie-detail-shell {
+            width: min(1100px, 100%);
+            margin: 0 auto;
+            padding-inline: clamp(8px, 2vw, 18px);
+        }
+        .sortie-detail-shell .section-head {
+            align-items: center;
+            max-width: 980px;
+            margin: 0 auto 8px;
+        }
+        .sortie-detail-card {
+            width: min(980px, 100%);
+            margin: 0 auto;
+            padding: clamp(16px, 2vw, 22px);
+            border-radius: 22px;
+        }
+        .sortie-detail-hero {
+            height: clamp(200px, 34vh, 320px);
+            margin-bottom: 18px;
+        }
+        .sortie-detail-map {
+            margin-top: 14px;
+            border: 1px solid rgba(20, 61, 113, .14);
+            border-radius: 16px;
+            overflow: hidden;
+            background: #f5f9ff;
+        }
+        .sortie-detail-map iframe {
+            width: 100%;
+            height: clamp(220px, 30vh, 320px);
+            border: 0;
+            display: block;
+        }
+
+        @media (max-width: 760px) {
+            .sortie-detail-shell .section-head {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .sortie-detail-shell .section-head .btn-row {
+                width: 100%;
+            }
+            .sortie-detail-shell .section-head .btn-row .outline-btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+{% endblock %}
+
 {% block front_content %}
-<section>
+<section class="sortie-detail-shell">
     <div class="section-head">
         <div>
             <h1 class="section-title">{{ sortie.titre }}</h1>
@@ -22,8 +75,8 @@
 
     {% set heroImage = sortie.image_url ? (sortie.image_url starts with 'http' ? sortie.image_url : '/' ~ sortie.image_url|trim('/')) : null %}
 
-    <article class="listing-card" style="max-width: 980px; margin: 0 auto;">
-        <div class="cover-thumb" style="height:240px; margin-bottom: 18px;">
+    <article class="listing-card sortie-detail-card">
+        <div class="cover-thumb sortie-detail-hero">
             {% if heroImage %}
                 <img src="{{ heroImage }}" alt="Image {{ sortie.titre }}" style="width:100%;height:100%;object-fit:cover;display:block;">
             {% else %}
@@ -34,12 +87,22 @@
         <div class="meta-row" style="margin-top:0;">
             <span>📍 Ville: {{ sortie.ville }}</span>
             <span>📌 Lieu: {{ sortie.lieu_texte }}</span>
-            <span>🧭 Point de rencontre: {{ sortie.point_rencontre }}</span>
             <span>🗓 Date: {{ sortie.date_sortie|date('d/m/Y H:i') }}</span>
             <span>💸 Budget max: {{ sortie.budget_max }} TND</span>
             <span>👥 Places: {{ confirmedCount }}/{{ sortie.nb_places }}</span>
             <span class="status-pill status-{{ sortie.statut|lower }}">{{ sortie.statut }}</span>
         </div>
+
+        {% if sortie.point_rencontre is defined and sortie.point_rencontre %}
+            <div class="sortie-detail-map" aria-label="Carte du point de rencontre">
+                <iframe
+                    title="Carte point de rencontre"
+                    loading="lazy"
+                    referrerpolicy="no-referrer-when-downgrade"
+                    src="https://maps.google.com/maps?q={{ sortie.point_rencontre|url_encode }}&z=15&output=embed"
+                ></iframe>
+            </div>
+        {% endif %}
 
         <p style="margin-top:14px;">{{ sortie.description ?: 'Aucune description.' }}</p>
 

@@ -11,7 +11,7 @@ use Symfony\Component\Routing\Annotation\Route;
 
 class NotificationController extends AbstractController
 {
-    #[Route('/notifications/feed', name: 'app_notifications_feed', methods: ['GET'])]
+    #[Route('/notifications/api/feed', name: 'app_notifications_api_feed', methods: ['GET'])]
     public function feed(NotificationService $notificationService): JsonResponse
     {
         $user = $this->getUser();
@@ -77,7 +77,7 @@ class NotificationController extends AbstractController
         ]);
     }
 
-    #[Route('/notifications/read-all', name: 'app_notifications_read_all', methods: ['POST'])]
+    #[Route('/notifications/api/read-all', name: 'app_notifications_api_read_all', methods: ['POST'])]
     public function markAllRead(Request $request, NotificationService $notificationService): JsonResponse
     {
         $user = $this->getUser();
