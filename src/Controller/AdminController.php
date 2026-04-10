@@ -486,7 +486,8 @@ class AdminController extends AbstractController
             return $this->redirectToRoute('app_admin_offres');
         }
 
-        $userId = $this->getUser() instanceof User ? $this->getUser()->getId() : null;
+        $currentUser = $this->getUser();
+        $userId = $currentUser instanceof User ? $currentUser->getId() : null;
 
         try {
             $connection->insert('offre', [
@@ -816,7 +817,8 @@ class AdminController extends AbstractController
             return $this->json(['errors' => $errors], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        $userId = $this->getUser() instanceof User ? $this->getUser()->getId() : null;
+        $currentUser = $this->getUser();
+        $userId = $currentUser instanceof User ? $currentUser->getId() : null;
 
         try {
             $connection->insert('offre', [
