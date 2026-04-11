@@ -54,10 +54,10 @@
             {% set eventDateFin = event.dateFin|default(event.date_fin|default(null)) %}
             {% set eventCapacite = event.capaciteMax|default(event.capacite_max|default(null)) %}
             <article class="listing-card event-card">
-                {% set rawImage = event.imageUrl|default('') %}
+                {% set rawImage = event.imageUrl|default(event.image_url|default('')) %}
                 {% if rawImage and (rawImage starts with 'http://' or rawImage starts with 'https://') %}
                     {% set imageSrc = rawImage %}
-                {% elseif rawImage and (rawImage starts with 'theme/' or rawImage starts with 'uploads/') %}
+                {% elseif rawImage and (rawImage starts with '/theme/' or rawImage starts with '/uploads/' or rawImage starts with 'theme/' or rawImage starts with 'uploads/') %}
                     {% set imageSrc = asset(rawImage) %}
                 {% elseif rawImage %}
                     {% set imageSrc = asset('uploads/evenements/' ~ rawImage) %}

@@ -332,9 +332,58 @@ class AdminController extends AbstractController
     #[Route('/sorties', name: 'app_admin_sorties')]
     public function sorties(Request $request, Connection $connection): Response
     {
+        $query = trim((string) $request->query->get('q', ''));
+        $status = strtoupper(trim((string) $request->query->get('status', '')));
+        $sort = trim((string) $request->query->get('sort', 'recent'));
+
+        $whereParts = [];
+        $params = [];
+
+        if ($query !== '') {
+            $whereParts[] = "(LOWER(s.titre) LIKE LOWER(?) OR LOWER(COALESCE(s.description, '')) LIKE LOWER(?) OR LOWER(s.ville) LIKE LOWER(?) OR LOWER(COALESCE(s.type_activite, '')) LIKE LOWER(?) OR LOWER(COALESCE(s.lieu_texte, '')) LIKE LOWER(?) OR LOWER(CONCAT(COALESCE(u.prenom, ''), ' ', COALESCE(u.nom, ''))) LIKE LOWER(?))";
+            $like = '%'.$query.'%';
+            $params[] = $like;
+            $params[] = $like;
+            $params[] = $like;
+            $params[] = $like;
+            $params[] = $like;
+            $params[] = $like;
+        }
+
+        $allowedStatuses = ['OUVERTE', 'CLOTUREE', 'ANNULEE', 'TERMINEE'];
+        if (in_array($status, $allowedStatuses, true)) {
+            $whereParts[] = 's.statut = ?';
+            $params[] = $status;
+        } else {
+            $status = '';
+        }
+
+        $sortSql = match ($sort) {
+            'date_asc' => 's.date_sortie ASC',
+            'date_desc', 'recent' => 's.date_sortie DESC',
+            'title_asc' => 's.titre ASC',
+            'title_desc' => 's.titre DESC',
+            'city_asc' => 's.ville ASC',
+            'places_desc' => 's.nb_places DESC',
+            'status_asc' => 's.statut ASC',
+            'creator_asc' => "COALESCE(u.prenom, '') ASC, COALESCE(u.nom, '') ASC",
+            default => 's.date_sortie DESC, s.id DESC',
+        };
+        if (!in_array($sort, ['date_asc', 'date_desc', 'recent', 'title_asc', 'title_desc', 'city_asc', 'places_desc', 'status_asc', 'creator_asc'], true)) {
+            $sort = 'recent';
+        }
+
+        $whereSql = $whereParts === [] ? '' : ' WHERE '.implode(' AND ', $whereParts);
+
         $page = max(1, (int) $request->query->get('page', 1));
         $pageSize = 6;
-        $total = (int) $connection->fetchOne('SELECT COUNT(*) FROM annonce_sortie');
+        $total = (int) $connection->fetchOne(
+            'SELECT COUNT(*)
+             FROM annonce_sortie s
+             LEFT JOIN user u ON u.id = s.user_id'
+             .$whereSql,
+            $params
+        );
         $totalPages = max(1, (int) ceil($total / $pageSize));
         $page = min($page, $totalPages);
         $offset = ($page - 1) * $pageSize;
@@ -346,13 +395,21 @@ class AdminController extends AbstractController
                 'SELECT s.id, s.user_id, s.titre, s.description, s.ville, s.lieu_texte, s.point_rencontre, s.type_activite, s.date_sortie, s.budget_max, s.nb_places, s.statut, s.image_url, s.questions_json, u.prenom, u.nom, u.imageUrl AS user_image_url
                  FROM annonce_sortie s
                  LEFT JOIN user u ON u.id = s.user_id
-                 ORDER BY s.date_sortie ASC, s.id DESC
+                 '.$whereSql.'
+                 ORDER BY '.$sortSql.'
                  LIMIT '.$pageSize.' OFFSET '.$offset
+            ,
+                $params
             ),
             'page' => $page,
             'pageSize' => $pageSize,
             'total' => $total,
             'totalPages' => $totalPages,
+            'filters' => [
+                'q' => $query,
+                'status' => $status,
+                'sort' => $sort,
+            ],
         ]);
     }
 

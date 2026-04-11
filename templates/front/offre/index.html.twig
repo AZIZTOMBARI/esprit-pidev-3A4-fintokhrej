@@ -260,6 +260,29 @@
         </div>
     </div>
 
+    {% if app.user %}
+        <section class="sortie-notification-board notification-root" data-notification-root data-feed-url="{{ path('app_notifications_api_feed') }}" data-read-all-url="{{ path('app_notifications_api_read_all') }}" data-notification-type-prefixes="RESERVATION_" data-notification-inline="true">
+            <div class="sortie-notification-board__head">
+                <div>
+                    <h3>Notifications offres</h3>
+                    <p>Suivi en direct des réservations, statuts et alertes de promotions.</p>
+                </div>
+                <div class="btn-row">
+                    <button type="button" class="outline-btn notification-toggle-btn" data-notification-toggle aria-label="Ouvrir ou fermer les notifications" title="Notifications">
+                        <span class="btn-icon" aria-hidden="true">🔔</span>
+                        <span class="notification-badge" data-notification-badge hidden>0</span>
+                    </button>
+                    <button type="button" class="primary-btn" data-notification-read-all data-notification-token="{{ csrf_token('notifications_read_all') }}">Tout marquer lu</button>
+                </div>
+            </div>
+            <div class="notification-panel notification-panel--inline" data-notification-panel hidden>
+                <div class="notification-panel__list" data-notification-list>
+                    <div class="notification-empty">Aucune notification</div>
+                </div>
+            </div>
+        </section>
+    {% endif %}
+
     <div class="offer-filter-card">
         <form method="get" action="{{ path('app_offres') }}" class="offer-filter-row">
             <div>
@@ -269,6 +292,18 @@
                     {% for lieu in lieux %}
                         <option value="{{ lieu.id }}" {{ selectedLieu == lieu.id ? 'selected' : '' }}>{{ lieu.nom }}</option>
                     {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="sort" style="display:block; font-weight:600; margin-bottom:4px; color:var(--ft-primary);">Trier par</label>
+                <select id="sort" name="sort" class="offer-filter-select">
+                    <option value="urgent" {{ (selectedSort|default('urgent')) == 'urgent' ? 'selected' : '' }}>Urgentes d'abord</option>
+                    <option value="date_fin_asc" {{ (selectedSort|default('urgent')) == 'date_fin_asc' ? 'selected' : '' }}>Date fin (proche)</option>
+                    <option value="date_fin_desc" {{ (selectedSort|default('urgent')) == 'date_fin_desc' ? 'selected' : '' }}>Date fin (lointaine)</option>
+                    <option value="reduction_desc" {{ (selectedSort|default('urgent')) == 'reduction_desc' ? 'selected' : '' }}>Reduction (max-min)</option>
+                    <option value="reduction_asc" {{ (selectedSort|default('urgent')) == 'reduction_asc' ? 'selected' : '' }}>Reduction (min-max)</option>
+                    <option value="titre_asc" {{ (selectedSort|default('urgent')) == 'titre_asc' ? 'selected' : '' }}>Titre (A-Z)</option>
+                    <option value="titre_desc" {{ (selectedSort|default('urgent')) == 'titre_desc' ? 'selected' : '' }}>Titre (Z-A)</option>
                 </select>
             </div>
             <button class="outline-btn" type="submit">Appliquer</button>

@@ -27,7 +27,9 @@ class FrontController extends AbstractController
                    END AS expiring_soon
             FROM offre o
             LEFT JOIN lieu l ON l.id = o.lieu_id
-            ORDER BY o.date_fin ASC
+            WHERE (LOWER(o.statut) IN ('active', 'actif') OR o.statut IS NULL OR o.statut = '')
+              AND o.date_fin >= CURDATE()
+            ORDER BY expiring_soon DESC, o.date_fin ASC, o.id DESC
             LIMIT 6
         "));
 
@@ -305,9 +307,58 @@ class FrontController extends AbstractController
     #[Route('/sorties', name: 'app_sorties')]
     public function sorties(Request $request, Connection $connection): Response
     {
+        $query = trim((string) $request->query->get('q', ''));
+        $status = strtoupper(trim((string) $request->query->get('status', '')));
+        $sort = trim((string) $request->query->get('sort', 'recent'));
+
+        $whereParts = [];
+        $params = [];
+
+        if ($query !== '') {
+            $whereParts[] = "(LOWER(s.titre) LIKE LOWER(?) OR LOWER(COALESCE(s.description, '')) LIKE LOWER(?) OR LOWER(s.ville) LIKE LOWER(?) OR LOWER(COALESCE(s.type_activite, '')) LIKE LOWER(?) OR LOWER(COALESCE(s.lieu_texte, '')) LIKE LOWER(?) OR LOWER(CONCAT(COALESCE(u.prenom, ''), ' ', COALESCE(u.nom, ''))) LIKE LOWER(?))";
+            $like = '%'.$query.'%';
+            $params[] = $like;
+            $params[] = $like;
+            $params[] = $like;
+            $params[] = $like;
+            $params[] = $like;
+            $params[] = $like;
+        }
+
+        $allowedStatuses = ['OUVERTE', 'CLOTUREE', 'ANNULEE', 'TERMINEE'];
+        if (in_array($status, $allowedStatuses, true)) {
+            $whereParts[] = 's.statut = ?';
+            $params[] = $status;
+        } else {
+            $status = '';
+        }
+
+        $sortSql = match ($sort) {
+            'date_asc' => 's.date_sortie ASC',
+            'date_desc', 'recent' => 's.date_sortie DESC',
+            'title_asc' => 's.titre ASC',
+            'title_desc' => 's.titre DESC',
+            'city_asc' => 's.ville ASC',
+            'places_desc' => 's.nb_places DESC',
+            'status_asc' => 's.statut ASC',
+            'creator_asc' => "COALESCE(u.prenom, '') ASC, COALESCE(u.nom, '') ASC",
+            default => 's.date_sortie DESC',
+        };
+        if (!in_array($sort, ['date_asc', 'date_desc', 'recent', 'title_asc', 'title_desc', 'city_asc', 'places_desc', 'status_asc', 'creator_asc'], true)) {
+            $sort = 'recent';
+        }
+
+        $whereSql = $whereParts === [] ? '' : ' WHERE '.implode(' AND ', $whereParts);
+
         $page = max(1, (int) $request->query->get('page', 1));
         $pageSize = 6;
-        $total = (int) $connection->fetchOne('SELECT COUNT(*) FROM annonce_sortie');
+        $total = (int) $connection->fetchOne(
+            'SELECT COUNT(*)
+             FROM annonce_sortie s
+             LEFT JOIN user u ON u.id = s.user_id'
+             .$whereSql,
+            $params
+        );
         $totalPages = max(1, (int) ceil($total / $pageSize));
         $page = min($page, $totalPages);
         $offset = ($page - 1) * $pageSize;
@@ -321,13 +372,21 @@ class FrontController extends AbstractController
                         u.prenom, u.nom, u.imageUrl AS user_image_url
                  FROM annonce_sortie s
                  LEFT JOIN user u ON u.id = s.user_id
-                 ORDER BY s.date_sortie ASC
+                 '.$whereSql.'
+                 ORDER BY '.$sortSql.'
                  LIMIT '.$pageSize.' OFFSET '.$offset
+            ,
+                $params
             ),
             'page' => $page,
             'pageSize' => $pageSize,
             'total' => $total,
             'totalPages' => $totalPages,
+            'filters' => [
+                'q' => $query,
+                'status' => $status,
+                'sort' => $sort,
+            ],
             'notificationData' => $this->getNotificationData($connection),
         ]);
     }
@@ -411,13 +470,20 @@ class FrontController extends AbstractController
     public function offres(Request $request, Connection $connection, OffreManager $offreManager): Response
     {
         $lieuId = (int) $request->query->get('lieu', 0);
-        $offres = $this->enrichOffersCountdown($offreManager->findActiveByLieu($lieuId > 0 ? $lieuId : null));
+        $selectedSort = strtolower(trim((string) $request->query->get('sort', 'urgent')));
+        $allowedSorts = ['urgent', 'date_fin_asc', 'date_fin_desc', 'reduction_desc', 'reduction_asc', 'titre_asc', 'titre_desc'];
+        if (!in_array($selectedSort, $allowedSorts, true)) {
+            $selectedSort = 'urgent';
+        }
+
+        $offres = $this->enrichOffersCountdown($offreManager->findActiveByLieu($lieuId > 0 ? $lieuId : null, $selectedSort));
 
         return $this->render('front/offre/index.html.twig', [
             'active' => 'offres',
             'offres' => $offres,
             'lieux' => $this->fetchAll($connection, 'SELECT id, nom FROM lieu ORDER BY nom ASC'),
             'selectedLieu' => $lieuId,
+            'selectedSort' => $selectedSort,
             'notificationData' => $this->getNotificationData($connection),
         ]);
     }
@@ -800,7 +866,7 @@ class FrontController extends AbstractController
         return $this->render('front/evenement/index.html.twig', [
             'active' => 'evenements',
             'events' => $this->fetchAll($connection, "
-                SELECT e.id, e.titre, e.description, e.date_debut, e.date_fin, e.prix, e.type, e.statut,
+                SELECT e.id, e.titre, e.description, e.date_debut, e.date_fin, e.prix, e.type, e.statut, e.image_url,
                        l.nom AS lieu_nom, l.ville
                 FROM evenement e
                 LEFT JOIN lieu l ON l.id = e.lieu_id

@@ -1,3 +1,5 @@
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
     (function () {
@@ -17,6 +19,26 @@
         }
 
         ready(function () {
+            const dateSortieInput = document.getElementById('{{ form.date_sortie.vars.id }}');
+            if (dateSortieInput && typeof flatpickr === 'function') {
+                const minDaysRaw = Number(dateSortieInput.getAttribute('data-min-days') || '1');
+                const minDays = Number.isFinite(minDaysRaw) ? minDaysRaw : 1;
+                const minDate = new Date();
+                minDate.setDate(minDate.getDate() + Math.max(0, minDays));
+
+                flatpickr(dateSortieInput, {
+                    enableTime: true,
+                    time_24hr: true,
+                    dateFormat: 'Y-m-d H:i',
+                    altInput: true,
+                    altFormat: 'd/m/Y H:i',
+                    minuteIncrement: 5,
+                    minDate,
+                    disableMobile: true,
+                    locale: (flatpickr.l10ns && flatpickr.l10ns.fr) ? flatpickr.l10ns.fr : undefined,
+                });
+            }
+
             const mapEl = document.getElementById('sortie-map');
             if (!mapEl || typeof L === 'undefined') return;
 

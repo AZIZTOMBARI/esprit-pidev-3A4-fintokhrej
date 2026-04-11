@@ -97,8 +97,14 @@ class AnnonceSortieType extends AbstractType
             ->add('date_sortie', DateTimeType::class, [
                 'label' => 'Date sortie',
                 'widget' => 'single_text',
-                'html5' => true,
-                'attr' => ['min' => (new \DateTimeImmutable('+1 day'))->format('Y-m-d\TH:i')],
+                'html5' => false,
+                'format' => 'yyyy-MM-dd HH:mm',
+                'attr' => [
+                    'class' => 'js-sortie-date',
+                    'placeholder' => 'AAAA-MM-JJ HH:MM',
+                    'data-min-days' => '1',
+                    'autocomplete' => 'off',
+                ],
             ])
             ->add('budget_gratuit', CheckboxType::class, [
                 'mapped' => false,

@@ -374,6 +374,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('[data-notification-root]').forEach((root) => {
         const feedUrl = root.getAttribute('data-feed-url') || '';
         const readAllUrl = root.getAttribute('data-read-all-url') || '';
+        const typePrefixesAttr = root.getAttribute('data-notification-type-prefixes') || '';
+        const typePrefixes = typePrefixesAttr
+            .split(',')
+            .map((value) => value.trim().toUpperCase())
+            .filter(Boolean);
         const panel = root.querySelector('[data-notification-panel]');
         const list = root.querySelector('[data-notification-list]');
         const badge = root.querySelector('[data-notification-badge]');
@@ -448,8 +453,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 const payload = await res.json();
-                renderItems(payload.items || []);
-                updateBadge(payload.unread || 0);
+                const rawItems = Array.isArray(payload.items) ? payload.items : [];
+                const filteredItems = typePrefixes.length > 0
+                    ? rawItems.filter((item) => {
+                        const type = String(item?.type || '').toUpperCase();
+                        return typePrefixes.some((prefix) => type.startsWith(prefix));
+                    })
+                    : rawItems;
+
+                renderItems(filteredItems);
+                const unreadFiltered = filteredItems.filter((item) => !item?.read_at).length;
+                updateBadge(unreadFiltered);
             } catch (_) {
                 renderEmpty('Impossible de charger les notifications.');
             }

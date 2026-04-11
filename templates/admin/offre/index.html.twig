@@ -296,6 +296,27 @@
         <div class="offer-feedback offer-feedback--error">{{ message }}</div>
     {% endfor %}
 
+    <section class="sortie-notification-board notification-root" data-notification-root data-feed-url="{{ path('app_notifications_api_feed') }}" data-read-all-url="{{ path('app_notifications_api_read_all') }}" data-notification-type-prefixes="RESERVATION_" data-notification-inline="true">
+        <div class="sortie-notification-board__head">
+            <div>
+                <h3>Centre notifications offres</h3>
+                <p>Réservations, validations et rappels promo centralisés pour la gestion back-office.</p>
+            </div>
+            <div class="btn-row">
+                <button type="button" class="outline-btn notification-toggle-btn" data-notification-toggle aria-label="Ouvrir ou fermer les notifications" title="Notifications">
+                    <span class="btn-icon" aria-hidden="true">🔔</span>
+                    <span class="notification-badge" data-notification-badge hidden>0</span>
+                </button>
+                <button type="button" class="primary-btn" data-notification-read-all data-notification-token="{{ csrf_token('notifications_read_all') }}">Tout marquer lu</button>
+            </div>
+        </div>
+        <div class="notification-panel notification-panel--inline" data-notification-panel hidden>
+            <div class="notification-panel__list" data-notification-list>
+                <div class="notification-empty">Aucune notification</div>
+            </div>
+        </div>
+    </section>
+
     <div class="stats-grid">
         <article class="stat-card">
             <div class="stat-card__label">Total offres</div>

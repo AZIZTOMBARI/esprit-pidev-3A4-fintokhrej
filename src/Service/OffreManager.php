@@ -11,7 +11,7 @@ class OffreManager
     {
     }
 
-    public function findActiveByLieu(?int $lieuId = null): array
+    public function findActiveByLieu(?int $lieuId = null, string $sort = 'urgent'): array
     {
         $params = [];
         $sql = "
@@ -32,7 +32,17 @@ class OffreManager
             $params[] = $lieuId;
         }
 
-        $sql .= ' ORDER BY expiring_soon DESC, o.date_fin ASC, o.id DESC';
+        $orderBy = match ($sort) {
+            'date_fin_asc' => 'o.date_fin ASC, o.id DESC',
+            'date_fin_desc' => 'o.date_fin DESC, o.id DESC',
+            'reduction_desc' => 'o.pourcentage DESC, o.date_fin ASC, o.id DESC',
+            'reduction_asc' => 'o.pourcentage ASC, o.date_fin ASC, o.id DESC',
+            'titre_asc' => 'o.titre ASC, o.id DESC',
+            'titre_desc' => 'o.titre DESC, o.id DESC',
+            default => 'expiring_soon DESC, o.date_fin ASC, o.id DESC',
+        };
+
+        $sql .= ' ORDER BY '.$orderBy;
 
         try {
             return $this->connection->fetchAllAssociative($sql, $params);

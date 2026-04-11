@@ -7,11 +7,19 @@
                 return;
             }
 
+            if (control.tagName === 'BUTTON') {
+                control.disabled = true;
+                return;
+            }
+
             if (control.tagName === 'INPUT' && control.type === 'hidden') {
                 return;
             }
 
-            control.disabled = true;
+            // Keep values submittable: do not disable named form fields.
+            control.readOnly = true;
+            control.setAttribute('aria-disabled', 'true');
+            control.style.pointerEvents = 'none';
         });
 
         var links = form.querySelectorAll('a');

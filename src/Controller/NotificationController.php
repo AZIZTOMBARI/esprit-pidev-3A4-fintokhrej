@@ -55,6 +55,21 @@ class NotificationController extends AbstractController
                 if ($anchor !== '') {
                     $item['url'] .= '#'.$anchor;
                 }
+            } elseif (in_array($entityType, ['offre', 'reservation_offre', 'code_promo'], true)) {
+                $offreId = 0;
+                if (isset($metadata['offre_id'])) {
+                    $offreId = (int) $metadata['offre_id'];
+                } elseif ($entityType === 'offre' && $entityId > 0) {
+                    $offreId = $entityId;
+                }
+
+                if ($offreId > 0) {
+                    $item['url'] = $this->generateUrl('app_offres_show', ['id' => $offreId]);
+                } else {
+                    $item['url'] = $this->generateUrl('app_offres');
+                }
+            } elseif (str_starts_with($type, 'OFFRE_') || str_starts_with($type, 'PROMO_') || str_starts_with($type, 'RESERVATION_')) {
+                $item['url'] = $this->generateUrl('app_offres');
             }
 
             if (str_starts_with($type, 'PARTICIPATION_') || str_starts_with($type, 'SORTIE_')) {
@@ -63,6 +78,8 @@ class NotificationController extends AbstractController
                     $adminUrl = $this->generateUrl('app_admin_participations', ['statut' => 'EN_ATTENTE']);
                 }
                 $item['admin_url'] = $adminUrl;
+            } elseif (str_starts_with($type, 'OFFRE_') || str_starts_with($type, 'PROMO_') || str_starts_with($type, 'RESERVATION_') || in_array($entityType, ['offre', 'reservation_offre', 'code_promo'], true)) {
+                $item['admin_url'] = $this->isGranted('ROLE_ADMIN') ? $this->generateUrl('app_admin_offres') : null;
             }
 
             unset($item['metadata_json']);

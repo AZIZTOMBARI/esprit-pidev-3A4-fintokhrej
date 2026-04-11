@@ -83,7 +83,7 @@
     </div>
 
     {% if app.user %}
-        <section class="sortie-notification-board notification-root" data-notification-root data-feed-url="{{ path('app_notifications_api_feed') }}" data-read-all-url="{{ path('app_notifications_api_read_all') }}" data-notification-inline="true">
+        <section class="sortie-notification-board notification-root" data-notification-root data-feed-url="{{ path('app_notifications_api_feed') }}" data-read-all-url="{{ path('app_notifications_api_read_all') }}" data-notification-type-prefixes="PARTICIPATION_,SORTIE_" data-notification-inline="true">
             <div class="sortie-notification-board__head">
                 <div>
                     <h3>Notifications sorties</h3>
@@ -111,25 +111,29 @@
         {% endfor %}
     {% endfor %}
 
-    <div class="sortie-toolbar" data-sortie-controls>
-        <input type="search" class="custom-input" placeholder="Rechercher une sortie (titre, ville, type, créateur...)" data-sortie-search>
-        <select class="custom-input" data-sortie-status>
-            <option value="">Tous les statuts</option>
-            <option value="OUVERTE">OUVERTE</option>
-            <option value="CLOTUREE">CLOTUREE</option>
-            <option value="ANNULEE">ANNULEE</option>
-            <option value="TERMINEE">TERMINEE</option>
+    <form class="sortie-toolbar" method="get" action="{{ path('app_sorties') }}">
+        <input type="search" class="custom-input" name="q" value="{{ filters.q|default('') }}" placeholder="Rechercher une sortie (titre, ville, type, créateur...)">
+        <select class="custom-input" name="status">
+            <option value="" {{ (filters.status|default('')) == '' ? 'selected' : '' }}>Tous les statuts</option>
+            <option value="OUVERTE" {{ (filters.status|default('')) == 'OUVERTE' ? 'selected' : '' }}>OUVERTE</option>
+            <option value="CLOTUREE" {{ (filters.status|default('')) == 'CLOTUREE' ? 'selected' : '' }}>CLOTUREE</option>
+            <option value="ANNULEE" {{ (filters.status|default('')) == 'ANNULEE' ? 'selected' : '' }}>ANNULEE</option>
+            <option value="TERMINEE" {{ (filters.status|default('')) == 'TERMINEE' ? 'selected' : '' }}>TERMINEE</option>
         </select>
-        <select class="custom-input" data-sortie-sort>
-            <option value="recent">Plus récentes</option>
-            <option value="date_asc">Date sortie (croissant)</option>
-            <option value="date_desc">Date sortie (décroissant)</option>
-            <option value="title_asc">Titre (A-Z)</option>
-            <option value="title_desc">Titre (Z-A)</option>
-            <option value="city_asc">Ville (A-Z)</option>
-            <option value="places_desc">Places (max-min)</option>
+        <select class="custom-input" name="sort">
+            <option value="recent" {{ (filters.sort|default('recent')) == 'recent' ? 'selected' : '' }}>Plus récentes</option>
+            <option value="date_asc" {{ (filters.sort|default('recent')) == 'date_asc' ? 'selected' : '' }}>Date sortie (croissant)</option>
+            <option value="date_desc" {{ (filters.sort|default('recent')) == 'date_desc' ? 'selected' : '' }}>Date sortie (décroissant)</option>
+            <option value="title_asc" {{ (filters.sort|default('recent')) == 'title_asc' ? 'selected' : '' }}>Titre (A-Z)</option>
+            <option value="title_desc" {{ (filters.sort|default('recent')) == 'title_desc' ? 'selected' : '' }}>Titre (Z-A)</option>
+            <option value="city_asc" {{ (filters.sort|default('recent')) == 'city_asc' ? 'selected' : '' }}>Ville (A-Z)</option>
+            <option value="places_desc" {{ (filters.sort|default('recent')) == 'places_desc' ? 'selected' : '' }}>Places (max-min)</option>
+            <option value="status_asc" {{ (filters.sort|default('recent')) == 'status_asc' ? 'selected' : '' }}>Statut (A-Z)</option>
+            <option value="creator_asc" {{ (filters.sort|default('recent')) == 'creator_asc' ? 'selected' : '' }}>Créateur (A-Z)</option>
         </select>
-    </div>
+        <button type="submit" class="primary-btn">Filtrer</button>
+        <a href="{{ path('app_sorties') }}" class="outline-btn">Réinitialiser</a>
+    </form>
 
     <div class="listing-grid sortie-grid" data-sortie-list>
         {% for item in sorties %}
@@ -230,7 +234,7 @@
 
             <a
                 class="sortie-page-link {{ page <= 1 ? 'is-disabled' : '' }}"
-                href="{{ path('app_sorties', {page: prevPage}) }}"
+                href="{{ path('app_sorties', {page: prevPage, q: filters.q|default(''), status: filters.status|default(''), sort: filters.sort|default('recent')}) }}"
                 aria-label="Page précédente"
             >
                 Précédent
@@ -239,7 +243,7 @@
             {% for i in 1..totalPages %}
                 <a
                     class="sortie-page-link {{ i == page ? 'is-active' : '' }}"
-                    href="{{ path('app_sorties', {page: i}) }}"
+                    href="{{ path('app_sorties', {page: i, q: filters.q|default(''), status: filters.status|default(''), sort: filters.sort|default('recent')}) }}"
                     aria-current="{{ i == page ? 'page' : 'false' }}"
                 >
                     {{ i }}
@@ -250,7 +254,7 @@
 
             <a
                 class="sortie-page-link {{ page >= totalPages ? 'is-disabled' : '' }}"
-                href="{{ path('app_sorties', {page: nextPage}) }}"
+                href="{{ path('app_sorties', {page: nextPage, q: filters.q|default(''), status: filters.status|default(''), sort: filters.sort|default('recent')}) }}"
                 aria-label="Page suivante"
             >
                 Suivant
