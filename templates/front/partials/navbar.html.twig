@@ -21,15 +21,44 @@
     </nav>
 
     <div class="front-tools">
-        <div class="search-pill">
+        <form id="global-search-form" method="get" action="{{ path('app_global_search') }}" class="search-pill" role="search" aria-label="Recherche globale">
             <span>🔎</span>
-            <input type="text" placeholder="Rechercher...">
-        </div>
-        <button class="cta-btn">Go</button>
-        <button class="icon-btn" aria-label="Notifications">🔔</button>
-        <button class="icon-btn" aria-label="Mode sombre">◐</button>
+            <input type="search" name="q" value="{{ app.request.query.get('q') }}" placeholder="Rechercher partout..." minlength="2" required>
+            <input type="hidden" name="from" value="navbar">
+        </form>
+        <button class="cta-btn" type="submit" form="global-search-form">Go</button>
+        <button class="icon-btn" aria-label="Mode sombre" data-theme-toggle title="Mode sombre">◐</button>
         {% if app.user %}
             {% set chip = app.user %}
+            {% set favoritePlaces = app.user.lieus|default([]) %}
+            <div class="favorite-root" data-favorite-root>
+                <button type="button" class="icon-btn favorite-toggle-btn" aria-label="Mes lieux favoris" title="Mes lieux favoris" data-favorite-toggle>
+                    <span class="btn-icon" aria-hidden="true">❤</span>
+                    <span class="favorite-badge" data-favorite-badge {{ favoritePlaces|length > 0 ? '' : 'hidden' }}>{{ favoritePlaces|length }}</span>
+                </button>
+                <div class="favorite-panel" data-favorite-panel hidden>
+                    <div class="favorite-panel__head">
+                        <h4>Mes lieux favoris</h4>
+                        <span class="badge-soft">{{ favoritePlaces|length }}</span>
+                    </div>
+                    <div class="favorite-panel__list">
+                        {% if favoritePlaces|length > 0 %}
+                            {% for lieu in favoritePlaces|slice(0, 8) %}
+                                <a href="{{ path('app_lieu_show', { id: lieu.id }) }}" class="favorite-item">
+                                    <span class="favorite-item__title">{{ lieu.nom }}</span>
+                                    <span class="favorite-item__meta">{{ lieu.ville }}{% if lieu.categorieLabel %} · {{ lieu.categorieLabel }}{% endif %}</span>
+                                </a>
+                            {% endfor %}
+                            {% if favoritePlaces|length > 8 %}
+                                <div class="favorite-more">+ {{ favoritePlaces|length - 8 }} autres favoris</div>
+                            {% endif %}
+                        {% else %}
+                            <div class="favorite-empty">Aucun lieu favori pour le moment.</div>
+                        {% endif %}
+                    </div>
+                    <a href="{{ path('app_lieux') }}" class="favorite-panel__cta">Explorer les lieux</a>
+                </div>
+            </div>
             <a href="{{ path('app_logout') }}" class="cta-btn" style="text-decoration:none;display:inline-flex;align-items:center;">Déconnexion</a>
         {% else %}
             <a href="{{ path('app_login') }}" class="cta-btn" style="text-decoration:none;display:inline-flex;align-items:center;">Connexion</a>

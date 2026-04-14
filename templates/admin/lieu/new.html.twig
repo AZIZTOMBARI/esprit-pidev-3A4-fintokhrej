@@ -18,3 +18,8 @@
 
     {% include 'admin/lieu/_form.html.twig' with { button_label: 'Créer le lieu' } %}
 {% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    {{ include('admin/lieu/_map_scripts.html.twig') }}
+{% endblock %}

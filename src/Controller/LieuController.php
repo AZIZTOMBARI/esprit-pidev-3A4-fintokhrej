@@ -7,21 +7,25 @@ use App\Enum\LieuCategorie;
 use App\Enum\LieuType as LieuTypeEnum;
 use App\Form\LieuType;
 use App\Repository\LieuRepository;
+use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormInterface;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\String\Slugger\SluggerInterface;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 #[IsGranted('ROLE_ADMIN')]
 class LieuController extends AbstractController
 {
     private const PER_PAGE = 12;
+    private const WEEK_DAYS = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
 
     #[Route('/admin/lieu', name: 'app_admin_lieu_index', methods: ['GET'])]
     #[Route('/admin/lieux', name: 'app_admin_lieux', methods: ['GET'])]
@@ -51,39 +55,56 @@ class LieuController extends AbstractController
     }
 
     #[Route('/admin/lieu/new', name: 'app_admin_lieu_new', methods: ['GET', 'POST'])]
-    public function new(Request $request, EntityManagerInterface $entityManager, SluggerInterface $slugger): Response
+    public function new(Request $request, EntityManagerInterface $entityManager, SluggerInterface $slugger, Connection $connection): Response
     {
         $lieu = new Lieu();
+        $horaires = $this->defaultHorairesFormData();
         $form = $this->createForm(LieuType::class, $lieu);
         $form->handleRequest($request);
 
         if ($form->isSubmitted()) {
-            if ($form->isValid()) {
-                if ($error = $this->applyBudgetValidation($lieu)) {
-                    $this->addFlash('error', $error);
-                } elseif (!$this->handleLieuImageUpload($form, $lieu, $slugger)) {
-                    return $this->render('lieu/new.html.twig', [
-                        'active' => 'lieux',
-                        'lieu' => $lieu,
-                        'form' => $form->createView(),
-                    ]);
-                } else {
-                    $entityManager->persist($lieu);
-                    $entityManager->flush();
+            $horaires = $this->normalizeHorairesInputForView($request->request->all('horaires'));
+        }
 
-                    $this->addFlash('success', 'Lieu créé avec succès.');
-
-                    return $this->redirectToRoute('app_admin_lieu_show', ['id' => $lieu->getId()]);
-                }
-            } else {
+        if ($form->isSubmitted() && $form->isValid()) {
+            $normalizedHoraires = $this->validateAndNormalizeHoraires($horaires, $form);
+            if ($normalizedHoraires === null) {
                 $this->addFlash('error', 'Veuillez corriger les erreurs du formulaire.');
+                return $this->render('lieu/new.html.twig', [
+                    'active' => 'lieux',
+                    'lieu' => $lieu,
+                    'form' => $form->createView(),
+                    'horaires' => $horaires,
+                ]);
             }
+
+            if (!$this->handleLieuImageUpload($form, $lieu, $slugger)) {
+                return $this->render('lieu/new.html.twig', [
+                    'active' => 'lieux',
+                    'lieu' => $lieu,
+                    'form' => $form->createView(),
+                    'horaires' => $horaires,
+                ]);
+            }
+
+            $entityManager->persist($lieu);
+            $entityManager->flush();
+            $this->saveLieuHoraires($connection, (int) $lieu->getId(), $normalizedHoraires);
+
+            $this->addFlash('success', 'Lieu créé avec succès.');
+
+            return $this->redirectToRoute('app_admin_lieu_show', ['id' => $lieu->getId()]);
+        }
+
+        if ($form->isSubmitted() && !$form->isValid()) {
+            $this->addFlash('error', 'Veuillez corriger les erreurs du formulaire.');
         }
 
         return $this->render('lieu/new.html.twig', [
             'active' => 'lieux',
             'lieu' => $lieu,
             'form' => $form->createView(),
+            'horaires' => $horaires,
         ]);
     }
 
@@ -103,7 +124,7 @@ class LieuController extends AbstractController
     }
 
     #[Route('/admin/lieu/{id}/edit', name: 'app_admin_lieu_edit', methods: ['GET', 'POST'], requirements: ['id' => '\\d+'])]
-    public function edit(int $id, Request $request, LieuRepository $lieuRepository, EntityManagerInterface $entityManager, SluggerInterface $slugger): Response
+    public function edit(int $id, Request $request, LieuRepository $lieuRepository, EntityManagerInterface $entityManager, SluggerInterface $slugger, Connection $connection): Response
     {
         $lieu = $lieuRepository->findDetailed($id);
 
@@ -112,40 +133,57 @@ class LieuController extends AbstractController
         }
 
         $existingImageUrl = $lieu->getImageUrl();
+        $horaires = $this->loadHorairesFormData($connection, $id);
         $form = $this->createForm(LieuType::class, $lieu);
         $form->handleRequest($request);
 
         if ($form->isSubmitted()) {
-            if ($form->isValid()) {
-                if ($error = $this->applyBudgetValidation($lieu)) {
-                    $this->addFlash('error', $error);
-                } elseif (!$this->handleLieuImageUpload($form, $lieu, $slugger, $existingImageUrl)) {
-                    return $this->render('lieu/edit.html.twig', [
-                        'active' => 'lieux',
-                        'lieu' => $lieu,
-                        'form' => $form->createView(),
-                    ]);
-                } else {
-                    $entityManager->flush();
+            $horaires = $this->normalizeHorairesInputForView($request->request->all('horaires'));
+        }
 
-                    $this->addFlash('success', 'Lieu modifié avec succès.');
-
-                    return $this->redirectToRoute('app_admin_lieu_show', ['id' => $lieu->getId()]);
-                }
-            } else {
+        if ($form->isSubmitted() && $form->isValid()) {
+            $normalizedHoraires = $this->validateAndNormalizeHoraires($horaires, $form);
+            if ($normalizedHoraires === null) {
                 $this->addFlash('error', 'Veuillez corriger les erreurs du formulaire.');
+                return $this->render('lieu/edit.html.twig', [
+                    'active' => 'lieux',
+                    'lieu' => $lieu,
+                    'form' => $form->createView(),
+                    'horaires' => $horaires,
+                ]);
             }
+
+            if (!$this->handleLieuImageUpload($form, $lieu, $slugger, $existingImageUrl)) {
+                return $this->render('lieu/edit.html.twig', [
+                    'active' => 'lieux',
+                    'lieu' => $lieu,
+                    'form' => $form->createView(),
+                    'horaires' => $horaires,
+                ]);
+            }
+
+            $entityManager->flush();
+            $this->saveLieuHoraires($connection, (int) $lieu->getId(), $normalizedHoraires);
+
+            $this->addFlash('success', 'Lieu modifié avec succès.');
+
+            return $this->redirectToRoute('app_admin_lieu_show', ['id' => $lieu->getId()]);
+        }
+
+        if ($form->isSubmitted() && !$form->isValid()) {
+            $this->addFlash('error', 'Veuillez corriger les erreurs du formulaire.');
         }
 
         return $this->render('lieu/edit.html.twig', [
             'active' => 'lieux',
             'lieu' => $lieu,
             'form' => $form->createView(),
+            'horaires' => $horaires,
         ]);
     }
 
     #[Route('/admin/lieu/{id}/delete', name: 'app_admin_lieu_delete', methods: ['POST'], requirements: ['id' => '\\d+'])]
-    public function delete(int $id, Request $request, LieuRepository $lieuRepository, EntityManagerInterface $entityManager): Response
+    public function delete(int $id, Request $request, LieuRepository $lieuRepository, EntityManagerInterface $entityManager, Connection $connection): Response
     {
         $lieu = $lieuRepository->find($id);
 
@@ -166,12 +204,99 @@ class LieuController extends AbstractController
             return $this->redirectToRoute('app_admin_lieu_show', ['id' => $lieu->getId()]);
         }
 
+        // Supprime d'abord les horaires liés pour éviter les contraintes FK en base.
+        $connection->delete('lieu_horaire', ['lieu_id' => (int) $lieu->getId()]);
+
         $entityManager->remove($lieu);
         $entityManager->flush();
 
         $this->addFlash('success', 'Lieu supprimé avec succès.');
 
         return $this->redirectToRoute('app_admin_lieu_index');
+    }
+
+    #[Route('/admin/lieu/reverse-geocode', name: 'app_admin_lieu_reverse_geocode', methods: ['GET'])]
+    public function reverseGeocode(Request $request, HttpClientInterface $httpClient): JsonResponse
+    {
+        $latRaw = str_replace(',', '.', trim((string) $request->query->get('lat', '')));
+        $lngRaw = str_replace(',', '.', trim((string) $request->query->get('lng', '')));
+
+        if (!is_numeric($latRaw) || !is_numeric($lngRaw)) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Coordonnees invalides.',
+            ], 400);
+        }
+
+        $latitude = (float) $latRaw;
+        $longitude = (float) $lngRaw;
+
+        if ($latitude < -90 || $latitude > 90 || $longitude < -180 || $longitude > 180) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Coordonnees hors limites.',
+            ], 400);
+        }
+
+        try {
+            $response = $httpClient->request('GET', 'https://nominatim.openstreetmap.org/reverse', [
+                'query' => [
+                    'format' => 'jsonv2',
+                    'lat' => $latitude,
+                    'lon' => $longitude,
+                    'addressdetails' => 1,
+                ],
+                'headers' => [
+                    'Accept' => 'application/json',
+                    'Accept-Language' => 'fr',
+                    'User-Agent' => 'fintokhrej-admin/1.0',
+                ],
+                'timeout' => 8,
+            ]);
+
+            $payload = $response->toArray(false);
+            if (!is_array($payload)) {
+                throw new \RuntimeException('Reponse geocodage invalide.');
+            }
+
+            $address = is_array($payload['address'] ?? null) ? $payload['address'] : [];
+
+            $ville = '';
+            foreach (['city', 'town', 'village', 'municipality', 'state_district', 'county', 'state'] as $key) {
+                if (!empty($address[$key]) && is_string($address[$key])) {
+                    $ville = trim($address[$key]);
+                    break;
+                }
+            }
+
+            $adresse = '';
+            if (!empty($payload['display_name']) && is_string($payload['display_name'])) {
+                $adresse = trim($payload['display_name']);
+            }
+
+            if ($adresse === '') {
+                $chunks = [];
+                foreach (['road', 'house_number', 'suburb', 'neighbourhood', 'postcode', 'city', 'town', 'village', 'country'] as $key) {
+                    if (!empty($address[$key]) && is_string($address[$key])) {
+                        $chunks[] = trim($address[$key]);
+                    }
+                }
+                $adresse = implode(', ', array_unique($chunks));
+            }
+
+            return $this->json([
+                'success' => true,
+                'latitude' => $latitude,
+                'longitude' => $longitude,
+                'ville' => $ville,
+                'adresse' => $adresse,
+            ]);
+        } catch (\Throwable) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Impossible de recuperer l\'adresse pour ces coordonnees.',
+            ], 502);
+        }
     }
 
     private function extractFilters(Request $request): array
@@ -186,15 +311,6 @@ class LieuController extends AbstractController
             'sort' => (string) $request->query->get('sort', 'id'),
             'dir' => strtoupper((string) $request->query->get('dir', 'DESC')) === 'ASC' ? 'ASC' : 'DESC',
         ];
-    }
-
-    private function applyBudgetValidation(Lieu $lieu): ?string
-    {
-        if ($lieu->getBudgetMin() !== null && $lieu->getBudgetMax() !== null && $lieu->getBudgetMin() > $lieu->getBudgetMax()) {
-            return 'Le budget minimum doit être inférieur ou égal au budget maximum.';
-        }
-
-        return null;
     }
 
     private function handleLieuImageUpload(FormInterface $form, Lieu $lieu, SluggerInterface $slugger, ?string $existingImageUrl = null): bool
@@ -237,10 +353,6 @@ class LieuController extends AbstractController
             $blockers[] = 'une évaluation liée';
         }
 
-        if ($lieu->getLieuHoraire() !== null) {
-            $blockers[] = 'des horaires liés';
-        }
-
         if (!$lieu->getLieuImages()->isEmpty()) {
             $blockers[] = 'des images associées';
         }
@@ -262,5 +374,209 @@ class LieuController extends AbstractController
         }
 
         return $blockers;
+    }
+
+    /**
+     * @return array<string, array{jour:string, ouvert:bool, heure_ouverture_1:string, heure_fermeture_1:string, heure_ouverture_2:string, heure_fermeture_2:string}>
+     */
+    private function defaultHorairesFormData(): array
+    {
+        $defaults = [];
+        foreach (self::WEEK_DAYS as $day) {
+            $defaults[$day] = [
+                'jour' => $day,
+                'ouvert' => false,
+                'heure_ouverture_1' => '',
+                'heure_fermeture_1' => '',
+                'heure_ouverture_2' => '',
+                'heure_fermeture_2' => '',
+            ];
+        }
+
+        return $defaults;
+    }
+
+    /**
+     * @param mixed $input
+     * @return array<string, array{jour:string, ouvert:bool, heure_ouverture_1:string, heure_fermeture_1:string, heure_ouverture_2:string, heure_fermeture_2:string}>
+     */
+    private function normalizeHorairesInputForView(mixed $input): array
+    {
+        $normalized = $this->defaultHorairesFormData();
+        if (!is_array($input)) {
+            return $normalized;
+        }
+
+        foreach (self::WEEK_DAYS as $day) {
+            $row = $input[$day] ?? null;
+            if (!is_array($row)) {
+                continue;
+            }
+
+            $normalized[$day]['ouvert'] = isset($row['ouvert']) && (string) $row['ouvert'] !== '';
+            $normalized[$day]['heure_ouverture_1'] = trim((string) ($row['heure_ouverture_1'] ?? ''));
+            $normalized[$day]['heure_fermeture_1'] = trim((string) ($row['heure_fermeture_1'] ?? ''));
+            $normalized[$day]['heure_ouverture_2'] = trim((string) ($row['heure_ouverture_2'] ?? ''));
+            $normalized[$day]['heure_fermeture_2'] = trim((string) ($row['heure_fermeture_2'] ?? ''));
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @param array<string, array{jour:string, ouvert:bool, heure_ouverture_1:string, heure_fermeture_1:string, heure_ouverture_2:string, heure_fermeture_2:string}> $horaires
+     * @return array<int, array{jour:string, ouvert:bool, heure_ouverture_1:?string, heure_fermeture_1:?string, heure_ouverture_2:?string, heure_fermeture_2:?string}>|null
+     */
+    private function validateAndNormalizeHoraires(array $horaires, FormInterface $form): ?array
+    {
+        $rows = [];
+        $hasError = false;
+
+        foreach (self::WEEK_DAYS as $day) {
+            $label = ucfirst($day);
+            $row = $horaires[$day] ?? [
+                'ouvert' => false,
+                'heure_ouverture_1' => '',
+                'heure_fermeture_1' => '',
+                'heure_ouverture_2' => '',
+                'heure_fermeture_2' => '',
+            ];
+
+            $ouvert = (bool) ($row['ouvert'] ?? false);
+            $o1 = trim((string) ($row['heure_ouverture_1'] ?? ''));
+            $f1 = trim((string) ($row['heure_fermeture_1'] ?? ''));
+            $o2 = trim((string) ($row['heure_ouverture_2'] ?? ''));
+            $f2 = trim((string) ($row['heure_fermeture_2'] ?? ''));
+
+            if (!$ouvert) {
+                $rows[] = [
+                    'jour' => $day,
+                    'ouvert' => false,
+                    'heure_ouverture_1' => null,
+                    'heure_fermeture_1' => null,
+                    'heure_ouverture_2' => null,
+                    'heure_fermeture_2' => null,
+                ];
+                continue;
+            }
+
+            if ($o1 === '' || $f1 === '') {
+                $form->addError(new FormError($label.': ouverture 1 et fermeture 1 sont obligatoires.'));
+                $hasError = true;
+            }
+
+            $mO1 = $this->timeToMinutes($o1);
+            $mF1 = $this->timeToMinutes($f1);
+            if (($o1 !== '' && $mO1 === null) || ($f1 !== '' && $mF1 === null)) {
+                $form->addError(new FormError($label.': le format des heures doit être HH:MM.'));
+                $hasError = true;
+            }
+
+            if ($mO1 !== null && $mF1 !== null && $mO1 >= $mF1) {
+                $form->addError(new FormError($label.': l\'heure d\'ouverture 1 doit être antérieure à fermeture 1.'));
+                $hasError = true;
+            }
+
+            $hasSecondSlot = ($o2 !== '' || $f2 !== '');
+            if ($hasSecondSlot && ($o2 === '' || $f2 === '')) {
+                $form->addError(new FormError($label.': ouverture 2 et fermeture 2 doivent être renseignées ensemble.'));
+                $hasError = true;
+            }
+
+            $mO2 = $this->timeToMinutes($o2);
+            $mF2 = $this->timeToMinutes($f2);
+            if (($o2 !== '' && $mO2 === null) || ($f2 !== '' && $mF2 === null)) {
+                $form->addError(new FormError($label.': le format des heures du deuxième créneau doit être HH:MM.'));
+                $hasError = true;
+            }
+
+            if ($mO2 !== null && $mF2 !== null && $mO2 >= $mF2) {
+                $form->addError(new FormError($label.': l\'heure d\'ouverture 2 doit être antérieure à fermeture 2.'));
+                $hasError = true;
+            }
+
+            if ($mF1 !== null && $mO2 !== null && $mO2 <= $mF1) {
+                $form->addError(new FormError($label.': le deuxième créneau doit commencer après la fermeture du premier.'));
+                $hasError = true;
+            }
+
+            $rows[] = [
+                'jour' => $day,
+                'ouvert' => true,
+                'heure_ouverture_1' => $mO1 !== null ? $o1.':00' : null,
+                'heure_fermeture_1' => $mF1 !== null ? $f1.':00' : null,
+                'heure_ouverture_2' => $mO2 !== null ? $o2.':00' : null,
+                'heure_fermeture_2' => $mF2 !== null ? $f2.':00' : null,
+            ];
+        }
+
+        return $hasError ? null : $rows;
+    }
+
+    private function timeToMinutes(string $time): ?int
+    {
+        if (!preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $time)) {
+            return null;
+        }
+
+        [$hours, $minutes] = explode(':', $time);
+
+        return ((int) $hours * 60) + (int) $minutes;
+    }
+
+    /**
+     * @param array<int, array{jour:string, ouvert:bool, heure_ouverture_1:?string, heure_fermeture_1:?string, heure_ouverture_2:?string, heure_fermeture_2:?string}> $rows
+     */
+    private function saveLieuHoraires(Connection $connection, int $lieuId, array $rows): void
+    {
+        $connection->delete('lieu_horaire', ['lieu_id' => $lieuId]);
+
+        foreach ($rows as $row) {
+            $connection->insert('lieu_horaire', [
+                'lieu_id' => $lieuId,
+                'jour' => $row['jour'],
+                'ouvert' => $row['ouvert'] ? 1 : 0,
+                'heure_ouverture_1' => $row['heure_ouverture_1'],
+                'heure_fermeture_1' => $row['heure_fermeture_1'],
+                'heure_ouverture_2' => $row['heure_ouverture_2'],
+                'heure_fermeture_2' => $row['heure_fermeture_2'],
+            ]);
+        }
+    }
+
+    /**
+     * @return array<string, array{jour:string, ouvert:bool, heure_ouverture_1:string, heure_fermeture_1:string, heure_ouverture_2:string, heure_fermeture_2:string}>
+     */
+    private function loadHorairesFormData(Connection $connection, int $lieuId): array
+    {
+        $data = $this->defaultHorairesFormData();
+        $rows = $connection->fetchAllAssociative(
+            "SELECT jour, ouvert,
+                    TIME_FORMAT(heure_ouverture_1, '%H:%i') AS heure_ouverture_1,
+                    TIME_FORMAT(heure_fermeture_1, '%H:%i') AS heure_fermeture_1,
+                    TIME_FORMAT(heure_ouverture_2, '%H:%i') AS heure_ouverture_2,
+                    TIME_FORMAT(heure_fermeture_2, '%H:%i') AS heure_fermeture_2
+             FROM lieu_horaire
+             WHERE lieu_id = ?",
+            [$lieuId]
+        );
+
+        foreach ($rows as $row) {
+            $day = strtolower(trim((string) ($row['jour'] ?? '')));
+            if (!in_array($day, self::WEEK_DAYS, true)) {
+                continue;
+            }
+
+            $data[$day] = [
+                'jour' => $day,
+                'ouvert' => (bool) ($row['ouvert'] ?? false),
+                'heure_ouverture_1' => (string) ($row['heure_ouverture_1'] ?? ''),
+                'heure_fermeture_1' => (string) ($row['heure_fermeture_1'] ?? ''),
+                'heure_ouverture_2' => (string) ($row['heure_ouverture_2'] ?? ''),
+                'heure_fermeture_2' => (string) ($row['heure_fermeture_2'] ?? ''),
+            ];
+        }
+
+        return $data;
     }
 }

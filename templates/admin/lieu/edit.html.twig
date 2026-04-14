@@ -8,6 +8,11 @@
     {{ include('admin/lieu/_styles.html.twig') }}
 {% endblock %}
 
+{% block javascripts %}
+    {{ parent() }}
+    {{ include('admin/lieu/_map_scripts.html.twig') }}
+{% endblock %}
+
 {% block admin_content %}
     {% include 'admin/lieu/_flashes.html.twig' %}
 
