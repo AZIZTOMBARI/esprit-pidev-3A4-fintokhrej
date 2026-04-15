@@ -1,0 +1,110 @@
+<header class="front-header">
+    <div class="brand">
+        <div class="brand__logo">
+            <img src="{{ asset('theme/images/logo.png') }}" alt="Fin Tokhroj">
+        </div>
+        <div>
+            <div class="brand__title">Fin Tokhroj</div>
+            <div class="brand__subtitle">Front Office</div>
+        </div>
+    </div>
+
+    <nav class="front-nav">
+        <a href="{{ path('app_home') }}" class="{{ active == 'home' ? 'active' : '' }}">Accueil</a>
+        <a href="{{ path('app_sorties') }}" class="{{ active == 'sorties' ? 'active' : '' }}">Sorties</a>
+        <a href="{{ path('app_lieux') }}" class="{{ active == 'lieux' ? 'active' : '' }}">Lieux</a>
+        <a href="{{ path('app_offres') }}" class="{{ active == 'offres' ? 'active' : '' }}">Offres</a>
+        <a href="{{ path('app_evenements') }}" class="{{ active == 'evenements' ? 'active' : '' }}">Événements</a>
+        {% if is_granted('ROLE_ADMIN') %}
+            <a href="{{ path('app_admin_dashboard') }}">Admin</a>
+        {% endif %}
+    </nav>
+
+    <div class="front-tools">
+        <form id="global-search-form" method="get" action="{{ path('app_global_search') }}" class="search-pill" role="search" aria-label="Recherche globale">
+            <span>🔎</span>
+            <input type="search" name="q" value="{{ app.request.query.get('q') }}" placeholder="Rechercher partout..." minlength="2" required>
+            <input type="hidden" name="from" value="navbar">
+        </form>
+        <button class="cta-btn" type="submit" form="global-search-form">Go</button>
+        <button class="icon-btn" aria-label="Mode sombre" data-theme-toggle title="Mode sombre">◐</button>
+        {% if app.user %}
+            {% set chip = app.user %}
+            {% set favoritePlaces = app.user.lieus|default([]) %}
+        {% else %}
+            <a href="{{ path('app_login') }}" class="cta-btn" style="text-decoration:none;display:inline-flex;align-items:center;">Connexion</a>
+            <a href="{{ path('app_register') }}" class="outline-btn" style="text-decoration:none;display:inline-flex;align-items:center;">Inscription</a>
+            {% set chip = userChip ?? {'prenom': 'Invité', 'nom': '', 'role': 'visiteur', 'imageUrl': asset('theme/images/logo.png')} %}
+        {% endif %}
+        {% set chipRawImage = chip.imageUrl|default('') %}
+        {% if chipRawImage and (chipRawImage starts with 'http://' or chipRawImage starts with 'https://') %}
+            {% set chipImageSrc = chipRawImage %}
+        {% elseif chipRawImage and (chipRawImage starts with 'theme/' or chipRawImage starts with 'uploads/') %}
+            {% set chipImageSrc = asset(chipRawImage) %}
+        {% elseif chipRawImage and chipRawImage != 'default.png' %}
+            {% set chipImageSrc = asset('uploads/users/' ~ chipRawImage) %}
+        {% else %}
+            {% set chipImageSrc = asset('theme/images/logo.png') %}
+        {% endif %}
+        {% if app.user %}
+            <div class="user-menu-root" data-user-menu-root>
+                <button type="button" class="user-chip user-chip--button" data-user-menu-toggle aria-label="Ouvrir le menu utilisateur" aria-expanded="false">
+                    <img class="avatar-circle" src="{{ chipImageSrc }}" alt="avatar" onerror="this.onerror=null;this.src='{{ asset('theme/images/logo.png') }}';">
+                    <div>
+                        <div class="user-chip__name">{{ chip.prenom|default('Invité') }} {{ chip.nom|default('') }}</div>
+                        <div class="user-chip__role">{{ chip.role|default('visiteur')|upper }}</div>
+                    </div>
+                </button>
+
+                <div class="user-menu-panel" data-user-menu-panel hidden>
+                    <div class="user-menu-panel__header">
+                        <img class="avatar-circle" src="{{ chipImageSrc }}" alt="avatar" onerror="this.onerror=null;this.src='{{ asset('theme/images/logo.png') }}';">
+                        <div>
+                            <div class="user-menu-panel__name">{{ chip.prenom|default('Invité') }} {{ chip.nom|default('') }}</div>
+                            <div class="user-menu-panel__email">{{ app.user.email|default('') }}</div>
+                        </div>
+                    </div>
+
+                    <div class="user-menu-panel__links">
+                        <a href="{{ path('app_profile') }}" class="outline-btn">Profil</a>
+                        <a href="{{ path('app_profile') }}#security" class="outline-btn">Sécurité</a>
+                        <a href="{{ path('app_profile') }}#settings" class="outline-btn">Paramètres</a>
+                    </div>
+
+                    <div class="user-menu-panel__favorites">
+                        <div class="favorite-panel__head">
+                            <h4>Lieux favoris</h4>
+                            <span class="badge-soft">{{ favoritePlaces|length }}</span>
+                        </div>
+                        <div class="favorite-panel__list user-menu-panel__favorite-list">
+                            {% if favoritePlaces|length > 0 %}
+                                {% for lieu in favoritePlaces|slice(0, 4) %}
+                                    <a href="{{ path('app_lieu_show', { id: lieu.id }) }}" class="favorite-item">
+                                        <span class="favorite-item__title">{{ lieu.nom }}</span>
+                                        <span class="favorite-item__meta">{{ lieu.ville }}{% if lieu.categorieLabel %} · {{ lieu.categorieLabel }}{% endif %}</span>
+                                    </a>
+                                {% endfor %}
+                                {% if favoritePlaces|length > 4 %}
+                                    <div class="favorite-more">+ {{ favoritePlaces|length - 4 }} autres favoris</div>
+                                {% endif %}
+                            {% else %}
+                                <div class="favorite-empty">Aucun lieu favori pour le moment.</div>
+                            {% endif %}
+                        </div>
+                        <a href="{{ path('app_lieux') }}" class="favorite-panel__cta">Voir tous les lieux</a>
+                    </div>
+
+                    <a href="{{ path('app_logout') }}" class="danger-btn user-menu-panel__logout">Déconnexion</a>
+                </div>
+            </div>
+        {% else %}
+            <div class="user-chip">
+                <img class="avatar-circle" src="{{ chipImageSrc }}" alt="avatar" onerror="this.onerror=null;this.src='{{ asset('theme/images/logo.png') }}';">
+                <div>
+                    <div class="user-chip__name">{{ chip.prenom|default('Invité') }} {{ chip.nom|default('') }}</div>
+                    <div class="user-chip__role">{{ chip.role|default('visiteur') }}</div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</header>

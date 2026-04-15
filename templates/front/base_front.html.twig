@@ -1,0 +1,11 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+    <div class="page-shell">
+        <div class="front-shell content-stack">
+            {% include 'front/partials/navbar.html.twig' %}
+            {% block front_content %}{% endblock %}
+            <div class="footer-note">Fin Tokhroj — Ne cherche plus… Tokhrej !</div>
+        </div>
+    </div>
+{% endblock %}
