@@ -31,35 +31,6 @@
         {% if app.user %}
             {% set chip = app.user %}
             {% set favoritePlaces = app.user.lieus|default([]) %}
-            <div class="favorite-root" data-favorite-root>
-                <button type="button" class="icon-btn favorite-toggle-btn" aria-label="Mes lieux favoris" title="Mes lieux favoris" data-favorite-toggle>
-                    <span class="btn-icon" aria-hidden="true">❤</span>
-                    <span class="favorite-badge" data-favorite-badge {{ favoritePlaces|length > 0 ? '' : 'hidden' }}>{{ favoritePlaces|length }}</span>
-                </button>
-                <div class="favorite-panel" data-favorite-panel hidden>
-                    <div class="favorite-panel__head">
-                        <h4>Mes lieux favoris</h4>
-                        <span class="badge-soft">{{ favoritePlaces|length }}</span>
-                    </div>
-                    <div class="favorite-panel__list">
-                        {% if favoritePlaces|length > 0 %}
-                            {% for lieu in favoritePlaces|slice(0, 8) %}
-                                <a href="{{ path('app_lieu_show', { id: lieu.id }) }}" class="favorite-item">
-                                    <span class="favorite-item__title">{{ lieu.nom }}</span>
-                                    <span class="favorite-item__meta">{{ lieu.ville }}{% if lieu.categorieLabel %} · {{ lieu.categorieLabel }}{% endif %}</span>
-                                </a>
-                            {% endfor %}
-                            {% if favoritePlaces|length > 8 %}
-                                <div class="favorite-more">+ {{ favoritePlaces|length - 8 }} autres favoris</div>
-                            {% endif %}
-                        {% else %}
-                            <div class="favorite-empty">Aucun lieu favori pour le moment.</div>
-                        {% endif %}
-                    </div>
-                    <a href="{{ path('app_lieux') }}" class="favorite-panel__cta">Explorer les lieux</a>
-                </div>
-            </div>
-            <a href="{{ path('app_logout') }}" class="cta-btn" style="text-decoration:none;display:inline-flex;align-items:center;">Déconnexion</a>
         {% else %}
             <a href="{{ path('app_login') }}" class="cta-btn" style="text-decoration:none;display:inline-flex;align-items:center;">Connexion</a>
             <a href="{{ path('app_register') }}" class="outline-btn" style="text-decoration:none;display:inline-flex;align-items:center;">Inscription</a>
@@ -75,12 +46,65 @@
         {% else %}
             {% set chipImageSrc = asset('theme/images/logo.png') %}
         {% endif %}
-        <div class="user-chip">
-            <img class="avatar-circle" src="{{ chipImageSrc }}" alt="avatar" onerror="this.onerror=null;this.src='{{ asset('theme/images/logo.png') }}';">
-            <div>
-                <div class="user-chip__name">{{ chip.prenom|default('Invité') }} {{ chip.nom|default('') }}</div>
-                <div class="user-chip__role">{{ chip.role|default('visiteur') }}</div>
+        {% if app.user %}
+            <div class="user-menu-root" data-user-menu-root>
+                <button type="button" class="user-chip user-chip--button" data-user-menu-toggle aria-label="Ouvrir le menu utilisateur" aria-expanded="false">
+                    <img class="avatar-circle" src="{{ chipImageSrc }}" alt="avatar" onerror="this.onerror=null;this.src='{{ asset('theme/images/logo.png') }}';">
+                    <div>
+                        <div class="user-chip__name">{{ chip.prenom|default('Invité') }} {{ chip.nom|default('') }}</div>
+                        <div class="user-chip__role">{{ chip.role|default('visiteur')|upper }}</div>
+                    </div>
+                </button>
+
+                <div class="user-menu-panel" data-user-menu-panel hidden>
+                    <div class="user-menu-panel__header">
+                        <img class="avatar-circle" src="{{ chipImageSrc }}" alt="avatar" onerror="this.onerror=null;this.src='{{ asset('theme/images/logo.png') }}';">
+                        <div>
+                            <div class="user-menu-panel__name">{{ chip.prenom|default('Invité') }} {{ chip.nom|default('') }}</div>
+                            <div class="user-menu-panel__email">{{ app.user.email|default('') }}</div>
+                        </div>
+                    </div>
+
+                    <div class="user-menu-panel__links">
+                        <a href="{{ path('app_profile') }}" class="outline-btn">Profil</a>
+                        <a href="{{ path('app_profile') }}#security" class="outline-btn">Sécurité</a>
+                        <a href="{{ path('app_profile') }}#settings" class="outline-btn">Paramètres</a>
+                    </div>
+
+                    <div class="user-menu-panel__favorites">
+                        <div class="favorite-panel__head">
+                            <h4>Lieux favoris</h4>
+                            <span class="badge-soft">{{ favoritePlaces|length }}</span>
+                        </div>
+                        <div class="favorite-panel__list user-menu-panel__favorite-list">
+                            {% if favoritePlaces|length > 0 %}
+                                {% for lieu in favoritePlaces|slice(0, 4) %}
+                                    <a href="{{ path('app_lieu_show', { id: lieu.id }) }}" class="favorite-item">
+                                        <span class="favorite-item__title">{{ lieu.nom }}</span>
+                                        <span class="favorite-item__meta">{{ lieu.ville }}{% if lieu.categorieLabel %} · {{ lieu.categorieLabel }}{% endif %}</span>
+                                    </a>
+                                {% endfor %}
+                                {% if favoritePlaces|length > 4 %}
+                                    <div class="favorite-more">+ {{ favoritePlaces|length - 4 }} autres favoris</div>
+                                {% endif %}
+                            {% else %}
+                                <div class="favorite-empty">Aucun lieu favori pour le moment.</div>
+                            {% endif %}
+                        </div>
+                        <a href="{{ path('app_lieux') }}" class="favorite-panel__cta">Voir tous les lieux</a>
+                    </div>
+
+                    <a href="{{ path('app_logout') }}" class="danger-btn user-menu-panel__logout">Déconnexion</a>
+                </div>
             </div>
-        </div>
+        {% else %}
+            <div class="user-chip">
+                <img class="avatar-circle" src="{{ chipImageSrc }}" alt="avatar" onerror="this.onerror=null;this.src='{{ asset('theme/images/logo.png') }}';">
+                <div>
+                    <div class="user-chip__name">{{ chip.prenom|default('Invité') }} {{ chip.nom|default('') }}</div>
+                    <div class="user-chip__role">{{ chip.role|default('visiteur') }}</div>
+                </div>
+            </div>
+        {% endif %}
     </div>
 </header>

@@ -370,6 +370,34 @@ document.addEventListener('DOMContentLoaded', () => {
         applyFilterAndSort();
     });
 
+    /* ── USER MENU PANEL ───────────────────────────────────── */
+    document.querySelectorAll('[data-user-menu-root]').forEach((root) => {
+        const panel = root.querySelector('[data-user-menu-panel]');
+        const toggleBtn = root.querySelector('[data-user-menu-toggle]');
+
+        if (!panel || !toggleBtn) return;
+
+        toggleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            panel.hidden = !panel.hidden;
+            toggleBtn.setAttribute('aria-expanded', panel.hidden ? 'false' : 'true');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!panel.contains(e.target) && !toggleBtn.contains(e.target)) {
+                panel.hidden = true;
+                toggleBtn.setAttribute('aria-expanded', 'false');
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                panel.hidden = true;
+                toggleBtn.setAttribute('aria-expanded', 'false');
+            }
+        });
+    });
+
     /* ── FAVORITES PANEL ───────────────────────────────────── */
     document.querySelectorAll('[data-favorite-root]').forEach((root) => {
         const panel = root.querySelector('[data-favorite-panel]');

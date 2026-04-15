@@ -60,6 +60,22 @@ button,input,select{font:inherit}
 .avatar-circle{width:36px;height:36px;border-radius:50%;object-fit:cover;background:linear-gradient(135deg,var(--ft-primary),var(--ft-secondary));border:2px solid rgba(255,255,255,.9);box-shadow:0 3px 8px rgba(14,45,94,.2)}
 .user-chip__name{font-weight:700;font-size:.88rem;color:var(--ft-text)}
 .user-chip__role{color:var(--ft-muted);font-size:.76rem}
+.user-menu-root{position:relative}
+.user-chip--button{border:none;cursor:pointer;text-align:left}
+.user-menu-panel{position:absolute;right:0;top:calc(100% + 12px);width:min(420px,92vw);background:rgba(255,255,255,.95);backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,.72);border-radius:22px;box-shadow:0 30px 62px rgba(7,24,48,.25),inset 0 1px 0 rgba(255,255,255,.9);padding:14px;z-index:3200;animation:panelDrop .35s var(--ease-spring) both}
+[data-theme='dark'] .user-menu-panel{background:rgba(15,23,42,.95);border-color:rgba(148,163,184,.26);box-shadow:0 28px 58px rgba(2,8,23,.62),inset 0 1px 0 rgba(148,163,184,.18)}
+.user-menu-panel[hidden]{display:none}
+.user-menu-panel__header{display:flex;align-items:center;gap:10px;padding-bottom:10px;border-bottom:1px solid rgba(20,61,113,.08)}
+[data-theme='dark'] .user-menu-panel__header{border-bottom-color:rgba(148,163,184,.2)}
+.user-menu-panel__name{font-weight:800;font-size:.98rem;color:#163f73;line-height:1.2}
+[data-theme='dark'] .user-menu-panel__name{color:#e5edf8}
+.user-menu-panel__email{font-size:.8rem;color:#60758f;margin-top:2px;word-break:break-all}
+[data-theme='dark'] .user-menu-panel__email{color:#9fb2cc}
+.user-menu-panel__links{display:flex;flex-wrap:wrap;gap:8px;padding:10px 0 12px}
+.user-menu-panel__links .outline-btn{min-height:34px;padding:8px 12px;font-size:.8rem}
+.user-menu-panel__favorites{padding-top:2px}
+.user-menu-panel__favorite-list{max-height:230px}
+.user-menu-panel__logout{display:inline-flex;justify-content:center;width:100%;margin-top:12px;min-height:40px}
 
 /* BUTTONS */
 .icon-btn,.cta-btn,.outline-btn,.primary-btn,.danger-btn{border:none;cursor:pointer;border-radius:999px;transition:transform .28s var(--ease-spring),box-shadow .28s var(--ease-smooth),background .28s,color .28s,filter .28s;position:relative;overflow:hidden;isolation:isolate}

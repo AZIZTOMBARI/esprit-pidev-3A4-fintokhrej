@@ -1,3 +1,4 @@
+
 {% extends 'front/base_front.html.twig' %}
 
 {% block title %}{{ lieu.nom }} | Détails lieu{% endblock %}
@@ -32,7 +33,16 @@
             </div>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
-            <button type="button" class="btn-fav" id="favBtn">♥ Ajouter aux favoris</button>
+            {% if app.user %}
+                <form method="post" action="{{ path('app_lieu_favorite_toggle', {id: lieu.id}) }}" style="margin:0;">
+                    <input type="hidden" name="_token" value="{{ csrf_token('front_fav_toggle_' ~ lieu.id) }}">
+                    <button type="submit" class="btn-fav {{ isFavorite ? 'is-active' : '' }}">
+                        {{ isFavorite ? '♥ Retirer des favoris' : '♥ Ajouter aux favoris' }}
+                    </button>
+                </form>
+            {% else %}
+                <a href="{{ path('app_login') }}" class="btn-fav" style="text-decoration:none;display:inline-flex;align-items:center;">♥ Ajouter aux favoris</a>
+            {% endif %}
             <button type="button" class="btn-secondary" onclick="copyShareLink()">↗ Partager</button>
             {% if lieu.latitude is not null and lieu.longitude is not null %}
                 <a href="https://www.google.com/maps?q={{ lieu.latitude }},{{ lieu.longitude }}" target="_blank" rel="noopener" class="btn-maps" style="text-decoration:none;">🗺 Maps</a>
@@ -377,6 +387,11 @@
         background: #fef2f2;
         border-color: #fecaca;
         color: #dc2626;
+    }
+    .btn-fav.is-active {
+        background: #fee2e2;
+        border-color: #fca5a5;
+        color: #b91c1c;
     }
     .btn-secondary:hover, .btn-maps:hover {
         background: #f1f5f9;
