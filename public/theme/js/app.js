@@ -574,6 +574,326 @@ document.addEventListener('DOMContentLoaded', () => {
         setInterval(loadFeed, 45000);
     });
 
+    /* ── CHATBOT WIDGET ───────────────────────────────────── */
+    document.querySelectorAll('[data-ft-chatbot]').forEach((root) => {
+        const toggle = root.querySelector('[data-ft-chatbot-toggle]');
+        const panel = root.querySelector('[data-ft-chatbot-panel]');
+        const messagesEl = root.querySelector('[data-ft-chatbot-messages]');
+        const historyEl = root.querySelector('[data-ft-chatbot-history]');
+        const form = root.querySelector('[data-ft-chatbot-form]');
+        const input = root.querySelector('[data-ft-chatbot-input]');
+        const sendBtn = root.querySelector('[data-ft-chatbot-send]');
+        const statusEl = root.querySelector('[data-ft-chatbot-status]');
+        const voiceBtn = root.querySelector('[data-ft-chatbot-voice]');
+        const newBtn = root.querySelector('[data-ft-chatbot-new]');
+        const deleteBtn = root.querySelector('[data-ft-chatbot-delete]');
+
+        if (!toggle || !panel || !messagesEl || !historyEl || !form || !input || !sendBtn || !statusEl) return;
+
+        const storageKey = 'ft-chatbot-sessions';
+        let sessions = [];
+        let activeId = null;
+        let currentUtterance = null;
+        let activeSpeechButton = null;
+
+        const resetSpeechState = () => {
+            if (activeSpeechButton) {
+                activeSpeechButton.textContent = 'Lire';
+                activeSpeechButton.classList.remove('is-reading');
+                activeSpeechButton = null;
+            }
+            currentUtterance = null;
+        };
+
+        const stopReading = () => {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
+            resetSpeechState();
+        };
+
+        const setStatus = (label) => {
+            statusEl.textContent = label;
+        };
+
+        const parseJSON = (raw) => {
+            try {
+                const value = JSON.parse(raw);
+                return Array.isArray(value) ? value : [];
+            } catch (_) {
+                return [];
+            }
+        };
+
+        const saveSessions = () => {
+            localStorage.setItem(storageKey, JSON.stringify(sessions));
+        };
+
+        const getActiveSession = () => sessions.find((item) => item.id === activeId) || null;
+
+        const createSession = () => ({
+            id: Date.now().toString(36),
+            title: 'Nouvelle discussion',
+            createdAt: Date.now(),
+            messages: [],
+        });
+
+        const updateSessionTitle = (session) => {
+            const firstUserMessage = session.messages.find((msg) => msg.role === 'user');
+            if (firstUserMessage) {
+                session.title = firstUserMessage.content.slice(0, 38);
+            }
+        };
+
+        const renderHistory = () => {
+            historyEl.innerHTML = '';
+            const sorted = [...sessions].sort((a, b) => b.createdAt - a.createdAt);
+            sorted.forEach((session) => {
+                const item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'ft-chatbot__history-item';
+                if (session.id === activeId) item.classList.add('is-active');
+                item.textContent = session.title || 'Discussion';
+                item.addEventListener('click', () => {
+                    activeId = session.id;
+                    renderHistory();
+                    renderMessages();
+                });
+                historyEl.appendChild(item);
+            });
+        };
+
+        const createBubble = (message) => {
+            const line = document.createElement('article');
+            line.className = 'ft-chatbot__bubble ft-chatbot__bubble--' + (message.role === 'user' ? 'user' : 'assistant');
+            const text = document.createElement('p');
+            text.textContent = message.content;
+            line.appendChild(text);
+
+            if (message.role === 'assistant' && 'speechSynthesis' in window) {
+                const speak = document.createElement('button');
+                speak.type = 'button';
+                speak.className = 'ft-chatbot__speak';
+                speak.textContent = 'Lire';
+                speak.addEventListener('click', () => {
+                    const alreadyReadingSame = activeSpeechButton === speak && window.speechSynthesis.speaking;
+                    if (alreadyReadingSame) {
+                        stopReading();
+                        return;
+                    }
+
+                    stopReading();
+                    const utterance = new SpeechSynthesisUtterance(message.content);
+                    utterance.lang = 'fr-FR';
+                    currentUtterance = utterance;
+                    activeSpeechButton = speak;
+                    speak.textContent = 'Stop';
+                    speak.classList.add('is-reading');
+
+                    utterance.onend = resetSpeechState;
+                    utterance.onerror = resetSpeechState;
+                    window.speechSynthesis.speak(utterance);
+                });
+                line.appendChild(speak);
+            }
+
+            return line;
+        };
+
+        const renderMessages = () => {
+            stopReading();
+            const session = getActiveSession();
+            messagesEl.innerHTML = '';
+
+            if (!session || session.messages.length === 0) {
+                const empty = document.createElement('p');
+                empty.className = 'ft-chatbot__empty';
+                empty.textContent = 'Demarre une discussion: horaires, prix, lieux populaires, etc.';
+                messagesEl.appendChild(empty);
+                return;
+            }
+
+            session.messages.forEach((message) => {
+                messagesEl.appendChild(createBubble(message));
+            });
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        };
+
+        const pushMessage = (role, content) => {
+            const session = getActiveSession();
+            if (!session) return;
+
+            session.messages.push({ role, content, at: Date.now() });
+            if (session.messages.length > 20) {
+                session.messages = session.messages.slice(-20);
+            }
+            updateSessionTitle(session);
+            saveSessions();
+            renderHistory();
+            renderMessages();
+        };
+
+        const ensureSession = () => {
+            if (!activeId || !getActiveSession()) {
+                const fresh = createSession();
+                sessions.push(fresh);
+                activeId = fresh.id;
+                saveSessions();
+            }
+        };
+
+        const submitMessage = async (text) => {
+            const prompt = text.trim();
+            if (prompt === '') return;
+
+            ensureSession();
+            pushMessage('user', prompt);
+            input.value = '';
+            sendBtn.disabled = true;
+            setStatus('Assistant en train de repondre...');
+
+            const session = getActiveSession();
+            const history = (session?.messages || []).map((msg) => ({
+                role: msg.role,
+                content: msg.content,
+            }));
+
+            try {
+                const response = await fetch('/api/chatbot/message', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        message: prompt,
+                        history,
+                    }),
+                });
+
+                const payload = await response.json();
+                if (!response.ok || !payload.ok) {
+                    const msg = payload.error || 'Erreur chatbot';
+                    pushMessage('assistant', msg);
+                } else {
+                    pushMessage('assistant', String(payload.answer || 'Pas de reponse.'));
+                }
+            } catch (_) {
+                pushMessage('assistant', 'Connexion impossible pour le moment.');
+            }
+
+            setStatus('En ligne');
+            sendBtn.disabled = false;
+            input.focus();
+        };
+
+        const loadSessions = () => {
+            sessions = parseJSON(localStorage.getItem(storageKey) || '[]');
+            if (sessions.length === 0) {
+                const fresh = createSession();
+                sessions = [fresh];
+                activeId = fresh.id;
+                saveSessions();
+            } else {
+                activeId = sessions[0].id;
+            }
+            renderHistory();
+            renderMessages();
+        };
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            await submitMessage(input.value);
+        });
+
+        input.addEventListener('keydown', async (event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                await submitMessage(input.value);
+            }
+        });
+
+        toggle.addEventListener('click', (event) => {
+            event.stopPropagation();
+            panel.hidden = !panel.hidden;
+            if (!panel.hidden) {
+                input.focus();
+            }
+        });
+
+        document.addEventListener('click', (event) => {
+            if (!root.contains(event.target)) {
+                panel.hidden = true;
+            }
+        });
+
+        newBtn?.addEventListener('click', () => {
+            const fresh = createSession();
+            sessions.unshift(fresh);
+            activeId = fresh.id;
+            saveSessions();
+            renderHistory();
+            renderMessages();
+            input.focus();
+        });
+
+        deleteBtn?.addEventListener('click', () => {
+            const active = getActiveSession();
+            if (!active) return;
+
+            const confirmed = window.confirm('Supprimer cette discussion ?');
+            if (!confirmed) return;
+
+            const remaining = sessions.filter((session) => session.id !== active.id);
+            if (remaining.length === 0) {
+                const fresh = createSession();
+                sessions = [fresh];
+                activeId = fresh.id;
+            } else {
+                sessions = remaining;
+                activeId = sessions[0].id;
+            }
+
+            saveSessions();
+            renderHistory();
+            renderMessages();
+            input.focus();
+        });
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition && voiceBtn) {
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'fr-FR';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            voiceBtn.addEventListener('click', () => {
+                recognition.start();
+                setStatus('Ecoute en cours...');
+            });
+
+            recognition.addEventListener('result', (event) => {
+                const transcript = event.results[0][0].transcript || '';
+                input.value = transcript;
+                setStatus('Texte vocal capture.');
+            });
+
+            recognition.addEventListener('end', () => {
+                setStatus('En ligne');
+            });
+
+            recognition.addEventListener('error', () => {
+                setStatus('Micro indisponible.');
+            });
+        } else if (voiceBtn) {
+            voiceBtn.disabled = true;
+            voiceBtn.title = 'Reconnaissance vocale non supportee par ce navigateur';
+        }
+
+        loadSessions();
+    });
+
     /* ── HERO PARALLAX ─────────────────────────────────────── */
     const hero = document.querySelector('.hero');
     if (hero) {

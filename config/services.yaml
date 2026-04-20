@@ -6,6 +6,8 @@
 parameters:
     app.review_toxicity_threshold_moderate: '%env(int:REVIEW_TOXICITY_THRESHOLD_MODERATE)%'
     app.review_toxicity_threshold_severe: '%env(int:REVIEW_TOXICITY_THRESHOLD_SEVERE)%'
+    app.chatbot.groq_api_key: '%env(default::GROQ_API_KEY)%'
+    app.chatbot.groq_model: '%env(GROQ_CHAT_MODEL)%'
 
 services:
     # default configuration for services in *this* file
@@ -29,3 +31,8 @@ services:
         arguments:
             $moderateThreshold: '%app.review_toxicity_threshold_moderate%'
             $severeThreshold: '%app.review_toxicity_threshold_severe%'
+
+    App\Service\FrontChatbotService:
+        arguments:
+            $groqApiKey: '%app.chatbot.groq_api_key%'
+            $groqModel: '%app.chatbot.groq_model%'

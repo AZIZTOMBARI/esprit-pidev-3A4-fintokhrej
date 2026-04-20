@@ -1,0 +1,32 @@
+<div class="ft-chatbot" data-ft-chatbot>
+    <button type="button" class="ft-chatbot__toggle" data-ft-chatbot-toggle aria-label="Ouvrir l'assistant" title="Assistant Fin Tokhroj">
+        Assistant
+    </button>
+
+    <section class="ft-chatbot__panel" data-ft-chatbot-panel hidden>
+        <header class="ft-chatbot__header">
+            <div>
+                <strong>Assistant Fin Tokhroj</strong>
+                <p data-ft-chatbot-status>En ligne</p>
+            </div>
+            <div class="ft-chatbot__header-actions">
+                <button type="button" class="ft-chatbot__new" data-ft-chatbot-new>Nouvelle discussion</button>
+                <button type="button" class="ft-chatbot__delete" data-ft-chatbot-delete>Supprimer discussion</button>
+            </div>
+        </header>
+
+        <div class="ft-chatbot__body">
+            <aside class="ft-chatbot__history" data-ft-chatbot-history></aside>
+            <div class="ft-chatbot__chat">
+                <div class="ft-chatbot__messages" data-ft-chatbot-messages></div>
+                <form class="ft-chatbot__composer" data-ft-chatbot-form>
+                    <textarea data-ft-chatbot-input rows="2" placeholder="Pose ta question (ex: lieux ouverts ce soir a Tunis)"></textarea>
+                    <div class="ft-chatbot__actions">
+                        <button type="button" class="outline-btn" data-ft-chatbot-voice>Micro</button>
+                        <button type="submit" class="primary-btn" data-ft-chatbot-send>Envoyer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </section>
+</div>

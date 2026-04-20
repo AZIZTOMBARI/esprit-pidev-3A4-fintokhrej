@@ -21,6 +21,7 @@
     </nav>
 
     <div class="front-tools">
+        {% include 'front/partials/chatbot_widget.html.twig' %}
         <form id="global-search-form" method="get" action="{{ path('app_global_search') }}" class="search-pill" role="search" aria-label="Recherche globale">
             <span>🔎</span>
             <input type="search" name="q" value="{{ app.request.query.get('q') }}" placeholder="Rechercher partout..." minlength="2" required>
