@@ -15,6 +15,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class FrontController extends AbstractController
 {
@@ -300,7 +301,7 @@ class FrontController extends AbstractController
     }
 
     #[Route('/lieux/{id}/evaluations', name: 'app_lieu_evaluation_create', methods: ['POST'], requirements: ['id' => '\\d+'])]
-    public function createLieuEvaluation(int $id, Request $request, Connection $connection, ValidatorInterface $validator, ReviewContentModerator $contentModerator, LoggerInterface $logger): Response
+    public function createLieuEvaluation(int $id, Request $request, Connection $connection, ValidatorInterface $validator, ReviewContentModerator $contentModerator, LoggerInterface $logger, HttpClientInterface $httpClient): Response
     {
         $user = $this->getUser();
         if (!$user instanceof User) {
@@ -318,7 +319,7 @@ class FrontController extends AbstractController
 
         if ($commentaire !== '') {
             $analysis = $contentModerator->analyze($commentaire);
-            if ($this->denyToxicReview($connection, $analysis, $commentaire, $id, $user->getId(), $logger, 'create')) {
+            if ($this->denyToxicReview($request, $httpClient, $connection, $analysis, $commentaire, $id, $user, $logger, 'create')) {
                 return $this->redirectToRoute('app_lieu_show', ['id' => $id]);
             }
         }
@@ -397,7 +398,7 @@ class FrontController extends AbstractController
     }
 
     #[Route('/lieux/{id}/evaluations/{evaluationId}/update', name: 'app_lieu_evaluation_update', methods: ['POST'], requirements: ['id' => '\\d+', 'evaluationId' => '\\d+'])]
-    public function updateLieuEvaluation(int $id, int $evaluationId, Request $request, Connection $connection, ValidatorInterface $validator, ReviewContentModerator $contentModerator, LoggerInterface $logger): Response
+    public function updateLieuEvaluation(int $id, int $evaluationId, Request $request, Connection $connection, ValidatorInterface $validator, ReviewContentModerator $contentModerator, LoggerInterface $logger, HttpClientInterface $httpClient): Response
     {
         $user = $this->getUser();
         if (!$user instanceof User) {
@@ -425,7 +426,7 @@ class FrontController extends AbstractController
 
         if ($commentaire !== '') {
             $analysis = $contentModerator->analyze($commentaire);
-            if ($this->denyToxicReview($connection, $analysis, $commentaire, $id, $user->getId(), $logger, 'update')) {
+            if ($this->denyToxicReview($request, $httpClient, $connection, $analysis, $commentaire, $id, $user, $logger, 'update')) {
                 return $this->redirectToRoute('app_lieu_show', ['id' => $id]);
             }
         }
@@ -459,7 +460,7 @@ class FrontController extends AbstractController
     /**
      * @param array{hasViolation:bool, score:int, severity?:string, matches:array<int, array{term:string, category:string, confidence:float}>} $analysis
      */
-    private function denyToxicReview(Connection $connection, array $analysis, string $rawComment, int $lieuId, int $userId, LoggerInterface $logger, string $action): bool
+    private function denyToxicReview(Request $request, HttpClientInterface $httpClient, Connection $connection, array $analysis, string $rawComment, int $lieuId, User $user, LoggerInterface $logger, string $action): bool
     {
         if (!(bool) ($analysis['hasViolation'] ?? false)) {
             return false;
@@ -475,6 +476,8 @@ class FrontController extends AbstractController
         $termsLabel = $terms !== [] ? ' Termes détectés: '.implode(', ', $terms).'.' : '';
         $this->addFlash('error', 'Votre avis contient un langage inapproprié (niveau '.$severityLabel.', score '.$score.') et ne peut pas être enregistré.'.$termsLabel);
 
+        $userId = (int) $user->getId();
+
         $logger->warning('review_toxicity_blocked', [
             'action' => $action,
             'user_id' => $userId,
@@ -486,7 +489,7 @@ class FrontController extends AbstractController
             'comment_length' => mb_strlen($rawComment),
         ]);
 
-        $this->storeModerationAttempt(
+        $logId = $this->storeModerationAttempt(
             $connection,
             $userId,
             $lieuId,
@@ -496,6 +499,28 @@ class FrontController extends AbstractController
             $terms,
             $rawComment
         );
+
+        $mailError = $this->sendModerationAlertViaMailingApi($request, $httpClient, [
+            'to' => (string) ($user->getEmail() ?? ''),
+            'user_id' => $userId,
+            'prenom' => (string) ($user->getPrenom() ?? ''),
+            'nom' => (string) ($user->getNom() ?? ''),
+            'lieu_id' => $lieuId,
+            'action' => $action,
+            'severity' => $severity,
+            'score' => $score,
+            'terms' => $terms,
+            'comment_preview' => mb_substr($rawComment, 0, 220),
+            'source_log_id' => $logId,
+        ]);
+
+        if ($mailError !== null) {
+            $logger->error('review_toxicity_mail_failed', [
+                'user_id' => $userId,
+                'lieu_id' => $lieuId,
+                'error' => $mailError,
+            ]);
+        }
 
         return true;
     }
@@ -512,7 +537,7 @@ class FrontController extends AbstractController
         int $score,
         array $terms,
         string $rawComment
-    ): void {
+    ): ?int {
         try {
             $this->ensureModerationLogTable($connection);
 
@@ -527,8 +552,39 @@ class FrontController extends AbstractController
                 'comment_length' => mb_strlen($rawComment),
                 'created_at' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
             ]);
+
+            return (int) $connection->lastInsertId();
         } catch (\Throwable) {
             // La modération ne doit jamais échouer à cause de la journalisation.
+            return null;
+        }
+    }
+
+    private function sendModerationAlertViaMailingApi(Request $request, HttpClientInterface $httpClient, array $payload): ?string
+    {
+        try {
+            $apiKey = (string) ($_ENV['INTERNAL_MAILING_API_KEY'] ?? $_SERVER['INTERNAL_MAILING_API_KEY'] ?? 'dev-mailing-key');
+            $baseUrl = (string) ($_ENV['MAILING_API_BASE_URL'] ?? $_SERVER['MAILING_API_BASE_URL'] ?? '');
+            $endpoint = rtrim($baseUrl !== '' ? $baseUrl : $request->getSchemeAndHttpHost(), '/').'/api/mailing/moderation-alert';
+
+            $response = $httpClient->request('POST', $endpoint, [
+                'headers' => [
+                    'Accept' => 'application/json',
+                    'X-Internal-Api-Key' => $apiKey,
+                ],
+                'json' => $payload,
+                'timeout' => 8,
+            ]);
+
+            $statusCode = $response->getStatusCode();
+            if ($statusCode < 200 || $statusCode >= 300) {
+                $body = $response->getContent(false);
+                return 'HTTP '.$statusCode.' '.$body;
+            }
+
+            return null;
+        } catch (\Throwable $e) {
+            return $e->getMessage();
         }
     }
 

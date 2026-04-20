@@ -259,7 +259,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    #[ORM\OneToOne(targetEntity: EvaluationLieu::class, mappedBy: 'user')]
+    #[ORM\OneToOne(targetEntity: EvaluationLieu::class, mappedBy: 'user', fetch: 'LAZY')]
     private ?EvaluationLieu $evaluationLieu = null;
 
     public function getEvaluationLieu(): ?EvaluationLieu
@@ -273,7 +273,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    #[ORM\OneToOne(targetEntity: Inscription::class, mappedBy: 'user')]
+    #[ORM\OneToOne(targetEntity: Inscription::class, mappedBy: 'user', fetch: 'LAZY')]
     private ?Inscription $inscription = null;
 
     public function getInscription(): ?Inscription
@@ -315,7 +315,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    #[ORM\OneToOne(targetEntity: Notification::class, mappedBy: 'user')]
+    #[ORM\OneToOne(targetEntity: Notification::class, mappedBy: 'user', fetch: 'LAZY')]
     private ?Notification $notification = null;
 
     public function getNotification(): ?Notification
@@ -357,7 +357,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    #[ORM\OneToOne(targetEntity: OffreBadgeUser::class, mappedBy: 'user')]
+    #[ORM\OneToOne(targetEntity: OffreBadgeUser::class, mappedBy: 'user', fetch: 'LAZY')]
     private ?OffreBadgeUser $offreBadgeUser = null;
 
     public function getOffreBadgeUser(): ?OffreBadgeUser
@@ -371,7 +371,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    #[ORM\OneToOne(targetEntity: ParticipationAnnonce::class, mappedBy: 'user')]
+    #[ORM\OneToOne(targetEntity: ParticipationAnnonce::class, mappedBy: 'user', fetch: 'LAZY')]
     private ?ParticipationAnnonce $participationAnnonce = null;
 
     public function getParticipationAnnonce(): ?ParticipationAnnonce
