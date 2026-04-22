@@ -217,4 +217,13 @@ class ParticipationAnnonce
         return $this;
     }
 
+    public function accept(\Symfony\Contracts\EventDispatcher\EventDispatcherInterface $dispatcher): self
+    {
+        if ($this->statut !== 'accepted') {
+            $this->statut = 'accepted';
+            $dispatcher->dispatch(new \App\Event\ParticipationAcceptedEvent($this->annonceSortie, $this->user));
+        }
+        return $this;
+    }
+
 }

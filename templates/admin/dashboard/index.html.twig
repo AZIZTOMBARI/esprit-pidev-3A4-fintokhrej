@@ -9,6 +9,17 @@
     {% set pAbonnes = (stats.abonnes / total * 100)|round(1) %}
     {% set pVisiteurs = (stats.visiteurs / total * 100)|round(1) %}
 
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+        <div>
+            <h2 class="section-title" style="margin:0;">Dashboard Utilisateurs</h2>
+            <p class="section-subtitle" style="margin:4px 0 0;">Page 1/2: statistiques des utilisateurs (vue existante conservée).</p>
+        </div>
+        <div style="display:flex;gap:8px;">
+            <span class="outline-btn" style="background:#0f172a;color:#fff;border-color:#0f172a;cursor:default;">Page 1 · Utilisateurs</span>
+            <a href="{{ path('app_admin_dashboard_offres') }}" class="outline-btn">Page 2 · Offres & Promos</a>
+        </div>
+    </div>
+
     <div class="stats-grid">
         <article class="stat-card">
             <div class="stat-card__label">Total utilisateurs</div>

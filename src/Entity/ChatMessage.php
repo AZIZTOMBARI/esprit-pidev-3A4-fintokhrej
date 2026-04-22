@@ -33,6 +33,10 @@ class ChatMessage
     #[ORM\JoinColumn(name: 'annonce_id', referencedColumnName: 'id')]
     private ?AnnonceSortie $annonceSortie = null;
 
+    #[ORM\ManyToOne(targetEntity: ChatGroupe::class, inversedBy: 'messages')]
+    #[ORM\JoinColumn(name: 'chat_groupe_id', referencedColumnName: 'id', nullable: true)]
+    private ?ChatGroupe $chatGroupe = null;
+
     public function getAnnonceSortie(): ?AnnonceSortie
     {
         return $this->annonceSortie;
@@ -41,6 +45,18 @@ class ChatMessage
     public function setAnnonceSortie(?AnnonceSortie $annonceSortie): self
     {
         $this->annonceSortie = $annonceSortie;
+        return $this;
+    }
+
+    public function getChatGroupe(): ?ChatGroupe
+    {
+        return $this->chatGroupe;
+    }
+
+    public function setChatGroupe(?ChatGroupe $chatGroupe): self
+    {
+        $this->chatGroupe = $chatGroupe;
+
         return $this;
     }
 

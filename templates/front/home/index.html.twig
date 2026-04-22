@@ -2,6 +2,157 @@
 
 {% block title %}Accueil | Fin Tokhroj{% endblock %}
 
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .home-offer-card {
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .home-offer-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+        }
+
+        .home-offer-card--urgent {
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            background: linear-gradient(135deg, rgba(254, 242, 242, 0.92), #fff);
+        }
+
+        .home-offer-ribbon {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 10px;
+            border-radius: 999px;
+            padding: 6px 10px;
+            background: #fee2e2;
+            color: #991b1b;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .home-offer-countdown {
+            margin-top: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border-radius: 999px;
+            padding: 6px 10px;
+            background: rgba(255, 255, 255, 0.85);
+            color: #991b1b;
+            border: 1px dashed rgba(239, 68, 68, 0.35);
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .home-sorties-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 14px;
+        }
+
+        .home-sortie-card {
+            position: relative;
+            overflow: hidden;
+            border-radius: 20px;
+            border: 1px solid rgba(20, 61, 113, 0.14);
+            background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(244,249,255,0.92));
+            box-shadow: 0 14px 34px rgba(14, 45, 94, 0.12);
+            transition: transform .34s cubic-bezier(.16,1,.3,1), box-shadow .34s ease, border-color .34s ease;
+            animation: homeSortieIn .65s cubic-bezier(.16,1,.3,1) both;
+        }
+
+        .home-sortie-card:nth-child(2) { animation-delay: .08s; }
+        .home-sortie-card:nth-child(3) { animation-delay: .16s; }
+
+        .home-sortie-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 24px 48px rgba(14, 45, 94, 0.18);
+            border-color: rgba(63, 168, 224, 0.4);
+        }
+
+        .home-sortie-media {
+            height: 140px;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(125deg, #0b2a58, #1d4d96 58%, #4ca6e8);
+        }
+
+        .home-sortie-media::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, transparent 45%, rgba(7, 22, 46, 0.56));
+        }
+
+        .home-sortie-media img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            transition: transform .45s ease;
+        }
+
+        .home-sortie-card:hover .home-sortie-media img {
+            transform: scale(1.05);
+        }
+
+        .home-sortie-content {
+            padding: 14px;
+            display: grid;
+            gap: 10px;
+        }
+
+        .home-sortie-title {
+            margin: 0;
+            color: #103468;
+            font-weight: 800;
+            line-height: 1.25;
+        }
+
+        .home-sortie-meta {
+            margin: 0;
+            color: #5c7392;
+            font-size: 13px;
+        }
+
+        .home-sortie-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .home-sortie-pill {
+            border-radius: 999px;
+            padding: 5px 10px;
+            font-size: 12px;
+            font-weight: 800;
+            background: rgba(20, 61, 113, 0.08);
+            color: #154175;
+        }
+
+        .home-sortie-pill--open { background: rgba(16, 185, 129, 0.18); color: #065f46; }
+        .home-sortie-pill--closed { background: rgba(245, 158, 11, 0.2); color: #92400e; }
+        .home-sortie-pill--cancel { background: rgba(239, 68, 68, 0.16); color: #991b1b; }
+        .home-sortie-pill--done { background: rgba(51, 65, 85, 0.2); color: #1e293b; }
+
+        .hero.app-card {
+            background:
+                radial-gradient(ellipse 85% 120% at 80% 50%, rgba(63, 168, 224, 0.18) 0%, transparent 55%),
+                linear-gradient(120deg, rgba(6, 22, 48, 0.82) 0%, rgba(8, 30, 64, 0.72) 44%, rgba(8, 32, 70, 0.56) 100%),
+                url('{{ asset('theme/images/medina.jpg') }}') center center / cover no-repeat;
+        }
+
+        @keyframes homeSortieIn {
+            from { opacity: 0; transform: translateY(14px) scale(0.985); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+    </style>
+{% endblock %}
+
 {% block front_content %}
     <section class="hero app-card">
         <div class="hero__grid">
@@ -101,27 +252,58 @@
                     <p class="section-subtitle">Contenu dynamique prêt pour Symfony.</p>
                 </div>
             </div>
-            <div class="listing-grid">
-                {% for sortie in sorties|slice(0, 2) %}
-                    <article class="info-card">
-                        <span class="badge-soft">{{ sortie.type_activite }}</span>
-                        <h3>{{ sortie.titre }}</h3>
-                        <p>{{ sortie.ville }} · {{ sortie.date_sortie|date('d/m/Y H:i') }}</p>
-                        <div class="meta-row">
-                            <span>👥 {{ sortie.statut }}</span>
-                            <span>💰 {{ sortie.budget_max }} TND</span>
-                        </div>
+            <div class="home-sorties-grid" style="margin-bottom:14px;">
+                {% for sortie in sorties|slice(0, 3) %}
+                    {% set sortieImage = sortie.image_url ? (sortie.image_url starts with 'http' ? sortie.image_url : '/' ~ sortie.image_url|trim('/')) : null %}
+                    {% set statusClass = 'home-sortie-pill' %}
+                    {% if sortie.statut == 'OUVERTE' %}{% set statusClass = statusClass ~ ' home-sortie-pill--open' %}{% endif %}
+                    {% if sortie.statut == 'CLOTUREE' %}{% set statusClass = statusClass ~ ' home-sortie-pill--closed' %}{% endif %}
+                    {% if sortie.statut == 'ANNULEE' %}{% set statusClass = statusClass ~ ' home-sortie-pill--cancel' %}{% endif %}
+                    {% if sortie.statut == 'TERMINEE' %}{% set statusClass = statusClass ~ ' home-sortie-pill--done' %}{% endif %}
+                    <article class="home-sortie-card">
+                        <a href="{{ path('app_sorties_show', {id: sortie.id}) }}" style="text-decoration:none; color:inherit; display:block;">
+                            <div class="home-sortie-media">
+                                {% if sortieImage %}
+                                    <img src="{{ sortieImage }}" alt="Image {{ sortie.titre }}" loading="lazy" onerror="this.onerror=null;this.style.display='none';">
+                                {% endif %}
+                            </div>
+                            <div class="home-sortie-content">
+                                <h3 class="home-sortie-title">{{ sortie.titre }}</h3>
+                                <p class="home-sortie-meta">{{ sortie.ville }} · {{ sortie.date_sortie|date('d/m/Y H:i') }}</p>
+                                <div class="home-sortie-pills">
+                                    <span class="home-sortie-pill">{{ sortie.type_activite ?: 'Sortie' }}</span>
+                                    <span class="{{ statusClass }}">{{ sortie.statut }}</span>
+                                    <span class="home-sortie-pill">{{ sortie.budget_max }} TND</span>
+                                </div>
+                            </div>
+                        </a>
                     </article>
+                {% else %}
+                    <div class="empty-state" style="grid-column:1/-1;">Aucune sortie disponible.</div>
                 {% endfor %}
+            </div>
+
+            <div class="listing-grid">
                 {% for offre in offres|slice(0, 2) %}
-                    <article class="info-card">
+                    {% set displayPercentage = offre.expiring_soon is defined and offre.expiring_soon ? offre.pourcentage * 2 : offre.pourcentage %}
+                    <article class="info-card home-offer-card {{ offre.expiring_soon is defined and offre.expiring_soon ? 'home-offer-card--urgent' : '' }}">
                         <span class="badge-soft badge-gold">{{ offre.type }}</span>
                         <h3>{{ offre.titre }}</h3>
                         <p>{{ offre.lieu_nom ?: 'Lieu non défini' }} · {{ offre.ville ?: 'Tunisie' }}</p>
                         <div class="meta-row">
-                            <span>🏷 {{ offre.pourcentage }}%</span>
+                            <span>
+                                🏷
+                                {% if offre.expiring_soon is defined and offre.expiring_soon %}
+                                    <span style="text-decoration:line-through; color:#94a3b8; margin-right:6px; font-weight:700;">{{ offre.pourcentage }}%</span>
+                                {% endif %}
+                                <span style="font-weight:800; color:{{ offre.expiring_soon is defined and offre.expiring_soon ? '#b91c1c' : 'inherit' }};">{{ displayPercentage }}%</span>
+                            </span>
                             <span>⏳ Jusqu'au {{ offre.date_fin|date('d/m/Y') }}</span>
                         </div>
+                        {% if offre.expiring_soon is defined and offre.expiring_soon %}
+                            <div class="home-offer-ribbon">Expire bientôt · remise doublée</div>
+                            <div class="home-offer-countdown" data-offer-countdown="{{ offre.countdown_target ?? (offre.date_fin|date('Y-m-d') ~ 'T23:59:59') }}">{{ offre.countdown_label ?? 'Expire dans ...' }}</div>
+                        {% endif %}
                     </article>
                 {% else %}
                     <div class="empty-state">Aucune offre disponible.</div>

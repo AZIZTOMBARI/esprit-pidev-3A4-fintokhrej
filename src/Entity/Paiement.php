@@ -2,192 +2,117 @@
 
 namespace App\Entity;
 
-use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\Common\Collections\Collection;
+use Symfony\Component\Validator\Constraints as Assert;
 
-use App\Repository\PaiementRepository;
-
-#[ORM\Entity(repositoryClass: PaiementRepository::class)]
+#[ORM\Entity]
 #[ORM\Table(name: 'paiement')]
 class Paiement
 {
+    // ========== CONSTANTES DE STATUTS ==========
+    public const STATUT_EN_ATTENTE = 'EN_ATTENTE';      // Paiement pas encore efectué
+    public const STATUT_PAYE = 'PAYE';                  // Paiement réussi
+    public const STATUT_ECHOUE = 'ECHOUE';              // Paiement échoué
+    public const STATUT_REMBOURSE = 'REMBOURSE';        // Paiement remboursé
+    public const STATUTS_VALIDES = [
+        self::STATUT_EN_ATTENTE,
+        self::STATUT_PAYE,
+        self::STATUT_ECHOUE,
+        self::STATUT_REMBOURSE,
+    ];
+
+    public const METHODE_CARTE = 'CARTE';
+    public const METHODE_CASH = 'CASH';
+    public const METHODE_WALLET = 'WALLET';
+    public const METHODES_VALIDES = [
+        self::METHODE_CARTE,
+        self::METHODE_CASH,
+        self::METHODE_WALLET,
+    ];
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
-    #[ORM\Column(type: 'integer')]
+    #[ORM\Column]
     private ?int $id = null;
 
-    public function getId(): ?int
-    {
-        return $this->id;
-    }
-
-    public function setId(int $id): self
-    {
-        $this->id = $id;
-        return $this;
-    }
-
     #[ORM\ManyToOne(targetEntity: Inscription::class, inversedBy: 'paiements')]
-    #[ORM\JoinColumn(name: 'inscription_id', referencedColumnName: 'id')]
+    #[ORM\JoinColumn(name: 'inscription_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private ?Inscription $inscription = null;
 
-    public function getInscription(): ?Inscription
+    #[ORM\Column(type: 'float')]
+    #[Assert\Positive]
+    private float $montant = 0.0;
+
+    #[ORM\Column(type: 'string', length: 50)]
+    private string $methode = '';
+
+    #[ORM\Column(type: 'string', length: 30)]
+    private string $statut = 'PAYE';
+
+    #[ORM\Column(name: 'reference_code', type: 'string', length: 100)]
+    private string $referenceCode = '';
+
+    #[ORM\Column(name: 'nom_carte', type: 'string', length: 100, nullable: true)]
+    private ?string $nomCarte = null;
+
+    #[ORM\Column(name: 'quatre_derniers', type: 'string', length: 4, nullable: true)]
+    private ?string $quatreDerniers = null;
+
+    #[ORM\Column(name: 'date_paiement', type: 'datetime')]
+    private ?\DateTimeInterface $datePaiement = null;
+
+    public function __construct()
     {
-        return $this->inscription;
+        $this->datePaiement = new \DateTime();
     }
 
-    public function setInscription(?Inscription $inscription): self
+    // GETTERS / SETTERS (identiques à la logique Java)
+    public function getId(): ?int { return $this->id; }
+    public function getInscription(): ?Inscription { return $this->inscription; }
+    public function setInscription(Inscription $inscription): self { $this->inscription = $inscription; return $this; }
+    public function getMontant(): float { return $this->montant; }
+    public function setMontant(float $montant): self { $this->montant = $montant; return $this; }
+    public function getMethode(): string { return $this->methode; }
+    public function setMethode(string $methode): self { $this->methode = $methode; return $this; }
+    public function getStatut(): string { return $this->statut; }
+    public function setStatut(string $statut): self { $this->statut = $statut; return $this; }
+    public function getReferenceCode(): string { return $this->referenceCode; }
+    public function setReferenceCode(string $referenceCode): self { $this->referenceCode = $referenceCode; return $this; }
+    public function getNomCarte(): ?string { return $this->nomCarte; }
+    public function setNomCarte(?string $nomCarte): self { $this->nomCarte = $nomCarte; return $this; }
+    public function getQuatreDerniers(): ?string { return $this->quatreDerniers; }
+    public function setQuatreDerniers(?string $quatreDerniers): self { $this->quatreDerniers = $quatreDerniers; return $this; }
+    public function getDatePaiement(): ?\DateTimeInterface { return $this->datePaiement; }
+    public function setDatePaiement(\DateTimeInterface $datePaiement): self { $this->datePaiement = $datePaiement; return $this; }
+
+    // ========== MÉTHODES MÉTIER ==========
+    /**
+     * Vérifie si le paiement a réussi
+     */
+    public function estReussi(): bool
     {
-        $this->inscription = $inscription;
-        return $this;
+        return $this->statut === self::STATUT_PAYE;
     }
 
-    #[ORM\Column(type: 'decimal', nullable: false)]
-    private ?float $montant = null;
-
-    public function getMontant(): ?float
+    /**
+     * Vérifie si le paiement peut être réessayé
+     */
+    public function peutEtreReessaye(): bool
     {
-        return $this->montant;
+        return $this->statut === self::STATUT_ECHOUE;
     }
 
-    public function setMontant(float $montant): self
+    /**
+     * Obtient l'affichage du statut en français
+     */
+    public function getStatutLabel(): string
     {
-        $this->montant = $montant;
-        return $this;
+        return match($this->statut) {
+            self::STATUT_EN_ATTENTE => 'En attente',
+            self::STATUT_PAYE => 'Payé',
+            self::STATUT_ECHOUE => 'Échoué',
+            self::STATUT_REMBOURSE => 'Remboursé',
+            default => $this->statut,
+        };
     }
-
-    #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $methode = null;
-
-    public function getMethode(): ?string
-    {
-        return $this->methode;
-    }
-
-    public function setMethode(string $methode): self
-    {
-        $this->methode = $methode;
-        return $this;
-    }
-
-    #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $statut = null;
-
-    public function getStatut(): ?string
-    {
-        return $this->statut;
-    }
-
-    public function setStatut(string $statut): self
-    {
-        $this->statut = $statut;
-        return $this;
-    }
-
-    #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $reference_code = null;
-
-    public function getReference_code(): ?string
-    {
-        return $this->reference_code;
-    }
-
-    public function setReference_code(string $reference_code): self
-    {
-        $this->reference_code = $reference_code;
-        return $this;
-    }
-
-    #[ORM\Column(type: 'string', nullable: true)]
-    private ?string $nom_carte = null;
-
-    public function getNom_carte(): ?string
-    {
-        return $this->nom_carte;
-    }
-
-    public function setNom_carte(?string $nom_carte): self
-    {
-        $this->nom_carte = $nom_carte;
-        return $this;
-    }
-
-    #[ORM\Column(type: 'string', nullable: true)]
-    private ?string $quatre_derniers = null;
-
-    public function getQuatre_derniers(): ?string
-    {
-        return $this->quatre_derniers;
-    }
-
-    public function setQuatre_derniers(?string $quatre_derniers): self
-    {
-        $this->quatre_derniers = $quatre_derniers;
-        return $this;
-    }
-
-    #[ORM\Column(type: 'datetime', nullable: false)]
-    private ?\DateTimeInterface $date_paiement = null;
-
-    public function getDate_paiement(): ?\DateTimeInterface
-    {
-        return $this->date_paiement;
-    }
-
-    public function setDate_paiement(\DateTimeInterface $date_paiement): self
-    {
-        $this->date_paiement = $date_paiement;
-        return $this;
-    }
-
-    public function getReferenceCode(): ?string
-    {
-        return $this->reference_code;
-    }
-
-    public function setReferenceCode(string $reference_code): static
-    {
-        $this->reference_code = $reference_code;
-
-        return $this;
-    }
-
-    public function getNomCarte(): ?string
-    {
-        return $this->nom_carte;
-    }
-
-    public function setNomCarte(?string $nom_carte): static
-    {
-        $this->nom_carte = $nom_carte;
-
-        return $this;
-    }
-
-    public function getQuatreDerniers(): ?string
-    {
-        return $this->quatre_derniers;
-    }
-
-    public function setQuatreDerniers(?string $quatre_derniers): static
-    {
-        $this->quatre_derniers = $quatre_derniers;
-
-        return $this;
-    }
-
-    public function getDatePaiement(): ?\DateTime
-    {
-        return $this->date_paiement;
-    }
-
-    public function setDatePaiement(\DateTime $date_paiement): static
-    {
-        $this->date_paiement = $date_paiement;
-
-        return $this;
-    }
-
 }

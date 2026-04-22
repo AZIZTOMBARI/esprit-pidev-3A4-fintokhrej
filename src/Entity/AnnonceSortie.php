@@ -522,5 +522,4 @@ class AnnonceSortie
 
         return $this;
     }
-
 }

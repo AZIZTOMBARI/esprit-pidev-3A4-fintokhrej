@@ -4,6 +4,9 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+    app.mailer_from_email: 'noreply@fintokhrej.local'
+    app.mailer_from_name: 'FinTokhroj'
+    app.sms_from: 'FinTokhroj'
 
 services:
     # default configuration for services in *this* file
@@ -19,6 +22,12 @@ services:
             - '../src/DependencyInjection/'
             - '../src/Entity/'
             - '../src/Kernel.php'
+
+    App\Service\ParticipationContactNotifier:
+        arguments:
+            $mailerFromEmail: '%app.mailer_from_email%'
+            $mailerFromName: '%app.mailer_from_name%'
+            $smsFrom: '%app.sms_from%'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

@@ -1,0 +1,105 @@
+{% extends 'front/base_front.html.twig' %}
+
+{% block title %}{{ event.titre }} | Fin Tokhroj{% endblock %}
+
+{% block front_content %}
+<section style="max-width: 980px; margin: 30px auto; padding: 0 20px;">
+    <div class="section-head">
+        <div>
+            <h1 class="section-title">Détails de l'événement</h1>
+            <p class="section-subtitle">Informations et participation</p>
+        </div>
+        <a href="{{ path('app_evenements') }}" class="outline-btn">Retour à la liste</a>
+    </div>
+
+    {% for message in app.flashes('success') %}
+        <div style="margin-bottom: 12px; padding: 12px 14px; border-radius: 14px; background: #e9f9ef; border: 1px solid #9de0b0; color: #156337; font-weight: 600;">{{ message }}</div>
+    {% endfor %}
+    {% for message in app.flashes('error') %}
+        <div style="margin-bottom: 12px; padding: 12px 14px; border-radius: 14px; background: #fdeaea; border: 1px solid #f3b8b8; color: #8a1f1f; font-weight: 600;">{{ message }}</div>
+    {% endfor %}
+
+    {% set rawImage = event.imageUrl|default('') %}
+    {% if rawImage and (rawImage starts with 'http://' or rawImage starts with 'https://') %}
+        {% set imageSrc = rawImage %}
+    {% elseif rawImage and (rawImage starts with 'theme/' or rawImage starts with 'uploads/') %}
+        {% set imageSrc = asset(rawImage) %}
+    {% elseif rawImage %}
+        {% set imageSrc = asset('uploads/evenements/' ~ rawImage) %}
+    {% else %}
+        {% set imageSrc = '' %}
+    {% endif %}
+
+    <article class="listing-card" style="padding: 0; overflow: hidden;">
+        <div class="cover-thumb" style="height: 320px; margin: 0; border-radius: 0;">
+            {% if imageSrc %}
+                <img src="{{ imageSrc }}" alt="{{ event.titre }}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null;this.src='{{ asset('theme/images/logo.png') }}';">
+            {% else %}
+                <span style="font-size: 2.4rem;">{{ event.titre|slice(0,1) }}</span>
+            {% endif %}
+        </div>
+
+        <div style="padding: 22px;">
+            <div class="listing-card__top">
+                <div>
+                    <h3>{{ event.titre }}</h3>
+                    <p>
+                        {{ event.dateDebut|date('d/m/Y H:i') }} •
+                        {{ event.lieu ? event.lieu.nom : 'Lieu à confirmer' }}
+                        {% if event.lieu %} • {{ event.lieu.ville }}{% endif %}
+                    </p>
+                </div>
+                {% if event.prix > 0 %}
+                    <span class="price-pill">{{ event.prix }} TND</span>
+                {% else %}
+                    <span class="price-pill">Gratuit</span>
+                {% endif %}
+            </div>
+
+            <div class="meta-row">
+                <span>🗓 {{ event.dateDebut|date('d/m/Y H:i') }}{% if event.dateFin %} • {{ event.dateFin|date('H:i') }}{% endif %}</span>
+                <span>👥 {{ event.capaciteMax }} places • {{ event.placesRestantes }} restantes</span>
+                <span>🏷 {{ event.type|replace({'_':' '}) }}</span>
+                <span>✅ {{ event.statut|replace({'_':' '}) }}</span>
+            </div>
+
+            {% if event.description %}
+                <p style="margin-top: 14px;">{{ event.description }}</p>
+            {% endif %}
+
+            {% if app.user %}
+                {% set userAlreadyRegistered = false %}
+                {% for inscription in event.inscriptions %}
+                    {% if inscription.user.id == app.user.id and inscription.statut not in ['ANNULEE', 'REJETEE'] %}
+                        {% set userAlreadyRegistered = true %}
+                    {% endif %}
+                {% endfor %}
+
+                {% if event.placesRestantes > 0 and not userAlreadyRegistered %}
+                    <a href="{{ path('app_evenement_inscrire_form', {id: event.id}) }}" class="cta-btn" style="margin-top: 18px; display: inline-flex; align-items: center;">
+                        Participer
+                    </a>
+                {% elseif userAlreadyRegistered %}
+                    <div style="margin-top: 18px; padding: 12px 14px; background: #e3f2fd; border: 1px solid #2196F3; border-radius: 12px; color: #1976D2; font-weight: 600;">
+                        Vous êtes déjà inscrit.
+                        {% if mon_inscription %}
+                            <span style="margin-left: 6px;">Statut: {{ mon_inscription|replace({'_':' '}) }}</span>
+                        {% endif %}
+                        <div style="margin-top: 8px;">
+                            <a href="{{ path('app_mon_profil_inscriptions') }}" style="color: #1976D2; text-decoration: underline;">Voir mes inscriptions</a>
+                        </div>
+                    </div>
+                {% else %}
+                    <div style="margin-top: 18px; padding: 12px 14px; background: #ffebee; border: 1px solid #f44336; border-radius: 12px; color: #c62828; font-weight: 600;">
+                        Événement complet - plus de places disponibles.
+                    </div>
+                {% endif %}
+            {% else %}
+                <div style="margin-top: 18px; padding: 12px 14px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 12px; color: #856404; font-weight: 600;">
+                    <a href="{{ path('app_login') }}" style="color: #856404; text-decoration: underline;">Connectez-vous</a> pour participer.
+                </div>
+            {% endif %}
+        </div>
+    </article>
+</section>
+{% endblock %}

@@ -6,6 +6,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Symfony\Component\Validator\Constraints as Assert;
 
 use App\Repository\EvaluationLieuRepository;
 
@@ -60,6 +61,8 @@ class EvaluationLieu
     }
 
     #[ORM\Column(type: 'integer', nullable: false)]
+    #[Assert\NotNull(message: 'La note est obligatoire.')]
+    #[Assert\Range(min: 1, max: 5, notInRangeMessage: 'La note doit etre comprise entre {{ min }} et {{ max }}.')]
     private ?int $note = null;
 
     public function getNote(): ?int
@@ -74,6 +77,7 @@ class EvaluationLieu
     }
 
     #[ORM\Column(type: 'text', nullable: true)]
+    #[Assert\Length(max: 1000, maxMessage: 'Le commentaire ne peut pas depasser {{ limit }} caracteres.')]
     private ?string $commentaire = null;
 
     public function getCommentaire(): ?string
@@ -88,6 +92,8 @@ class EvaluationLieu
     }
 
     #[ORM\Column(type: 'datetime', nullable: false)]
+    #[Assert\NotNull(message: 'La date d\'evaluation est obligatoire.')]
+    #[Assert\Type(type: \DateTimeInterface::class, message: 'La date d\'evaluation est invalide.')]
     private ?\DateTimeInterface $date_evaluation = null;
 
     public function getDate_evaluation(): ?\DateTimeInterface

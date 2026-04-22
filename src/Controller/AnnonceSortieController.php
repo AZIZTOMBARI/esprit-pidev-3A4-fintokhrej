@@ -193,6 +193,7 @@ class AnnonceSortieController extends AbstractController
         int $id,
         Request $request,
         AnnonceSortieRepository $sortieRepository,
+        Connection $connection,
         EntityManagerInterface $entityManager,
         SluggerInterface $slugger
     ): Response {
@@ -220,10 +221,138 @@ class AnnonceSortieController extends AbstractController
             return $this->redirectToRoute('app_admin_sorties');
         }
 
+        $chatGroupExists = false;
+        try {
+            $chatTableExists = $connection->fetchOne("SHOW TABLES LIKE 'chat_groupe'");
+            if ($chatTableExists !== false && $chatTableExists !== null) {
+                $chatGroupExists = (bool) $connection->fetchOne(
+                    'SELECT id FROM chat_groupe WHERE annonce_id = ? LIMIT 1',
+                    [$id]
+                );
+            }
+        } catch (\Throwable) {
+            $chatGroupExists = false;
+        }
+
         return $this->render('admin/sortie/edit.html.twig', [
             'active' => 'sorties',
             'sortie' => $sortie,
+            'chatGroupExists' => $chatGroupExists,
             'form' => $form->createView(),
+        ]);
+    }
+
+    #[Route('/admin/sorties/{id}', name: 'app_admin_sorties_show', requirements: ['id' => '\\d+'], methods: ['GET'])]
+    public function showAdmin(int $id, AnnonceSortieRepository $sortieRepository, Connection $connection): Response
+    {
+        $sortieEntity = $sortieRepository->find($id);
+        if (!$sortieEntity) {
+            throw $this->createNotFoundException('Annonce introuvable.');
+        }
+
+        if (!$this->canManageSortie($sortieEntity)) {
+            $this->addFlash('error', 'Acces non autorise a cette sortie.');
+            return $this->redirectToRoute('app_admin_sorties');
+        }
+
+        $sortie = $connection->fetchAssociative(
+            'SELECT s.id, s.user_id, s.titre, s.description, s.ville, s.lieu_texte, s.point_rencontre, s.type_activite, s.date_sortie, s.budget_max, s.nb_places, s.statut, s.image_url, s.questions_json, u.prenom, u.nom, u.role
+             FROM annonce_sortie s
+             LEFT JOIN user u ON u.id = s.user_id
+             WHERE s.id = ?',
+            [$id]
+        );
+
+        if (!$sortie) {
+            throw $this->createNotFoundException('Annonce introuvable.');
+        }
+
+        $confirmedPlaces = (int) $connection->fetchOne(
+            "SELECT COALESCE(SUM(nb_places), 0) FROM participation_annonce WHERE annonce_id = ? AND statut = 'CONFIRMEE'",
+            [$id]
+        );
+        $pendingCount = (int) $connection->fetchOne(
+            "SELECT COUNT(*) FROM participation_annonce WHERE annonce_id = ? AND statut = 'EN_ATTENTE'",
+            [$id]
+        );
+
+        $chatGroupExists = false;
+        try {
+            if ($connection->fetchOne("SHOW TABLES LIKE 'chat_groupe'") !== false) {
+                $chatGroupExists = (bool) $connection->fetchOne(
+                    'SELECT id FROM chat_groupe WHERE annonce_id = ? LIMIT 1',
+                    [$id]
+                );
+            }
+        } catch (\Throwable) {
+            $chatGroupExists = false;
+        }
+
+        $questions = $this->decodeJsonArray($sortie['questions_json'] ?? null);
+        $remainingPlaces = max(0, ((int) $sortie['nb_places']) - $confirmedPlaces);
+
+        $pendingRequests = $connection->fetchAllAssociative(
+            "SELECT p.id, p.user_id, p.nb_places, p.contact_prefer, p.contact_value, p.commentaire, p.reponses_json, p.date_demande,
+                    u.prenom, u.nom
+             FROM participation_annonce p
+             INNER JOIN user u ON u.id = p.user_id
+             WHERE p.annonce_id = ? AND p.statut = 'EN_ATTENTE'
+             ORDER BY p.date_demande ASC",
+            [$id]
+        );
+
+        foreach ($pendingRequests as &$pendingRequest) {
+            $pendingRequest['answers'] = $this->decodeParticipationAnswers((string) ($pendingRequest['reponses_json'] ?? ''));
+        }
+        unset($pendingRequest);
+
+        $confirmedParticipants = [];
+        $organizerRole = strtolower((string) ($sortie['role'] ?? ''));
+        $confirmedParticipants[] = [
+            'user_id' => (int) $sortie['user_id'],
+            'prenom' => (string) ($sortie['prenom'] ?? ''),
+            'nom' => (string) ($sortie['nom'] ?? ''),
+            'nb_places' => 0,
+            'is_organizer' => true,
+            'is_admin' => in_array($organizerRole, ['admin', 'role_admin'], true),
+        ];
+
+        $confirmedRows = $connection->fetchAllAssociative(
+            "SELECT p.id, p.user_id, p.nb_places, p.date_demande, u.prenom, u.nom, u.role
+             FROM participation_annonce p
+             INNER JOIN user u ON u.id = p.user_id
+             WHERE p.annonce_id = ? AND p.statut = 'CONFIRMEE'
+             ORDER BY p.date_demande ASC",
+            [$id]
+        );
+
+        foreach ($confirmedRows as $confirmedRow) {
+            if ((int) $confirmedRow['user_id'] === (int) $sortie['user_id']) {
+                continue;
+            }
+
+            $confirmedParticipants[] = [
+                'id' => (int) ($confirmedRow['id'] ?? 0),
+                'user_id' => (int) $confirmedRow['user_id'],
+                'prenom' => (string) ($confirmedRow['prenom'] ?? ''),
+                'nom' => (string) ($confirmedRow['nom'] ?? ''),
+                'nb_places' => (int) ($confirmedRow['nb_places'] ?? 1),
+                'is_organizer' => false,
+                'is_admin' => in_array(strtolower((string) ($confirmedRow['role'] ?? '')), ['admin', 'role_admin'], true),
+                'date_demande' => $confirmedRow['date_demande'] ?? null,
+            ];
+        }
+
+        return $this->render('admin/sortie/show.html.twig', [
+            'active' => 'sorties',
+            'sortie' => $sortie,
+            'questions' => $questions,
+            'confirmedCount' => $confirmedPlaces,
+            'pendingCount' => $pendingCount,
+            'remainingPlaces' => $remainingPlaces,
+            'pendingRequests' => $pendingRequests,
+            'confirmedParticipants' => $confirmedParticipants,
+            'chatGroupExists' => $chatGroupExists,
         ]);
     }
 
@@ -378,5 +507,55 @@ class AnnonceSortieController extends AbstractController
         }
 
         return $owner->getId() === $currentUser->getId();
+    }
+
+    /**
+     * @return string[]
+     */
+    private function decodeJsonArray(?string $value): array
+    {
+        if (!$value) {
+            return [];
+        }
+
+        try {
+            $decoded = json_decode($value, true, 512, JSON_THROW_ON_ERROR);
+            if (!is_array($decoded)) {
+                return [];
+            }
+
+            return array_values(array_filter(array_map(
+                static fn ($item): string => trim((string) $item),
+                $decoded
+            )));
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function decodeParticipationAnswers(?string $value): array
+    {
+        if (!$value) {
+            return [];
+        }
+
+        try {
+            $decoded = json_decode($value, true, 512, JSON_THROW_ON_ERROR);
+            if (!is_array($decoded)) {
+                return [];
+            }
+
+            $answers = [];
+            foreach ($decoded as $key => $item) {
+                $answers[(int) $key] = trim((string) $item);
+            }
+
+            return $answers;
+        } catch (\Throwable) {
+            return [];
+        }
     }
 }

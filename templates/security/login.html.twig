@@ -3,27 +3,41 @@
 {% block title %}Connexion{% endblock %}
 
 {% block stylesheets %}
-    <link rel="stylesheet" href="{{ asset('styles/auth.css') }}?v=20260409d">
+    <link rel="stylesheet" href="{{ asset('styles/auth.css') }}?v=20260411b">
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script src="{{ asset('theme/js/auth-wow.js') }}?v=20260410c" defer></script>
+    <script src="{{ asset('theme/js/tunisia-map-gis.js') }}?v=20260411a" defer></script>
 {% endblock %}
 
 {% block body %}
-    <div class="auth-page">
+    <div class="auth-page auth-page--login">
+        <div class="auth-ambient" aria-hidden="true">
+            <span class="auth-orb auth-orb--one"></span>
+            <span class="auth-orb auth-orb--two"></span>
+            <span class="auth-orb auth-orb--three"></span>
+            <span class="auth-grid-glow"></span>
+        </div>
         <div class="auth-layout">
             <aside class="auth-visual">
-                <img src="{{ asset('theme/images/logo.png') }}" alt="Fin Tokhroj">
+                {% include 'security/_tunisia_map_panel.html.twig' %}
                 <div class="auth-visual-overlay"></div>
+                <div class="auth-brand">FinTokhroj Experience</div>
                 <div class="auth-tagline">
-                    <h2>Find your sweet home</h2>
-                    <p>Plan your visits and manage your account in just a few clicks.</p>
+                    <h2>Trouve ta sortie ideale</h2>
+                    <p>Planifie tes sorties et gere ton compte en quelques clics.</p>
                 </div>
             </aside>
 
             <section class="auth-form-wrap">
-                <div class="auth-switch"><a href="{{ path('app_register') }}">Sign up</a></div>
+                <div class="auth-switch"><a href="{{ path('app_register') }}">Inscription</a></div>
 
                 <div class="auth-card">
-                    <h1 class="auth-title">Welcome Back to fintokhrej</h1>
-                    <p class="auth-subtitle">Sign in to your account</p>
+                    <p class="auth-kicker">Acces securise</p>
+                    <h1 class="auth-title">Bon retour sur FinTokhroj</h1>
+                    <p class="auth-subtitle">Connecte-toi a ton compte</p>
 
                     {% for message in app.flashes('success') %}
                         <div class="auth-success">{{ message }}</div>
@@ -33,25 +47,28 @@
                         <div class="auth-error">{{ error.messageKey|trans(error.messageData, 'security') }}</div>
                     {% endif %}
 
-                    <form method="post" novalidate data-login-form>
+                    <form method="post" novalidate data-login-form data-auth-morph>
                         <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
 
                         <div class="auth-field">
-                            <label for="username">Your Email</label>
+                            <label for="username">Ton email</label>
                             <input id="username" type="email" name="email" value="{{ last_username }}" required data-login-email>
                             <div class="auth-field-error" data-login-error-for="email"></div>
                         </div>
 
                         <div class="auth-field">
-                            <label for="password">Password</label>
+                            <label for="password">Mot de passe</label>
                             <input id="password" type="password" name="password" required data-login-password>
                             <div class="auth-field-error" data-login-error-for="password"></div>
                         </div>
 
-                        <button class="auth-submit" type="submit">Login</button>
+                        <button class="auth-submit" type="submit">
+                            <span class="auth-submit__label">Connexion</span>
+                            <span class="auth-submit__spinner" aria-hidden="true"></span>
+                        </button>
                     </form>
 
-                    <p class="auth-footer">Don't have an account? <a href="{{ path('app_register') }}">Register</a></p>
+                    <p class="auth-footer">Tu n'as pas de compte ? <a href="{{ path('app_register') }}">Inscris-toi</a></p>
                 </div>
             </section>
         </div>

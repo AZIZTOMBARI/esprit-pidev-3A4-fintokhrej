@@ -21,12 +21,13 @@
     </nav>
 
     <div class="front-tools">
-        <div class="search-pill">
+        <form id="global-search-form" method="get" action="{{ path('app_global_search') }}" class="search-pill" role="search" aria-label="Recherche globale">
             <span>🔎</span>
-            <input type="text" placeholder="Rechercher...">
-        </div>
-        <button class="cta-btn">Go</button>
-        <button class="icon-btn" aria-label="Mode sombre">◐</button>
+            <input type="search" name="q" value="{{ app.request.query.get('q') }}" placeholder="Rechercher partout..." minlength="2" required>
+            <input type="hidden" name="from" value="navbar">
+        </form>
+        <button class="cta-btn" type="submit" form="global-search-form">Go</button>
+        <button class="icon-btn" aria-label="Mode sombre" data-theme-toggle title="Mode sombre">◐</button>
         {% if app.user %}
             {% set chip = app.user %}
             <a href="{{ path('app_logout') }}" class="cta-btn" style="text-decoration:none;display:inline-flex;align-items:center;">Déconnexion</a>
@@ -38,16 +39,10 @@
         {% set chipRawImage = chip.imageUrl|default('') %}
         {% if chipRawImage and (chipRawImage starts with 'http://' or chipRawImage starts with 'https://') %}
             {% set chipImageSrc = chipRawImage %}
-        {% elseif chipRawImage and (chipRawImage starts with '/theme/' or chipRawImage starts with '/uploads/') %}
-            {% set chipImageSrc = asset(chipRawImage|trim('/')) %}
         {% elseif chipRawImage and (chipRawImage starts with 'theme/' or chipRawImage starts with 'uploads/') %}
-            {% set chipImageSrc = asset(chipRawImage|trim('/')) %}
-        {% elseif chipRawImage and (chipRawImage starts with '/public/' or chipRawImage starts with 'public/') %}
-            {% set chipImageSrc = asset(chipRawImage|replace({'/public/': '', 'public/': ''})|trim('/')) %}
-        {% elseif chipRawImage and ('uploads/' in chipRawImage) %}
-            {% set chipImageSrc = asset(chipRawImage|split('uploads/')|last|trim('/')|replace({'users/': 'uploads/users/'}) ) %}
+            {% set chipImageSrc = asset(chipRawImage) %}
         {% elseif chipRawImage and chipRawImage != 'default.png' %}
-            {% set chipImageSrc = asset('uploads/users/' ~ chipRawImage|trim('/')) %}
+            {% set chipImageSrc = asset('uploads/users/' ~ chipRawImage) %}
         {% else %}
             {% set chipImageSrc = asset('theme/images/logo.png') %}
         {% endif %}

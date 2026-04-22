@@ -3,35 +3,43 @@
 {% block title %}Inscription{% endblock %}
 
 {% block stylesheets %}
-    <link rel="stylesheet" href="{{ asset('styles/auth.css') }}?v=20260409d">
+    <link rel="stylesheet" href="{{ asset('styles/auth.css') }}?v=20260411b">
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script src="{{ asset('theme/js/auth-wow.js') }}?v=20260410c" defer></script>
+    <script src="{{ asset('theme/js/tunisia-map-gis.js') }}?v=20260411a" defer></script>
 {% endblock %}
 
 {% block body %}
-    <div class="auth-page">
+    <div class="auth-page auth-page--register">
+        <div class="auth-ambient" aria-hidden="true">
+            <span class="auth-orb auth-orb--one"></span>
+            <span class="auth-orb auth-orb--two"></span>
+            <span class="auth-orb auth-orb--three"></span>
+            <span class="auth-grid-glow"></span>
+        </div>
         <div class="auth-layout">
             <aside class="auth-visual">
-                <img src="{{ asset('theme/images/logo.png') }}" alt="Fin Tokhroj">
+                {% include 'security/_tunisia_map_panel.html.twig' %}
                 <div class="auth-visual-overlay"></div>
+                <div class="auth-brand">FinTokhroj Experience</div>
                 <div class="auth-tagline">
-                    <h2>Start your journey</h2>
-                    <p>Create your account to access bookings, favorites and alerts.</p>
+                    <h2>Commence ton aventure</h2>
+                    <p>Cree ton compte pour acceder aux reservations, favoris et alertes.</p>
                 </div>
             </aside>
 
             <section class="auth-form-wrap">
-                <div class="auth-switch"><a href="{{ path('app_login') }}">Sign in</a></div>
+                <div class="auth-switch"><a href="{{ path('app_login') }}">Connexion</a></div>
 
                 <div class="auth-card">
-                    <h1 class="auth-title">Create your account</h1>
-                    <p class="auth-subtitle">Register in less than one minute</p>
+                    <p class="auth-kicker">Nouveau compte</p>
+                    <h1 class="auth-title">Cree ton compte</h1>
+                    <p class="auth-subtitle">Inscription en moins d'une minute</p>
 
-                    {% if form_errors(form) is not empty %}
-                        <div class="auth-error">
-                            {{ form_errors(form) }}
-                        </div>
-                    {% endif %}
-
-                    {{ form_start(form, { attr: { novalidate: 'novalidate' } }) }}
+                    {{ form_start(form, { attr: { novalidate: 'novalidate', 'data-auth-morph': 'true' } }) }}
 
                         <div class="auth-field">
                             {{ form_label(form.nom) }}
@@ -119,10 +127,13 @@
                             <div class="auth-field-error">{{ form_errors(form.plainPassword.second) }}</div>
                         </div>
 
-                        <button class="auth-submit" type="submit">Create account</button>
+                        <button class="auth-submit" type="submit">
+                            <span class="auth-submit__label">Creer mon compte</span>
+                            <span class="auth-submit__spinner" aria-hidden="true"></span>
+                        </button>
                     {{ form_end(form) }}
 
-                    <p class="auth-footer">Already have an account? <a href="{{ path('app_login') }}">Sign in</a></p>
+                    <p class="auth-footer">Tu as deja un compte ? <a href="{{ path('app_login') }}">Connecte-toi</a></p>
                 </div>
             </section>
         </div>

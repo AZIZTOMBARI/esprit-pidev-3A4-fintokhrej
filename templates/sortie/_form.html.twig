@@ -97,6 +97,16 @@
         <div class="sortie-field">
             <label class="required">Point de rencontre</label>
             <p class="map-hint">Choisissez une ville puis placez le marqueur sur la carte (drag and drop).</p>
+            <div class="map-search-box">
+                <input
+                    type="search"
+                    id="sortie-map-search"
+                    class="custom-input"
+                    placeholder="Rechercher une adresse ou un lieu..."
+                    autocomplete="off"
+                >
+                <div class="map-search-suggestions" id="sortie-map-suggestions" hidden></div>
+            </div>
             <div id="sortie-map" class="sortie-map"></div>
             {{ form_widget(form.point_rencontre) }}
             {{ form_errors(form.point_rencontre) }}

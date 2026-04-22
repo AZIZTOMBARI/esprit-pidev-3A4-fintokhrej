@@ -2,293 +2,151 @@
 
 namespace App\Entity;
 
-use Doctrine\DBAL\Types\Types;
-use Doctrine\ORM\Mapping as ORM;
+use App\Repository\EvenementRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
-
-use App\Repository\EvenementRepository;
+use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: EvenementRepository::class)]
 #[ORM\Table(name: 'evenement')]
 class Evenement
 {
+    // ========== CONSTANTES DE STATUTS ==========
+    public const STATUT_OUVERT = 'OUVERT';
+    public const STATUT_FERME = 'FERME';
+    public const STATUT_ANNULE = 'ANNULE';
+    public const STATUTS_VALIDES = [self::STATUT_OUVERT, self::STATUT_FERME, self::STATUT_ANNULE];
+
+    public const TYPE_PUBLIC = 'PUBLIC';
+    public const TYPE_PRIVE = 'PRIVE';
+    public const TYPES_VALIDES = [self::TYPE_PUBLIC, self::TYPE_PRIVE];
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
-    #[ORM\Column(type: 'integer')]
+    #[ORM\Column]
     private ?int $id = null;
 
-    public function getId(): ?int
-    {
-        return $this->id;
-    }
+    #[ORM\Column(name: 'date_creation', type: 'datetime')]
+    private ?\DateTimeInterface $dateCreation = null;
 
-    public function setId(int $id): self
-    {
-        $this->id = $id;
-        return $this;
-    }
-
-    #[ORM\Column(type: 'datetime', nullable: false)]
-    private ?\DateTimeInterface $date_creation = null;
-
-    public function getDate_creation(): ?\DateTimeInterface
-    {
-        return $this->date_creation;
-    }
-
-    public function setDate_creation(\DateTimeInterface $date_creation): self
-    {
-        $this->date_creation = $date_creation;
-        return $this;
-    }
-
-    #[ORM\Column(type: 'string', nullable: false)]
+    #[ORM\Column(length: 140)]
+    #[Assert\NotBlank]
+    #[Assert\Length(max: 140)]
     private ?string $titre = null;
 
-    public function getTitre(): ?string
-    {
-        return $this->titre;
-    }
-
-    public function setTitre(string $titre): self
-    {
-        $this->titre = $titre;
-        return $this;
-    }
-
     #[ORM\Column(type: 'text', nullable: true)]
+    #[Assert\Length(max: 2000)]
     private ?string $description = null;
 
-    public function getDescription(): ?string
-    {
-        return $this->description;
-    }
+    #[ORM\Column(name: 'date_debut', type: 'datetime')]
+    #[Assert\NotBlank]
+    private ?\DateTimeInterface $dateDebut = null;
 
-    public function setDescription(?string $description): self
-    {
-        $this->description = $description;
-        return $this;
-    }
+    #[ORM\Column(name: 'date_fin', type: 'datetime')]
+    #[Assert\NotBlank]
+    #[Assert\GreaterThan(propertyPath: 'dateDebut')]
+    private ?\DateTimeInterface $dateFin = null;
 
-    #[ORM\Column(type: 'datetime', nullable: false)]
-    private ?\DateTimeInterface $date_debut = null;
+    #[ORM\Column(name: 'capacite_max', type: 'integer')]
+    #[Assert\Positive]
+    private ?int $capaciteMax = null;
 
-    public function getDate_debut(): ?\DateTimeInterface
-    {
-        return $this->date_debut;
-    }
-
-    public function setDate_debut(\DateTimeInterface $date_debut): self
-    {
-        $this->date_debut = $date_debut;
-        return $this;
-    }
-
-    #[ORM\Column(type: 'datetime', nullable: false)]
-    private ?\DateTimeInterface $date_fin = null;
-
-    public function getDate_fin(): ?\DateTimeInterface
-    {
-        return $this->date_fin;
-    }
-
-    public function setDate_fin(\DateTimeInterface $date_fin): self
-    {
-        $this->date_fin = $date_fin;
-        return $this;
-    }
-
-    #[ORM\Column(type: 'integer', nullable: false)]
-    private ?int $capacite_max = null;
-
-    public function getCapacite_max(): ?int
-    {
-        return $this->capacite_max;
-    }
-
-    public function setCapacite_max(int $capacite_max): self
-    {
-        $this->capacite_max = $capacite_max;
-        return $this;
-    }
-
-    #[ORM\ManyToOne(targetEntity: Lieu::class, inversedBy: 'evenements')]
-    #[ORM\JoinColumn(name: 'lieu_id', referencedColumnName: 'id')]
+    #[ORM\ManyToOne(targetEntity: Lieu::class, inversedBy: 'evenements')]  // on inverse correctement si Lieu a la collection
+    #[ORM\JoinColumn(name: 'lieu_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     private ?Lieu $lieu = null;
 
-    public function getLieu(): ?Lieu
-    {
-        return $this->lieu;
-    }
+    #[ORM\Column(length: 10)]
+    #[Assert\Choice(choices: self::STATUTS_VALIDES, message: 'Statut invalide.')]
+    private string $statut = 'OUVERT';
 
-    public function setLieu(?Lieu $lieu): self
-    {
-        $this->lieu = $lieu;
-        return $this;
-    }
+    #[ORM\Column(length: 10)]
+    #[Assert\Choice(choices: self::TYPES_VALIDES, message: 'Type invalide.')]
+    private string $type = 'PUBLIC';
 
-    #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $statut = null;
+    #[ORM\Column(name: 'image_url', length: 500, nullable: true)]
+    private ?string $imageUrl = null;
 
-    public function getStatut(): ?string
-    {
-        return $this->statut;
-    }
+    #[ORM\Column(type: 'float')]
+    #[Assert\PositiveOrZero]
+    private float $prix = 0.0;
 
-    public function setStatut(string $statut): self
-    {
-        $this->statut = $statut;
-        return $this;
-    }
-
-    #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $type = null;
-
-    public function getType(): ?string
-    {
-        return $this->type;
-    }
-
-    public function setType(string $type): self
-    {
-        $this->type = $type;
-        return $this;
-    }
-
-    #[ORM\Column(type: 'string', nullable: true)]
-    private ?string $image_url = null;
-
-    public function getImage_url(): ?string
-    {
-        return $this->image_url;
-    }
-
-    public function setImage_url(?string $image_url): self
-    {
-        $this->image_url = $image_url;
-        return $this;
-    }
-
-    #[ORM\Column(type: 'float', nullable: false)]
-    private ?float $prix = null;
-
-    public function getPrix(): ?float
-    {
-        return $this->prix;
-    }
-
-    public function setPrix(float $prix): self
-    {
-        $this->prix = $prix;
-        return $this;
-    }
-
-    #[ORM\OneToOne(targetEntity: Inscription::class, mappedBy: 'evenement')]
-    private ?Inscription $inscription = null;
-
-    public function getInscription(): ?Inscription
-    {
-        return $this->inscription;
-    }
-
-    public function setInscription(?Inscription $inscription): self
-    {
-        $this->inscription = $inscription;
-        return $this;
-    }
-
-    #[ORM\OneToMany(targetEntity: Offre::class, mappedBy: 'evenement')]
-    private Collection $offres;
+    #[ORM\OneToMany(mappedBy: 'evenement', targetEntity: Inscription::class, cascade: ['persist', 'remove'])]
+    private Collection $inscriptions;
 
     public function __construct()
     {
-        $this->offres = new ArrayCollection();
+        $this->inscriptions = new ArrayCollection();
+        $this->dateCreation = new \DateTime();
+    }
+
+    public function getId(): ?int { return $this->id; }
+    public function getDateCreation(): ?\DateTimeInterface { return $this->dateCreation; }
+    public function setDateCreation(\DateTimeInterface $dateCreation): self { $this->dateCreation = $dateCreation; return $this; }
+    public function getTitre(): ?string { return $this->titre; }
+    public function setTitre(string $titre): self { $this->titre = $titre; return $this; }
+    public function getDescription(): ?string { return $this->description; }
+    public function setDescription(?string $description): self { $this->description = $description; return $this; }
+    public function getDateDebut(): ?\DateTimeInterface { return $this->dateDebut; }
+    public function setDateDebut(?\DateTimeInterface $dateDebut): self { $this->dateDebut = $dateDebut; return $this; }
+    public function getDateFin(): ?\DateTimeInterface { return $this->dateFin; }
+    public function setDateFin(?\DateTimeInterface $dateFin): self { $this->dateFin = $dateFin; return $this; }
+    public function getCapaciteMax(): ?int { return $this->capaciteMax; }
+    public function setCapaciteMax(int $capaciteMax): self { $this->capaciteMax = $capaciteMax; return $this; }
+    public function getLieu(): ?Lieu { return $this->lieu; }
+    public function setLieu(?Lieu $lieu): self { $this->lieu = $lieu; return $this; }
+    public function getStatut(): string { return $this->statut; }
+    public function setStatut(string $statut): self { $this->statut = $statut; return $this; }
+    public function getType(): string { return $this->type; }
+    public function setType(string $type): self { $this->type = $type; return $this; }
+    public function getImageUrl(): ?string { return $this->imageUrl; }
+    public function setImageUrl(?string $imageUrl): self { $this->imageUrl = $imageUrl; return $this; }
+    public function getPrix(): float { return $this->prix; }
+    public function setPrix(float $prix): self { $this->prix = $prix; return $this; }
+    public function getInscriptions(): Collection { return $this->inscriptions; }
+
+    public function getPlacesRestantes(): int
+    {
+        $utilise = $this->inscriptions
+            ->filter(fn(Inscription $i) => in_array($i->getStatut(), [Inscription::STATUT_CONFIRMEE, Inscription::STATUT_PAYEE], true))
+            ->reduce(fn(int $carry, Inscription $i) => $carry + $i->getNbTickets(), 0);
+        return max(0, ($this->capaciteMax ?? 0) - $utilise);
+    }
+
+    // ========== MÉTHODES MÉTIER ==========
+    /**
+     * Vérifie si l'événement a assez de places pour le nombre de tickets demandé
+     */
+    public function avoirPlacesPour(int $nbTickets): bool
+    {
+        return $this->getPlacesRestantes() >= $nbTickets;
     }
 
     /**
-     * @return Collection<int, Offre>
+     * Vérifie si l'événement est encore ouvert aux inscriptions
      */
-    public function getOffres(): Collection
+    public function estOuvert(): bool
     {
-        if (!$this->offres instanceof Collection) {
-            $this->offres = new ArrayCollection();
-        }
-        return $this->offres;
+        return $this->statut === self::STATUT_OUVERT && new \DateTime() < $this->dateDebut;
     }
 
-    public function addOffre(Offre $offre): self
+    /**
+     * Obtient le nombre de confirmations en attente de paiement
+     */
+    public function getNbInscriptionsEnAttentePaiement(): int
     {
-        if (!$this->getOffres()->contains($offre)) {
-            $this->getOffres()->add($offre);
-        }
-        return $this;
+        return $this->inscriptions->filter(fn(Inscription $i) => 
+            $i->getStatut() === 'CONFIRMEE' && !$i->isPaiementEffectue()
+        )->count();
     }
 
-    public function removeOffre(Offre $offre): self
+    /**
+     * Obtient le taux de remplissage (en %)
+     */
+    public function getTauxRemplissage(): float
     {
-        $this->getOffres()->removeElement($offre);
-        return $this;
+        if ($this->capaciteMax === 0) return 0;
+        $utilise = $this->capaciteMax - $this->getPlacesRestantes();
+        return round(($utilise / $this->capaciteMax) * 100, 2);
     }
-
-    public function getDateCreation(): ?\DateTime
-    {
-        return $this->date_creation;
-    }
-
-    public function setDateCreation(\DateTime $date_creation): static
-    {
-        $this->date_creation = $date_creation;
-
-        return $this;
-    }
-
-    public function getDateDebut(): ?\DateTime
-    {
-        return $this->date_debut;
-    }
-
-    public function setDateDebut(\DateTime $date_debut): static
-    {
-        $this->date_debut = $date_debut;
-
-        return $this;
-    }
-
-    public function getDateFin(): ?\DateTime
-    {
-        return $this->date_fin;
-    }
-
-    public function setDateFin(\DateTime $date_fin): static
-    {
-        $this->date_fin = $date_fin;
-
-        return $this;
-    }
-
-    public function getCapaciteMax(): ?int
-    {
-        return $this->capacite_max;
-    }
-
-    public function setCapaciteMax(int $capacite_max): static
-    {
-        $this->capacite_max = $capacite_max;
-
-        return $this;
-    }
-
-    public function getImageUrl(): ?string
-    {
-        return $this->image_url;
-    }
-
-    public function setImageUrl(?string $image_url): static
-    {
-        $this->image_url = $image_url;
-
-        return $this;
-    }
-
 }

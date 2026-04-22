@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ accepted ? 'Participation confirmee' : 'Decision sur votre demande' }}</title>
+</head>
+<body style="margin:0;padding:0;background:#f6f4ef;font-family:Arial,Helvetica,sans-serif;color:#24374a;">
+    <div style="max-width:720px;margin:0 auto;padding:34px 16px 40px;">
+        <div style="padding:18px 14px 22px;text-align:center;">
+            <div style="display:inline-block;padding:8px 14px;border-radius:999px;background:#ffffff;border:1px solid rgba(32,60,92,.08);box-shadow:0 8px 24px rgba(32,60,92,.06);font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#6f7f90;">
+                FinTokhroj
+            </div>
+        </div>
+
+        <div style="background:#fbfaf7;border:1px solid rgba(34,58,84,.08);border-radius:32px;overflow:hidden;box-shadow:0 28px 70px rgba(36,55,74,.10);">
+            <div style="padding:42px 40px 24px;background:
+                radial-gradient(circle at top right, rgba(205,229,255,.75), transparent 28%),
+                radial-gradient(circle at top left, rgba(255,232,217,.62), transparent 24%),
+                linear-gradient(180deg, #fffdf8 0%, #f8f4ee 100%);
+            ">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;">
+                    <tr>
+                        <td style="vertical-align:top;">
+                            <div style="width:56px;height:56px;border-radius:20px;background:linear-gradient(135deg,#d8ecff,#b9dbff);color:#1d4f86;text-align:center;line-height:56px;font-size:24px;font-weight:700;box-shadow:inset 0 1px 0 rgba(255,255,255,.65),0 12px 24px rgba(47,94,154,.14);">F</div>
+                        </td>
+                        <td style="padding-left:14px;vertical-align:top;">
+                            <div style="font-size:24px;line-height:1.1;font-weight:700;color:#19395e;">{{ accepted ? 'Participation confirmee' : 'Mise a jour de votre demande' }}</div>
+                            <div style="margin-top:8px;font-size:15px;line-height:1.7;color:#667a90;max-width:460px;">
+                                {{ recipientName ? 'Bonjour ' ~ recipientName ~ ',' : 'Bonjour,' }}
+                                {% if accepted %}
+                                    votre demande a ete acceptee. Vous faites maintenant partie de cette sortie.
+                                {% else %}
+                                    nous avons bien traite votre demande. Cette fois, elle n a pas pu etre retenue.
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+
+                <div style="margin-top:26px;">
+                    <span style="display:inline-block;padding:8px 14px;border-radius:999px;background:{{ accepted ? '#edf8f1' : '#fff3eb' }};border:1px solid {{ accepted ? 'rgba(50,145,92,.14)' : 'rgba(203,98,60,.16)' }};color:{{ accepted ? '#2d8558' : '#bf6847' }};font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;">
+                        {{ accepted ? 'Statut : validee' : 'Statut : non retenue' }}
+                    </span>
+                </div>
+            </div>
+
+            <div style="padding:0 40px 34px;background:#fbfaf7;">
+                <div style="padding:28px;border-radius:24px;background:#ffffff;border:1px solid rgba(32,60,92,.08);box-shadow:0 14px 30px rgba(36,55,74,.06);">
+                    <div style="font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#8b98a6;font-weight:700;">Sortie concernee</div>
+                    <h2 style="margin:10px 0 0;font-size:28px;line-height:1.25;color:#1d3550;">{{ sortieTitle }}</h2>
+
+                    <div style="margin-top:24px;height:1px;background:linear-gradient(90deg,rgba(34,58,84,.14),rgba(34,58,84,0));"></div>
+
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-collapse:collapse;margin-top:22px;">
+                        <tr>
+                            <td style="vertical-align:top;padding-right:12px;">
+                                <div style="width:42px;height:42px;border-radius:14px;background:{{ accepted ? '#edf8f1' : '#fff3eb' }};text-align:center;line-height:42px;font-size:18px;">
+                                    {{ accepted ? '✓' : '!' }}
+                                </div>
+                            </td>
+                            <td style="vertical-align:top;">
+                                <div style="font-size:16px;font-weight:700;color:#27415d;">Ce que cela signifie pour vous</div>
+                                <p style="margin:8px 0 0;font-size:15px;line-height:1.85;color:#64778c;">
+                                    {% if accepted %}
+                                        Vous pouvez maintenant acceder a la sortie, suivre les echanges du groupe et preparer tranquillement votre participation.
+                                    {% else %}
+                                        Nous vous remercions sincerement pour votre interet. D autres sorties sont disponibles sur la plateforme et pourront mieux correspondre a vos prochaines envies.
+                                    {% endif %}
+                                </p>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <div style="margin-top:24px;padding:18px 20px;border-radius:20px;background:linear-gradient(180deg,#fffdf9,#f7f2eb);border:1px solid rgba(124,100,73,.10);">
+                        <div style="font-size:13px;font-weight:700;color:#7b6856;letter-spacing:.08em;text-transform:uppercase;">Prochaine etape</div>
+                        <p style="margin:10px 0 0;font-size:15px;line-height:1.82;color:#6b716f;">
+                            {% if accepted %}
+                                Consultez la fiche de la sortie pour voir les details, les participants et l organisation en cours.
+                            {% else %}
+                                Vous pouvez revenir sur la plateforme pour explorer d autres sorties et soumettre une nouvelle demande quand vous le souhaitez.
+                            {% endif %}
+                        </p>
+                    </div>
+
+                    <div style="margin-top:28px;text-align:center;">
+                        <a href="{{ sortieUrl }}" style="display:inline-block;min-width:220px;padding:15px 28px;border-radius:999px;background:#183c69;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;letter-spacing:.01em;box-shadow:0 14px 28px rgba(24,60,105,.18);">
+                            {{ accepted ? 'Acceder a la sortie' : 'Voir la sortie' }}
+                        </a>
+                    </div>
+
+                    <div style="margin-top:22px;font-size:13px;line-height:1.8;color:#8794a3;text-align:center;">
+                        Si le bouton ne fonctionne pas, utilisez ce lien :<br>
+                        <a href="{{ sortieUrl }}" style="color:#2d5f97;text-decoration:none;word-break:break-all;">{{ sortieUrl }}</a>
+                    </div>
+                </div>
+
+                <div style="margin-top:20px;padding:0 8px;text-align:center;font-size:12px;line-height:1.85;color:#8c98a5;">
+                    Message automatique envoye par {{ mailerFromName }}.<br>
+                    Merci de consulter regulierement votre espace pour suivre vos sorties et vos nouvelles invitations.
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

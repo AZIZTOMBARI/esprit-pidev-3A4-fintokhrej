@@ -507,3 +507,4 @@ function mapMySQLTypeToDoctrineType($mysqlType)
         return 'string';
     }
 }
+

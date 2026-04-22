@@ -3,11 +3,16 @@
 namespace App\Controller;
 
 use App\Entity\User;
+use App\Form\ParticipationRequestType;
+use App\Model\ParticipationRequestData;
 use App\Service\NotificationService;
+use App\Service\ChatService;
+use App\Service\ParticipationContactNotifier;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -42,6 +47,17 @@ class ParticipationController extends AbstractController
             "SELECT COALESCE(SUM(nb_places), 0) FROM participation_annonce WHERE annonce_id = ? AND statut = 'CONFIRMEE'",
             [$id]
         );
+        $chatGroupId = false;
+        try {
+            if ($connection->fetchOne("SHOW TABLES LIKE 'chat_groupe'") !== false) {
+                $chatGroupId = $connection->fetchOne(
+                    'SELECT id FROM chat_groupe WHERE annonce_id = ? LIMIT 1',
+                    [$id]
+                );
+            }
+        } catch (\Throwable) {
+            $chatGroupId = false;
+        }
         $pendingCount = (int) $connection->fetchOne(
             "SELECT COUNT(*) FROM participation_annonce WHERE annonce_id = ? AND statut = 'EN_ATTENTE'",
             [$id]
@@ -56,6 +72,9 @@ class ParticipationController extends AbstractController
                  ORDER BY id DESC LIMIT 1',
                 [$id, $currentUserId]
             );
+            if ($myParticipation === false) {
+                $myParticipation = null;
+            }
         }
 
         $questions = $this->decodeJsonArray($sortie['questions_json'] ?? null);
@@ -72,17 +91,9 @@ class ParticipationController extends AbstractController
             $defaultContactPrefer = 'TELEPHONE';
         }
 
-        $defaultContactValue = '';
-        if ($myParticipation && !empty($myParticipation['contact_value'])) {
-            $rawContactValue = trim((string) $myParticipation['contact_value']);
-            if ($defaultContactPrefer === 'TELEPHONE') {
-                $defaultContactValue = $this->normalizePhoneForForm($rawContactValue);
-            } else {
-                $defaultContactValue = $rawContactValue;
-            }
-        } else {
-            $defaultContactValue = $defaultContactPrefer === 'TELEPHONE' ? $currentUserPhone : $currentUserEmail;
-        }
+        $defaultContactValue = $currentUser instanceof User
+            ? $this->resolvePreferredContactValue($currentUser, $defaultContactPrefer)
+            : '';
 
         $pendingRequests = [];
         if ($isCreator) {
@@ -148,6 +159,28 @@ class ParticipationController extends AbstractController
             && !$isCreator
             && $myParticipation
             && (string) $myParticipation['statut'] === 'EN_ATTENTE';
+        $canAccessChat = ($chatGroupId !== false && $chatGroupId !== null)
+            && (
+                $isCreator
+                || ($myParticipation && (string) $myParticipation['statut'] === 'CONFIRMEE')
+            );
+
+        $participationForm = null;
+        if ($canJoin || $canEditPending) {
+            $participationForm = $this->createParticipationForm(
+                $id,
+                $this->buildParticipationData(
+                    $myParticipation,
+                    $defaultContactPrefer,
+                    $defaultContactValue,
+                    (int) ($myParticipation['nb_places'] ?? 1),
+                    $myParticipation['commentaire'] ?? null,
+                    $myAnswers
+                ),
+                $maxPlacesChoice,
+                count($questions)
+            )->createView();
+        }
 
         return $this->render('front/sortie/show.html.twig', [
             'active' => 'sorties',
@@ -168,6 +201,8 @@ class ParticipationController extends AbstractController
             'defaultContactValue' => $defaultContactValue,
             'defaultContactEmail' => $currentUserEmail,
             'defaultContactPhone' => $currentUserPhone,
+            'participationForm' => $participationForm,
+            'canAccessChat' => $canAccessChat,
         ]);
     }
 
@@ -182,11 +217,6 @@ class ParticipationController extends AbstractController
         if (!$currentUser instanceof User) {
             $this->addFlash('error', 'Vous devez être connecté pour participer.');
             return $this->redirectToRoute('app_login');
-        }
-
-        if (!$this->isCsrfTokenValid('join_sortie_'.$id, (string) $request->request->get('_token', ''))) {
-            $this->addFlash('error', 'Jeton CSRF invalide.');
-            return $this->redirectToRoute('app_sorties_show', ['id' => $id]);
         }
 
         $sortie = $connection->fetchAssociative(
@@ -205,9 +235,15 @@ class ParticipationController extends AbstractController
         }
 
         $existing = $connection->fetchAssociative(
-            'SELECT id, statut, nb_places FROM participation_annonce WHERE annonce_id = ? AND user_id = ? ORDER BY id DESC LIMIT 1',
+            'SELECT id, statut, nb_places, contact_prefer, contact_value, commentaire, reponses_json
+             FROM participation_annonce
+             WHERE annonce_id = ? AND user_id = ?
+             ORDER BY id DESC LIMIT 1',
             [$id, $currentUser->getId()]
         );
+        if ($existing === false) {
+            $existing = null;
+        }
         $isEditingPending = $existing && (string) $existing['statut'] === 'EN_ATTENTE';
 
         if ($existing && (string) $existing['statut'] === 'CONFIRMEE') {
@@ -222,12 +258,65 @@ class ParticipationController extends AbstractController
         $nbPlaces = (int) ($sortie['nb_places'] ?? 0);
         $remainingPlaces = max(0, $nbPlaces - $confirmedPlaces);
         $previousRequestedPlaces = (int) ($existing['nb_places'] ?? 1);
+        $questions = $this->decodeJsonArray($sortie['questions_json'] ?? null);
+        $existingAnswers = $this->decodeParticipationAnswers($existing['reponses_json'] ?? null);
+        $maxPlacesChoice = max(1, $remainingPlaces, $previousRequestedPlaces);
 
-        $requestedPlaces = (int) $request->request->get('nb_places', 1);
-        if ($requestedPlaces < 1) {
-            $this->addFlash('error', 'Le nombre de places doit etre strictement positif.');
+        $defaultContactPrefer = 'EMAIL';
+        $currentUserPhone = $this->normalizePhoneForForm($currentUser->getTelephone());
+        if ($existing && in_array((string) ($existing['contact_prefer'] ?? ''), ['TELEPHONE', 'EMAIL'], true)) {
+            $defaultContactPrefer = (string) $existing['contact_prefer'];
+        } elseif ($currentUserPhone !== '') {
+            $defaultContactPrefer = 'TELEPHONE';
+        }
+
+        $defaultContactValue = $this->resolvePreferredContactValue($currentUser, $defaultContactPrefer);
+
+        $submitted = $request->request->all();
+        $submittedContactPrefer = strtoupper(trim((string) ($submitted['contact_prefer'] ?? $defaultContactPrefer)));
+        $resolvedSubmittedContact = $this->resolvePreferredContactValue($currentUser, $submittedContactPrefer);
+        if ($resolvedSubmittedContact === '') {
+            $this->addFlash(
+                'error',
+                $submittedContactPrefer === 'TELEPHONE'
+                    ? 'Aucun numero de telephone valide n est enregistre sur votre profil.'
+                    : 'Aucune adresse email valide n est disponible sur votre compte.'
+            );
+
             return $this->redirectToRoute('app_sorties_show', ['id' => $id]);
         }
+        $submitted['contact_value'] = $resolvedSubmittedContact;
+        $request->request->replace($submitted);
+
+        $form = $this->createParticipationForm(
+            $id,
+            $this->buildParticipationData(
+                $existing,
+                $defaultContactPrefer,
+                $defaultContactValue,
+                $previousRequestedPlaces,
+                $existing['commentaire'] ?? null,
+                $existingAnswers
+            ),
+            $maxPlacesChoice,
+            count($questions)
+        );
+        $form->handleRequest($request);
+
+        if (!$form->isSubmitted()) {
+            $this->addFlash('error', 'Formulaire de participation invalide.');
+            return $this->redirectToRoute('app_sorties_show', ['id' => $id]);
+        }
+
+        if (!$form->isValid()) {
+            $this->addFormErrorsAsFlash($form);
+            return $this->redirectToRoute('app_sorties_show', ['id' => $id]);
+        }
+
+        /** @var ParticipationRequestData $payloadData */
+        $payloadData = $form->getData();
+        // Forcer une seule place réservée par participation
+        $requestedPlaces = 1;
 
         if (!$isEditingPending && (($sortie['statut'] ?? '') !== 'OUVERTE' || ($nbPlaces > 0 && $remainingPlaces <= 0))) {
             if (($sortie['statut'] ?? '') === 'OUVERTE' && $nbPlaces > 0 && $confirmedPlaces >= $nbPlaces) {
@@ -247,44 +336,22 @@ class ParticipationController extends AbstractController
             return $this->redirectToRoute('app_sorties_show', ['id' => $id]);
         }
 
-        $contactPrefer = strtoupper(trim((string) $request->request->get('contact_prefer', '')));
-        $contactValue = trim((string) $request->request->get('contact_value', ''));
-        $commentaire = trim((string) $request->request->get('commentaire', ''));
-
-        if (!in_array($contactPrefer, ['TELEPHONE', 'EMAIL'], true)) {
-            $contactPrefer = 'EMAIL';
-        }
+        $contactPrefer = $payloadData->getContactPrefer();
+        $contactValue = $this->resolveStoredContactValue($currentUser, $contactPrefer);
+        $commentaire = trim((string) $payloadData->getCommentaire());
 
         if ($contactValue === '') {
-            if ($contactPrefer === 'TELEPHONE') {
-                $contactValue = $this->normalizePhoneForForm($currentUser->getTelephone());
-            } else {
-                $contactValue = trim((string) $currentUser->getEmail());
-            }
+            $this->addFlash(
+                'error',
+                $contactPrefer === 'TELEPHONE'
+                    ? 'Impossible d enregistrer la demande sans numero de telephone valide.'
+                    : 'Impossible d enregistrer la demande sans email valide.'
+            );
 
-            if ($contactValue === '') {
-                $this->addFlash('error', 'Le contact de reponse est obligatoire.');
-                return $this->redirectToRoute('app_sorties_show', ['id' => $id]);
-            }
-        }
-
-        if ($contactPrefer === 'EMAIL' && !filter_var($contactValue, FILTER_VALIDATE_EMAIL)) {
-            $this->addFlash('error', 'Veuillez saisir une adresse email valide.');
             return $this->redirectToRoute('app_sorties_show', ['id' => $id]);
         }
 
-        if ($contactPrefer === 'TELEPHONE') {
-            $contactValue = $this->normalizePhoneForForm($contactValue);
-            if (!preg_match('/^\d{8}$/', $contactValue)) {
-                $this->addFlash('error', 'Le numero de telephone doit contenir exactement 8 chiffres.');
-                return $this->redirectToRoute('app_sorties_show', ['id' => $id]);
-            }
-
-            $contactValue = '+216'.$contactValue;
-        }
-
-        $questions = $this->decodeJsonArray($sortie['questions_json'] ?? null);
-        $rawAnswers = $request->request->all('reponses');
+        $rawAnswers = $payloadData->getReponses();
         $answerItems = [];
         foreach ($questions as $index => $question) {
             $answer = trim((string) ($rawAnswers[(string) $index] ?? ''));
@@ -345,8 +412,65 @@ class ParticipationController extends AbstractController
         return $this->redirectToRoute('app_sorties_show', ['id' => $id]);
     }
 
+    private function createParticipationForm(
+        int $sortieId,
+        ParticipationRequestData $data,
+        int $maxPlacesChoice,
+        int $questionCount
+    ): FormInterface {
+        return $this->createForm(ParticipationRequestType::class, $data, [
+            'action' => $this->generateUrl('app_sorties_join', ['id' => $sortieId]),
+            'method' => 'POST',
+            'csrf_token_id' => 'join_sortie_'.$sortieId,
+            'max_places' => max(1, $maxPlacesChoice),
+            'question_count' => max(0, $questionCount),
+        ]);
+    }
+
+    /**
+     * @param array<string, mixed>|null $participation
+     * @param array<int, string> $answers
+     */
+    private function buildParticipationData(
+        ?array $participation,
+        string $defaultContactPrefer,
+        string $defaultContactValue,
+        int $defaultPlaces,
+        ?string $defaultCommentaire,
+        array $answers
+    ): ParticipationRequestData {
+        $data = new ParticipationRequestData();
+        $contactPrefer = (string) ($participation['contact_prefer'] ?? $defaultContactPrefer);
+        $contactValue = $defaultContactValue;
+        if (strtoupper($contactPrefer) === 'TELEPHONE') {
+            $contactValue = $this->normalizePhoneForForm($contactValue);
+        }
+
+        $data->setNbPlaces(max(1, (int) ($participation['nb_places'] ?? $defaultPlaces)));
+        $data->setContactPrefer($contactPrefer);
+        $data->setContactValue($contactValue);
+        $data->setCommentaire((string) ($participation['commentaire'] ?? $defaultCommentaire));
+        $data->setReponses($answers);
+
+        return $data;
+    }
+
+    private function addFormErrorsAsFlash(FormInterface $form): void
+    {
+        $seen = [];
+        foreach ($form->getErrors(true) as $error) {
+            $message = trim((string) $error->getMessage());
+            if ($message === '' || isset($seen[$message])) {
+                continue;
+            }
+
+            $seen[$message] = true;
+            $this->addFlash('error', $message);
+        }
+    }
+
     #[Route('/sorties/{id}/quitter', name: 'app_sorties_leave', requirements: ['id' => '\\d+'], methods: ['POST'])]
-    public function leave(int $id, Request $request, Connection $connection, NotificationService $notificationService): RedirectResponse
+    public function leave(int $id, Request $request, Connection $connection, NotificationService $notificationService, ChatService $chatService): RedirectResponse
     {
         if ($this->isGranted('ROLE_ADMIN')) {
             return $this->redirectToRoute('app_admin_participations');
@@ -373,9 +497,9 @@ class ParticipationController extends AbstractController
             return $this->redirectToRoute('app_sorties_show', ['id' => $id]);
         }
 
+
         try {
             $connection->update('participation_annonce', ['statut' => 'ANNULEE'], ['id' => $participation['id']]);
-
             $sortie = $connection->fetchAssociative('SELECT id, titre, user_id FROM annonce_sortie WHERE id = ?', [$id]);
             if ($sortie) {
                 $notificationService->notifyUser(
@@ -389,7 +513,7 @@ class ParticipationController extends AbstractController
                     ['statut' => 'ANNULEE', 'anchor' => 'participation']
                 );
             }
-
+            $chatService->removeMember($id, $currentUser->getId());
             $this->refreshSortieStatusByCapacity($connection, $notificationService, $id, (int) $currentUser->getId());
             $this->addFlash('success', 'Votre participation a été annulée.');
         } catch (Exception $e) {
@@ -466,7 +590,7 @@ class ParticipationController extends AbstractController
     }
 
     #[Route('/sorties/{id}/demandes/{participationId}/accepter', name: 'app_sorties_demandes_accept', requirements: ['id' => '\\d+', 'participationId' => '\\d+'], methods: ['POST'])]
-    public function acceptPendingRequest(int $id, int $participationId, Request $request, Connection $connection, NotificationService $notificationService): RedirectResponse
+    public function acceptPendingRequest(int $id, int $participationId, Request $request, Connection $connection, NotificationService $notificationService, ChatService $chatService, ParticipationContactNotifier $participationContactNotifier): RedirectResponse
     {
         if ($this->isGranted('ROLE_ADMIN')) {
             return $this->redirectToRoute('app_admin_participations');
@@ -490,7 +614,7 @@ class ParticipationController extends AbstractController
         }
 
         $participation = $connection->fetchAssociative(
-            'SELECT id, annonce_id, user_id, statut, nb_places FROM participation_annonce WHERE id = ? AND annonce_id = ?',
+            'SELECT id, annonce_id, user_id, statut, nb_places, contact_prefer, contact_value FROM participation_annonce WHERE id = ? AND annonce_id = ?',
             [$participationId, $id]
         );
 
@@ -511,9 +635,9 @@ class ParticipationController extends AbstractController
             return $this->redirectToRoute('app_sorties_show', ['id' => $id]);
         }
 
+
         try {
             $connection->update('participation_annonce', ['statut' => 'CONFIRMEE'], ['id' => $participationId]);
-
             $notificationService->notifyUser(
                 (int) $participation['user_id'],
                 (int) $currentUser->getId(),
@@ -524,7 +648,15 @@ class ParticipationController extends AbstractController
                 $id,
                 ['statut' => 'CONFIRMEE', 'anchor' => 'participation']
             );
-
+            $participationContactNotifier->sendParticipationDecision(
+                (string) ($participation['contact_prefer'] ?? 'EMAIL'),
+                $participation['contact_value'] ?? null,
+                $id,
+                (string) $sortie['titre'],
+                true
+            );
+            $chatService->ensureGroupExists($id, $currentUser->getId());
+            $chatService->addMember($id, $participation['user_id']);
             $this->refreshSortieStatusByCapacity($connection, $notificationService, $id, (int) $currentUser->getId());
             $this->addFlash('success', 'Demande acceptée.');
         } catch (Exception $e) {
@@ -535,7 +667,7 @@ class ParticipationController extends AbstractController
     }
 
     #[Route('/sorties/{id}/demandes/{participationId}/refuser', name: 'app_sorties_demandes_refuse', requirements: ['id' => '\\d+', 'participationId' => '\\d+'], methods: ['POST'])]
-    public function refusePendingRequest(int $id, int $participationId, Request $request, Connection $connection, NotificationService $notificationService): RedirectResponse
+    public function refusePendingRequest(int $id, int $participationId, Request $request, Connection $connection, NotificationService $notificationService, ChatService $chatService, ParticipationContactNotifier $participationContactNotifier): RedirectResponse
     {
         if ($this->isGranted('ROLE_ADMIN')) {
             return $this->redirectToRoute('app_admin_participations');
@@ -559,7 +691,7 @@ class ParticipationController extends AbstractController
         }
 
         $participation = $connection->fetchAssociative(
-            'SELECT id, annonce_id, user_id, statut FROM participation_annonce WHERE id = ? AND annonce_id = ?',
+            'SELECT id, annonce_id, user_id, statut, contact_prefer, contact_value FROM participation_annonce WHERE id = ? AND annonce_id = ?',
             [$participationId, $id]
         );
 
@@ -568,9 +700,9 @@ class ParticipationController extends AbstractController
             return $this->redirectToRoute('app_sorties_show', ['id' => $id]);
         }
 
+
         try {
             $connection->update('participation_annonce', ['statut' => 'REFUSEE'], ['id' => $participationId]);
-
             $notificationService->notifyUser(
                 (int) $participation['user_id'],
                 (int) $currentUser->getId(),
@@ -581,7 +713,14 @@ class ParticipationController extends AbstractController
                 $id,
                 ['statut' => 'REFUSEE', 'anchor' => 'participation']
             );
-
+            $participationContactNotifier->sendParticipationDecision(
+                (string) ($participation['contact_prefer'] ?? 'EMAIL'),
+                $participation['contact_value'] ?? null,
+                $id,
+                (string) $sortie['titre'],
+                false
+            );
+            $chatService->removeMember($id, $participation['user_id']);
             $this->refreshSortieStatusByCapacity($connection, $notificationService, $id, (int) $currentUser->getId());
             $this->addFlash('success', 'Demande refusée.');
         } catch (Exception $e) {
@@ -668,5 +807,30 @@ class ParticipationController extends AbstractController
         }
 
         return strlen($digits) === 8 ? $digits : '';
+    }
+
+    private function resolvePreferredContactValue(User $user, string $contactPrefer): string
+    {
+        $contactPrefer = strtoupper(trim($contactPrefer));
+
+        return $contactPrefer === 'TELEPHONE'
+            ? $this->normalizePhoneForForm($user->getTelephone())
+            : trim((string) $user->getEmail());
+    }
+
+    private function resolveStoredContactValue(User $user, string $contactPrefer): string
+    {
+        $contactPrefer = strtoupper(trim($contactPrefer));
+        $resolved = $this->resolvePreferredContactValue($user, $contactPrefer);
+
+        if ($resolved === '') {
+            return '';
+        }
+
+        if ($contactPrefer === 'TELEPHONE') {
+            return '+216'.$resolved;
+        }
+
+        return $resolved;
     }
 }
