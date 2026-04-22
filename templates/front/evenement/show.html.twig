@@ -6,10 +6,10 @@
 <section style="max-width: 980px; margin: 30px auto; padding: 0 20px;">
     <div class="section-head">
         <div>
-            <h1 class="section-title">{{ 'front.event_detail.title'|trans }}</h1>
-            <p class="section-subtitle">{{ 'front.event_detail.subtitle'|trans }}</p>
+            <h1 class="section-title">Détails de l'événement</h1>
+            <p class="section-subtitle">Informations et participation</p>
         </div>
-        <a href="{{ path('app_evenements') }}" class="outline-btn">{{ 'front.event_detail.back_list'|trans }}</a>
+        <a href="{{ path('app_evenements') }}" class="outline-btn">Retour à la liste</a>
     </div>
 
     {% for message in app.flashes('success') %}
@@ -45,20 +45,20 @@
                     <h3>{{ event.titre }}</h3>
                     <p>
                         {{ event.dateDebut|date('d/m/Y H:i') }} •
-                        {{ event.lieu ? event.lieu.nom : ('front.events.place_to_confirm'|trans) }}
+                        {{ event.lieu ? event.lieu.nom : 'Lieu à confirmer' }}
                         {% if event.lieu %} • {{ event.lieu.ville }}{% endif %}
                     </p>
                 </div>
                 {% if event.prix > 0 %}
                     <span class="price-pill">{{ event.prix }} TND</span>
                 {% else %}
-                    <span class="price-pill">{{ 'front.events.free'|trans }}</span>
+                    <span class="price-pill">Gratuit</span>
                 {% endif %}
             </div>
 
             <div class="meta-row">
                 <span>🗓 {{ event.dateDebut|date('d/m/Y H:i') }}{% if event.dateFin %} • {{ event.dateFin|date('H:i') }}{% endif %}</span>
-                <span>👥 {{ 'front.event_detail.capacity_remaining'|trans({'%capacity%': event.capaciteMax, '%remaining%': event.placesRestantes}) }}</span>
+                <span>👥 {{ event.capaciteMax }} places • {{ event.placesRestantes }} restantes</span>
                 <span>🏷 {{ event.type|replace({'_':' '}) }}</span>
                 <span>✅ {{ event.statut|replace({'_':' '}) }}</span>
             </div>
@@ -77,26 +77,26 @@
 
                 {% if event.placesRestantes > 0 and not userAlreadyRegistered %}
                     <a href="{{ path('app_evenement_inscrire_form', {id: event.id}) }}" class="cta-btn" style="margin-top: 18px; display: inline-flex; align-items: center;">
-                        {{ 'front.event_detail.join'|trans }}
+                        Participer
                     </a>
                 {% elseif userAlreadyRegistered %}
                     <div style="margin-top: 18px; padding: 12px 14px; background: #e3f2fd; border: 1px solid #2196F3; border-radius: 12px; color: #1976D2; font-weight: 600;">
-                        {{ 'front.event_detail.already_registered'|trans }}
+                        Vous êtes déjà inscrit.
                         {% if mon_inscription %}
-                            <span style="margin-left: 6px;">{{ 'front.event_detail.status'|trans }}: {{ mon_inscription|replace({'_':' '}) }}</span>
+                            <span style="margin-left: 6px;">Statut: {{ mon_inscription|replace({'_':' '}) }}</span>
                         {% endif %}
                         <div style="margin-top: 8px;">
-                            <a href="{{ path('app_mon_profil_inscriptions') }}" style="color: #1976D2; text-decoration: underline;">{{ 'front.event_detail.my_registrations'|trans }}</a>
+                            <a href="{{ path('app_mon_profil_inscriptions') }}" style="color: #1976D2; text-decoration: underline;">Voir mes inscriptions</a>
                         </div>
                     </div>
                 {% else %}
                     <div style="margin-top: 18px; padding: 12px 14px; background: #ffebee; border: 1px solid #f44336; border-radius: 12px; color: #c62828; font-weight: 600;">
-                        {{ 'front.event_detail.full_event'|trans }}
+                        Événement complet - plus de places disponibles.
                     </div>
                 {% endif %}
             {% else %}
                 <div style="margin-top: 18px; padding: 12px 14px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 12px; color: #856404; font-weight: 600;">
-                    <a href="{{ path('app_login') }}" style="color: #856404; text-decoration: underline;">{{ 'auth.login'|trans }}</a> {{ 'front.event_detail.to_join'|trans }}
+                    <a href="{{ path('app_login') }}" style="color: #856404; text-decoration: underline;">Connectez-vous</a> pour participer.
                 </div>
             {% endif %}
         </div>

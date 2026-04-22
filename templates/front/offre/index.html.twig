@@ -1,6 +1,6 @@
 {% extends 'front/base_front.html.twig' %}
 
-{% block title %}{{ 'nav.offers'|trans }} | Fin Tokhroj{% endblock %}
+{% block title %}Offres | Fin Tokhroj{% endblock %}
 
 {% block stylesheets %}
     {{ parent() }}
@@ -248,15 +248,15 @@
     <div class="offer-front-hero">
         <div class="offer-front-hero__row">
             <div>
-                <h1 class="section-title">{{ 'nav.offers'|trans }}</h1>
-                <p class="section-subtitle">{{ 'front.offers.subtitle'|trans }}</p>
+                <h1 class="section-title">Offres</h1>
+                <p class="section-subtitle">Découvre les meilleures remises disponibles, avec les offres urgentes mises en avant.</p>
                 <div class="offer-front-kpis">
-                    <span class="offer-front-kpi">{{ 'front.offers.visible_count'|trans({'%count%': offres|length}) }}</span>
-                    <span class="offer-front-kpi">{{ 'front.offers.place_filter_enabled'|trans }}</span>
-                    <span class="offer-front-kpi">{{ 'front.offers.expiry_alert_24h'|trans }}</span>
+                    <span class="offer-front-kpi">{{ offres|length }} offres visibles</span>
+                    <span class="offer-front-kpi">Filtrage par lieu activé</span>
+                    <span class="offer-front-kpi">Alerte expiration 24h</span>
                 </div>
             </div>
-            <a href="{{ path('app_home') }}" class="outline-btn" style="background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.35);color:#fff;">{{ 'front.search.back_home'|trans }}</a>
+            <a href="{{ path('app_home') }}" class="outline-btn" style="background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.35);color:#fff;">Retour accueil</a>
         </div>
     </div>
 
@@ -264,20 +264,20 @@
         <section class="sortie-notification-board notification-root" data-notification-root data-feed-url="{{ path('app_notifications_api_feed') }}" data-read-all-url="{{ path('app_notifications_api_read_all') }}" data-notification-type-prefixes="RESERVATION_" data-notification-inline="true">
             <div class="sortie-notification-board__head">
                 <div>
-                    <h3>{{ 'front.offers.notifications'|trans }}</h3>
-                    <p>{{ 'front.offers.notifications_subtitle'|trans }}</p>
+                    <h3>Notifications offres</h3>
+                    <p>Suivi en direct des réservations, statuts et alertes de promotions.</p>
                 </div>
                 <div class="btn-row">
                     <button type="button" class="outline-btn notification-toggle-btn" data-notification-toggle aria-label="Ouvrir ou fermer les notifications" title="Notifications">
                         <span class="btn-icon" aria-hidden="true">🔔</span>
                         <span class="notification-badge" data-notification-badge hidden>0</span>
                     </button>
-                    <button type="button" class="primary-btn" data-notification-read-all data-notification-token="{{ csrf_token('notifications_read_all') }}">{{ 'notifications.mark_all_read'|trans }}</button>
+                    <button type="button" class="primary-btn" data-notification-read-all data-notification-token="{{ csrf_token('notifications_read_all') }}">Tout marquer lu</button>
                 </div>
             </div>
             <div class="notification-panel notification-panel--inline" data-notification-panel hidden>
                 <div class="notification-panel__list" data-notification-list>
-                    <div class="notification-empty">{{ 'notifications.none'|trans }}</div>
+                    <div class="notification-empty">Aucune notification</div>
                 </div>
             </div>
         </section>
@@ -286,27 +286,27 @@
     <div class="offer-filter-card">
         <form method="get" action="{{ path('app_offres') }}" class="offer-filter-row">
             <div>
-                <label for="lieu" style="display:block; font-weight:600; margin-bottom:4px; color:var(--ft-primary);">{{ 'front.offers.filter_by_place'|trans }}</label>
+                <label for="lieu" style="display:block; font-weight:600; margin-bottom:4px; color:var(--ft-primary);">Filtrer par lieu</label>
                 <select id="lieu" name="lieu" class="offer-filter-select">
-                    <option value="0">{{ 'front.offers.all_places'|trans }}</option>
+                    <option value="0">Tous les lieux</option>
                     {% for lieu in lieux %}
                         <option value="{{ lieu.id }}" {{ selectedLieu == lieu.id ? 'selected' : '' }}>{{ lieu.nom }}</option>
                     {% endfor %}
                 </select>
             </div>
             <div>
-                <label for="sort" style="display:block; font-weight:600; margin-bottom:4px; color:var(--ft-primary);">{{ 'front.offers.sort_by'|trans }}</label>
+                <label for="sort" style="display:block; font-weight:600; margin-bottom:4px; color:var(--ft-primary);">Trier par</label>
                 <select id="sort" name="sort" class="offer-filter-select">
-                    <option value="urgent" {{ (selectedSort|default('urgent')) == 'urgent' ? 'selected' : '' }}>{{ 'front.offers.sort_urgent'|trans }}</option>
-                    <option value="date_fin_asc" {{ (selectedSort|default('urgent')) == 'date_fin_asc' ? 'selected' : '' }}>{{ 'front.offers.sort_end_date_near'|trans }}</option>
-                    <option value="date_fin_desc" {{ (selectedSort|default('urgent')) == 'date_fin_desc' ? 'selected' : '' }}>{{ 'front.offers.sort_end_date_far'|trans }}</option>
-                    <option value="reduction_desc" {{ (selectedSort|default('urgent')) == 'reduction_desc' ? 'selected' : '' }}>{{ 'front.offers.sort_discount_high'|trans }}</option>
-                    <option value="reduction_asc" {{ (selectedSort|default('urgent')) == 'reduction_asc' ? 'selected' : '' }}>{{ 'front.offers.sort_discount_low'|trans }}</option>
-                    <option value="titre_asc" {{ (selectedSort|default('urgent')) == 'titre_asc' ? 'selected' : '' }}>{{ 'front.offers.sort_title_asc'|trans }}</option>
-                    <option value="titre_desc" {{ (selectedSort|default('urgent')) == 'titre_desc' ? 'selected' : '' }}>{{ 'front.offers.sort_title_desc'|trans }}</option>
+                    <option value="urgent" {{ (selectedSort|default('urgent')) == 'urgent' ? 'selected' : '' }}>Urgentes d'abord</option>
+                    <option value="date_fin_asc" {{ (selectedSort|default('urgent')) == 'date_fin_asc' ? 'selected' : '' }}>Date fin (proche)</option>
+                    <option value="date_fin_desc" {{ (selectedSort|default('urgent')) == 'date_fin_desc' ? 'selected' : '' }}>Date fin (lointaine)</option>
+                    <option value="reduction_desc" {{ (selectedSort|default('urgent')) == 'reduction_desc' ? 'selected' : '' }}>Reduction (max-min)</option>
+                    <option value="reduction_asc" {{ (selectedSort|default('urgent')) == 'reduction_asc' ? 'selected' : '' }}>Reduction (min-max)</option>
+                    <option value="titre_asc" {{ (selectedSort|default('urgent')) == 'titre_asc' ? 'selected' : '' }}>Titre (A-Z)</option>
+                    <option value="titre_desc" {{ (selectedSort|default('urgent')) == 'titre_desc' ? 'selected' : '' }}>Titre (Z-A)</option>
                 </select>
             </div>
-            <button class="outline-btn" type="submit">{{ 'common.apply'|trans }}</button>
+            <button class="outline-btn" type="submit">Appliquer</button>
         </form>
     </div>
 
@@ -322,7 +322,7 @@
                         <h3 class="offer-front-title">{{ attribute(item, 'titre') }}</h3>
                         <p>
                             {% if item.pourcentage is defined and item.pourcentage %}
-                                {{ 'front.offers.discount'|trans }} ·
+                                Réduction ·
                                 {% if item.expiring_soon is defined and item.expiring_soon %}
                                     <span class="offer-price-wrap">
                                         <span class="offer-price-old">{{ item.pourcentage }}%</span>
@@ -342,7 +342,7 @@
                             {% endif %}
                             <span class="price-pill {{ item.expiring_soon is defined and item.expiring_soon ? 'offer-double-pill' : '' }}">{{ displayPercentage }}%</span>
                         {% endif %}
-                        {% if item.expiring_soon is defined and item.expiring_soon %}<span class="offer-urgent-banner">{{ 'front.offers.expiring_soon'|trans }}</span>{% endif %}
+                        {% if item.expiring_soon is defined and item.expiring_soon %}<span class="offer-urgent-banner">Expire bientôt</span>{% endif %}
                     </div>
                 </div>
 
@@ -352,7 +352,7 @@
                     {% if item.date_debut is defined %}<span>🗓 {{ item.date_debut|date('d/m/Y H:i') }}</span>{% endif %}
                     {% if item.date_fin is defined %}<span>⏳ {{ item.date_fin|date('d/m/Y') }}</span>{% endif %}
                     {% if item.budget_min is defined %}<span>💸 {{ item.budget_min ?? 0 }} - {{ item.budget_max ?? 0 }} TND</span>{% endif %}
-                    {% if item.nb_places is defined %}<span>👥 {{ 'front.offers.places_count'|trans({'%count%': item.nb_places}) }}</span>{% endif %}
+                    {% if item.nb_places is defined %}<span>👥 {{ item.nb_places }} places</span>{% endif %}
                 </div>
 
                 {% if item.description is defined and item.description %}
@@ -360,7 +360,7 @@
                 {% endif %}
 
                 {% if item.expiring_soon is defined and item.expiring_soon %}
-                    <div class="offer-countdown" data-offer-countdown="{{ item.countdown_target ?? (item.date_fin|date('Y-m-d') ~ 'T23:59:59') }}">{{ item.countdown_label ?? ('front.offers.expires_in'|trans) }}</div>
+                    <div class="offer-countdown" data-offer-countdown="{{ item.countdown_target ?? (item.date_fin|date('Y-m-d') ~ 'T23:59:59') }}">{{ item.countdown_label ?? 'Expire dans ...' }}</div>
                 {% endif %}
 
                 <div class="offer-front-footer">
@@ -368,11 +368,11 @@
                         <span class="offer-status-dot"></span>
                         <span>{{ item.statut is defined and item.statut ? item.statut : 'ACTIVE' }}</span>
                     </div>
-                    <a href="{{ path('app_offres_show', {id: item.id}) }}" class="outline-btn">{{ 'common.view_details'|trans }}</a>
+                    <a href="{{ path('app_offres_show', {id: item.id}) }}" class="outline-btn">Voir détails</a>
                 </div>
             </article>
         {% else %}
-            <div class="empty-state">{{ 'common.no_data'|trans }}</div>
+            <div class="empty-state">Aucune donnée disponible pour cette page.</div>
         {% endfor %}
     </div>
 </section>

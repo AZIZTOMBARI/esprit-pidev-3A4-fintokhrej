@@ -11,6 +11,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 #[Route('/admin')]
 class AdminController extends AbstractController
@@ -533,11 +534,12 @@ class AdminController extends AbstractController
                 'total' => $total,
                 'totalPages' => max(1, (int) ceil($total / $pageSize)),
             ],
+            'analyses' => $this->getOffresAnalysesFromSession($request, $offres),
         ]);
     }
 
     #[Route('/offres/create', name: 'app_admin_offres_create', methods: ['POST'])]
-    public function offresCreate(Request $request, Connection $connection): Response
+    public function offresCreate(Request $request, Connection $connection, HttpClientInterface $httpClient): Response
     {
         if (!$this->isCsrfTokenValid('admin_offre_create', (string) $request->request->get('_token', ''))) {
             $this->addFlash('error', 'Jeton CSRF invalide pour la création d\'offre.');
@@ -577,12 +579,116 @@ class AdminController extends AbstractController
                 'lieu_id' => $payload['lieu_id'],
             ]);
 
+            $offreId = (int) $connection->lastInsertId();
+            $webhookWarning = $this->sendOffreCreateWebhook($httpClient, $offreId, $userId, $payload);
+            if ($webhookWarning !== null) {
+                $this->addFlash('warning', $webhookWarning);
+            }
+
             $this->addFlash('success', 'Offre créée avec succès.');
         } catch (Exception $e) {
             $this->addFlash('error', 'Erreur création offre: '.$e->getMessage());
         }
 
         return $this->redirectToRoute('app_admin_offres');
+    }
+
+    #[Route('/offres/analyze', name: 'app_admin_offres_analyze', methods: ['POST'])]
+    public function offresAnalyze(Request $request, HttpClientInterface $httpClient, Connection $connection): Response
+    {
+        // Lire les données JSON ou form POST
+        $contentType = $request->headers->get('Content-Type', '');
+        $data = [];
+        
+        if (str_contains($contentType, 'application/json')) {
+            // Données JSON depuis AJAX
+            $data = json_decode($request->getContent(), true) ?? [];
+        } else {
+            // Données de formulaire POST
+            $data = $request->request->all();
+        }
+
+        if (!$this->isCsrfTokenValid('admin_offre_create', (string) ($data['_token'] ?? ''))) {
+            $this->addFlash('error', 'Jeton CSRF invalide pour l\'analyse d\'offre.');
+            if ($request->isXmlHttpRequest() || str_contains($contentType, 'application/json')) {
+                return $this->json(['success' => false, 'error' => 'CSRF invalide'], 403);
+            }
+            return $this->redirectToRoute('app_admin_offres');
+        }
+
+        // offre_id est optionnel (peut être vide si c'est une création)
+        $offreId = (string) ($data['offre_id'] ?? '');
+
+        $payload = $this->normalizeOffrePayload([
+            'titre' => (string) ($data['titre'] ?? ''),
+            'type' => (string) ($data['type'] ?? ''),
+            'pourcentage' => (string) ($data['pourcentage'] ?? ''),
+            'date_debut' => (string) ($data['date_debut'] ?? ''),
+            'date_fin' => (string) ($data['date_fin'] ?? ''),
+            'statut' => (string) ($data['statut'] ?? ''),
+            'description' => (string) ($data['description'] ?? ''),
+            'lieu_id' => (string) ($data['lieu_id'] ?? ''),
+        ]);
+
+        $webhookUrl = trim((string) ($_ENV['N8N_OFFRE_ANALYZE_WEBHOOK_URL'] ?? $_SERVER['N8N_OFFRE_ANALYZE_WEBHOOK_URL'] ?? ''));
+        if ($webhookUrl === '') {
+            $this->addFlash('error', 'Webhook n8n non configuré. Ajoutez N8N_OFFRE_ANALYZE_WEBHOOK_URL dans votre .env.local.');
+            if ($request->isXmlHttpRequest() || str_contains($contentType, 'application/json')) {
+                return $this->json(['success' => false, 'error' => 'Webhook non configuré'], 500);
+            }
+            return $this->redirectToRoute('app_admin_offres');
+        }
+
+        // Créer un ID de tracking unique
+        $trackingId = bin2hex(random_bytes(18)); // 36 caractères
+
+        // Sauvegarder le tracking
+        $connection->insert('offre_analysis_tracking', [
+            'tracking_id' => $trackingId,
+            'offre_id' => !empty($offreId) ? (int) $offreId : null,
+            'status' => 'pending',
+            'created_at' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
+            'expires_at' => (new \DateTimeImmutable())->modify('+1 hour')->format('Y-m-d H:i:s'),
+        ]);
+
+        $currentUser = $this->getUser();
+        $adminUserId = $currentUser instanceof User ? $currentUser->getId() : null;
+
+        try {
+            $response = $httpClient->request('POST', $webhookUrl, [
+                'json' => [
+                    'source' => 'admin_offre_analyze_button',
+                    'sent_at' => (new \DateTimeImmutable())->format(DATE_ATOM),
+                    'admin_user_id' => $adminUserId,
+                    'offre_id' => !empty($offreId) ? (int) $offreId : null,
+                    'tracking_id' => $trackingId,
+                    'offre' => $payload,
+                ],
+            ]);
+
+            if ($response->getStatusCode() >= 400) {
+                $errorMsg = 'Le webhook n8n a répondu avec une erreur HTTP '.$response->getStatusCode().'.';
+                if ($request->isXmlHttpRequest() || str_contains($contentType, 'application/json')) {
+                    return $this->json(['success' => false, 'error' => $errorMsg], 400);
+                }
+                $this->addFlash('error', $errorMsg);
+                return $this->redirectToRoute('app_admin_offres');
+            }
+
+            // Retourner JSON pour le modal popup
+            return $this->json([
+                'success' => true,
+                'tracking_id' => $trackingId,
+                'message' => 'Analyse envoyée à n8n...',
+            ]);
+        } catch (\Throwable $e) {
+            $errorMsg = 'Impossible d\'envoyer les données à n8n: '.$e->getMessage();
+            if ($request->isXmlHttpRequest() || str_contains($contentType, 'application/json')) {
+                return $this->json(['success' => false, 'error' => $errorMsg], 500);
+            }
+            $this->addFlash('error', $errorMsg);
+            return $this->redirectToRoute('app_admin_offres');
+        }
     }
 
     #[Route('/offres/{id}/update', name: 'app_admin_offres_update', methods: ['POST'])]
@@ -1009,6 +1115,45 @@ class AdminController extends AbstractController
         }
     }
 
+    private function sendOffreCreateWebhook(HttpClientInterface $httpClient, int $offreId, ?int $adminUserId, array $payload): ?string
+    {
+        $webhookUrl = trim((string) ($_ENV['N8N_OFFRE_CREATE_WEBHOOK_URL'] ?? $_SERVER['N8N_OFFRE_CREATE_WEBHOOK_URL'] ?? ''));
+        if ($webhookUrl === '') {
+            return null;
+        }
+
+        try {
+            $response = $httpClient->request('POST', $webhookUrl, [
+                'timeout' => 10,
+                'max_duration' => 12,
+                'json' => [
+                    'source' => 'admin_offre_create',
+                    'sent_at' => (new \DateTimeImmutable())->format(DATE_ATOM),
+                    'admin_user_id' => $adminUserId,
+                    'offre' => [
+                        'id' => $offreId,
+                        'titre' => $payload['titre'],
+                        'type' => $payload['type'],
+                        'pourcentage' => $payload['pourcentage'],
+                        'date_debut' => $payload['date_debut'],
+                        'date_fin' => $payload['date_fin'],
+                        'statut' => $payload['statut'],
+                        'description' => $payload['description'],
+                        'lieu_id' => $payload['lieu_id'],
+                    ],
+                ],
+            ]);
+
+            if ($response->getStatusCode() >= 400) {
+                return 'Offre créée, mais échec envoi webhook n8n (HTTP '.$response->getStatusCode().').';
+            }
+
+            return null;
+        } catch (\Throwable $e) {
+            return 'Offre créée, mais webhook n8n indisponible: '.$e->getMessage();
+        }
+    }
+
     private function normalizeOffrePayload(array $payload): array
     {
         $titre = preg_replace('/\s+/', ' ', trim((string) ($payload['titre'] ?? '')));
@@ -1224,5 +1369,42 @@ class AdminController extends AbstractController
             'read_at' => null,
             'metadata_json' => $metadata !== [] ? json_encode($metadata, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null,
         ]);
+    }
+
+    private function getOffresAnalysesFromSession(Request $request, array $offres): array
+    {
+        $analyses = [];
+        $session = $request->getSession();
+
+        foreach ($offres as $offre) {
+            $offreId = (string) $offre['id'];
+            $sessionKey = 'offre_analysis_' . $offreId;
+            
+            if ($session->has($sessionKey)) {
+                $analyses[$offreId] = $session->get($sessionKey);
+            }
+        }
+
+        return $analyses;
+    }
+
+    #[Route('/offres/dismiss-analysis', name: 'app_admin_offres_dismiss_analysis', methods: ['POST'])]
+    public function offresAnalyzeDismiss(Request $request): Response
+    {
+        try {
+            $data = json_decode($request->getContent(), true);
+            $offreId = $data['offre_id'] ?? null;
+
+            if (!$offreId) {
+                return new JsonResponse(['error' => 'offre_id manquant'], 400);
+            }
+
+            $session = $request->getSession();
+            $session->remove('offre_analysis_' . $offreId);
+
+            return new JsonResponse(['status' => 'success']);
+        } catch (\Throwable $e) {
+            return new JsonResponse(['error' => $e->getMessage()], 500);
+        }
     }
 }
