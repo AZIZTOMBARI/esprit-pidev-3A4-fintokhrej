@@ -11,6 +11,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 class FrontController extends AbstractController
@@ -1092,7 +1093,10 @@ class FrontController extends AbstractController
 
     private function buildQrImageUrl(string $promoNumber): string
     {
-        return 'https://api.qrserver.com/v1/create-qr-code/?size=280x280&data='.urlencode($promoNumber);
+        return $this->generateUrl('qr_code_generate', [
+            'builder' => 'default',
+            'data' => $promoNumber,
+        ], UrlGeneratorInterface::ABSOLUTE_URL);
     }
 
     private function formatPromoNumber(int|string $promoId): string
