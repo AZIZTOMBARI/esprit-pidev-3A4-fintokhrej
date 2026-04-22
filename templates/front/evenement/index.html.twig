@@ -1,0 +1,160 @@
+{% extends 'front/base_front.html.twig' %}
+
+{% block title %}{{ 'nav.events'|trans }} | Fin Tokhroj{% endblock %}
+
+{% block front_content %}
+<section>
+    {% set filters = filters|default({ q: '', type: '', prix: '' }) %}
+    <div class="section-head">
+        <div>
+            <h1 class="section-title">{{ 'front.events.upcoming'|trans }}</h1>
+            <p class="section-subtitle">{{ 'front.events.subtitle'|trans }}</p>
+        </div>
+        <a href="{{ path('app_home') }}" class="outline-btn">{{ 'front.search.back_home'|trans }}</a>
+    </div>
+
+    <div class="listing-card event-filter-card">
+        <div class="section-head" style="margin-bottom: 10px;">
+            <div>
+                <h2 class="section-title" style="font-size: 1.1rem;">{{ 'front.events.search_filters'|trans }}</h2>
+                <p class="section-subtitle">{{ 'front.events.search_filters_subtitle'|trans }}</p>
+            </div>
+            <a href="{{ path('app_evenements') }}" class="outline-btn">{{ 'settings.reset'|trans }}</a>
+        </div>
+        <form method="get" class="event-filter-grid">
+            <div class="event-filter-field">
+                <label>{{ 'front.events.search'|trans }}</label>
+                <input type="text" name="q" value="{{ filters.q }}" placeholder="{{ 'front.events.title_or_place'|trans }}">
+            </div>
+            <div class="event-filter-field">
+                <label>{{ 'front.events.type'|trans }}</label>
+                <select name="type">
+                    <option value="">{{ 'front.events.all_types'|trans }}</option>
+                    <option value="PUBLIC" {{ filters.type == 'PUBLIC' ? 'selected' : '' }}>{{ 'front.events.public'|trans }}</option>
+                    <option value="PRIVE" {{ filters.type == 'PRIVE' ? 'selected' : '' }}>{{ 'front.events.private'|trans }}</option>
+                </select>
+            </div>
+            <div class="event-filter-field">
+                <label>{{ 'front.events.price'|trans }}</label>
+                <select name="prix">
+                    <option value="">{{ 'front.events.all'|trans }}</option>
+                    <option value="gratuit" {{ filters.prix == 'gratuit' ? 'selected' : '' }}>{{ 'front.events.free'|trans }}</option>
+                    <option value="payant" {{ filters.prix == 'payant' ? 'selected' : '' }}>{{ 'front.events.paid'|trans }}</option>
+                </select>
+            </div>
+            <div class="event-filter-field event-filter-actions">
+                <button type="submit" class="cta-btn">{{ 'front.events.filter'|trans }}</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="listing-grid">
+        {% for event in events %}
+            {% set eventDateDebut = event.dateDebut|default(event.date_debut|default(null)) %}
+            {% set eventDateFin = event.dateFin|default(event.date_fin|default(null)) %}
+            {% set eventCapacite = event.capaciteMax|default(event.capacite_max|default(null)) %}
+            <article class="listing-card event-card">
+                {% set rawImage = event.imageUrl|default(event.image_url|default('')) %}
+                {% if rawImage and (rawImage starts with 'http://' or rawImage starts with 'https://') %}
+                    {% set imageSrc = rawImage %}
+                {% elseif rawImage and (rawImage starts with '/theme/' or rawImage starts with '/uploads/' or rawImage starts with 'theme/' or rawImage starts with 'uploads/') %}
+                    {% set imageSrc = asset(rawImage) %}
+                {% elseif rawImage %}
+                    {% set imageSrc = asset('uploads/evenements/' ~ rawImage) %}
+                {% else %}
+                    {% set imageSrc = '' %}
+                {% endif %}
+                <div class="cover-thumb">
+                    {% if imageSrc %}
+                        <img src="{{ imageSrc }}" alt="{{ event.titre }}" onerror="this.onerror=null;this.src='{{ asset('theme/images/logo.png') }}';">
+                    {% else %}
+                        <span>{{ event.titre|slice(0,1) }}</span>
+                    {% endif %}
+                </div>
+                
+                <div class="listing-card__top event-card__body">
+                    <div>
+                        <h3>{{ event.titre }}</h3>
+                        <p>{{ eventDateDebut ? eventDateDebut|date('d/m/Y') : ('front.events.date_to_confirm'|trans) }} • 
+                            {% if event.lieu is defined %}
+                                {{ event.lieu ? event.lieu.nom : (event.lieu_nom ?? ('front.events.place_to_confirm'|trans)) }}
+                            {% else %}
+                                {{ event.lieu_nom ?? ('front.events.place_to_confirm'|trans) }}
+                            {% endif %}
+                        </p>
+                    </div>
+                    <span class="price-pill">{% if event.prix > 0 %}{{ event.prix }} TND{% else %}{{ 'front.events.free'|trans }}{% endif %}</span>
+                </div>
+
+                <div class="meta-row event-card__meta">
+                    <span>🗓 {{ eventDateDebut ? eventDateDebut|date('d/m/Y H:i') : ('front.events.date_to_confirm'|trans) }}{% if eventDateFin %} • {{ eventDateFin|date('H:i') }}{% endif %}</span>
+                    <span>👥 {{ 'front.events.remaining_places'|trans({'%count%': (event.placesRestantes is defined ? event.placesRestantes : (eventCapacite ?? '?'))}) }}</span>
+                    <span class="badge-soft">{{ event.type|default('PUBLIC') }}</span>
+                    <span class="badge-soft">{{ event.statut|default('OUVERT') }}</span>
+                </div>
+
+                <a href="{{ path('app_evenement_show', {id: event.id}) }}" class="cta-btn event-card__cta" style="margin-top: 15px; display: inline-flex; justify-content: center;">
+                    {{ 'front.events.join'|trans }}
+                </a>
+            </article>
+        {% else %}
+            <div class="empty-state">{{ 'front.events.none_available'|trans }}</div>
+        {% endfor %}
+    </div>
+</section>
+
+<style>
+    .event-filter-card {
+        margin-bottom: 18px;
+    }
+    .event-filter-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+    }
+    .event-filter-field {
+        display: grid;
+        gap: 6px;
+    }
+    .event-filter-field label {
+        font-size: 13px;
+        font-weight: 700;
+        color: #334155;
+    }
+    .event-filter-field input,
+    .event-filter-field select {
+        width: 100%;
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        padding: 10px 12px;
+        font-size: 14px;
+        background: #fff;
+        color: #0f172a;
+        outline: none;
+    }
+    .event-filter-field input:focus,
+    .event-filter-field select:focus {
+        border-color: #38bdf8;
+        box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+    }
+    .event-filter-actions {
+        display: flex;
+        align-items: end;
+    }
+    .event-card {
+        display: flex;
+        flex-direction: column;
+    }
+    .event-card__body {
+        flex: 1;
+    }
+    .event-card__meta {
+        align-items: center;
+    }
+    .event-card__cta {
+        margin-top: auto;
+        align-self: center;
+        min-width: 160px;
+    }
+</style>
+{% endblock %}
