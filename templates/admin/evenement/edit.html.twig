@@ -1,0 +1,215 @@
+{% extends 'admin/base_admin.html.twig' %}
+
+{% block title %}Modifier l'événement - Admin{% endblock %}
+{% block admin_page_title %}Événements{% endblock %}
+
+{% block admin_content %}
+<div class="admin-container" style="max-width: 920px; margin: 40px auto;">
+    <div class="section-head">
+        <div>
+            <h1 class="section-title">Modifier l'événement</h1>
+            <p class="section-subtitle">Mettez à jour les informations importantes.</p>
+        </div>
+        <a href="{{ path('app_admin_evenements') }}" class="outline-btn">Retour liste</a>
+    </div>
+
+    <div class="event-form-card">
+        {{ form_start(form, {'attr': {'novalidate': 'novalidate'}}) }}
+
+        <div class="event-form-section">
+            <h3 class="event-form-title">Informations générales</h3>
+            <div class="event-form-grid">
+                <div class="event-field event-field--full">
+                    {{ form_label(form.titre) }}
+                    {{ form_widget(form.titre, {attr: {class: 'form-control', placeholder: 'Titre de l\'événement'}}) }}
+                    {% if form.titre.vars.errors|length > 0 %}
+                        <div class="event-error">
+                            {% for error in form.titre.vars.errors %}
+                                {{ error.message }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="event-field event-field--full">
+                    {{ form_label(form.description) }}
+                    {{ form_widget(form.description, {attr: {class: 'form-control', rows: 4, placeholder: 'Décrivez l\'événement (optionnel)'}}) }}
+                </div>
+            </div>
+        </div>
+
+        <div class="event-form-section">
+            <h3 class="event-form-title">Dates et capacité</h3>
+            <div class="event-form-grid">
+                <div class="event-field">
+                    {{ form_label(form.dateDebut) }}
+                    {{ form_widget(form.dateDebut, {attr: {class: 'form-control', type: 'datetime-local'}}) }}
+                    {% if form.dateDebut.vars.errors|length > 0 %}
+                        <div class="event-error">
+                            {% for error in form.dateDebut.vars.errors %}
+                                {{ error.message }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="event-field">
+                    {{ form_label(form.dateFin) }}
+                    {{ form_widget(form.dateFin, {attr: {class: 'form-control', type: 'datetime-local'}}) }}
+                    {% if form.dateFin.vars.errors|length > 0 %}
+                        <div class="event-error">
+                            {% for error in form.dateFin.vars.errors %}
+                                {{ error.message }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="event-field">
+                    {{ form_label(form.capaciteMax) }}
+                    {{ form_widget(form.capaciteMax, {attr: {class: 'form-control', placeholder: 'Ex: 100'}}) }}
+                    {% if form.capaciteMax.vars.errors|length > 0 %}
+                        <div class="event-error">
+                            {% for error in form.capaciteMax.vars.errors %}
+                                {{ error.message }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="event-field">
+                    {{ form_label(form.prix) }}
+                    {{ form_widget(form.prix, {attr: {class: 'form-control', placeholder: '0 pour gratuit'}}) }}
+                    {% if form.prix.vars.errors|length > 0 %}
+                        <div class="event-error">
+                            {% for error in form.prix.vars.errors %}
+                                {{ error.message }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="event-form-section">
+            <h3 class="event-form-title">Paramètres</h3>
+            <div class="event-form-grid">
+                <div class="event-field">
+                    {{ form_label(form.statut) }}
+                    {{ form_widget(form.statut, {attr: {class: 'form-control'}}) }}
+                </div>
+                <div class="event-field">
+                    {{ form_label(form.type) }}
+                    {{ form_widget(form.type, {attr: {class: 'form-control'}}) }}
+                </div>
+                <div class="event-field event-field--full">
+                    {{ form_label(form.lieu) }}
+                    {{ form_widget(form.lieu, {attr: {class: 'form-control'}}) }}
+                </div>
+            </div>
+        </div>
+
+        <div class="event-form-section">
+            <h3 class="event-form-title">Visuel</h3>
+            <div class="event-form-grid">
+                <div class="event-field">
+                    {{ form_label(form.imageFile) }}
+                    {{ form_widget(form.imageFile, {attr: {class: 'form-control'}}) }}
+                    {% if form.imageFile.vars.errors|length > 0 %}
+                        <div class="event-error">
+                            {% for error in form.imageFile.vars.errors %}
+                                {{ error.message }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    <div class="event-help">Formats acceptés: JPG, PNG, WEBP, GIF. Taille max: 4 Mo.</div>
+                </div>
+                <div class="event-field">
+                    {{ form_label(form.imageUrl) }}
+                    {{ form_widget(form.imageUrl, {attr: {class: 'form-control', placeholder: 'https://...'}}) }}
+                    {% if form.imageUrl.vars.errors|length > 0 %}
+                        <div class="event-error">
+                            {% for error in form.imageUrl.vars.errors %}
+                                {{ error.message }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    <div class="event-help">L'upload a la priorité sur l'URL si les deux sont fournis.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="event-form-actions">
+            <button type="submit" class="cta-btn">Enregistrer les modifications</button>
+            <a href="{{ path('app_admin_evenements') }}" class="outline-btn">Annuler</a>
+        </div>
+
+        {{ form_end(form) }}
+    </div>
+</div>
+
+<style>
+    .event-form-card {
+        background: #fff;
+        border: 1px solid rgba(20,61,113,0.08);
+        border-radius: 20px;
+        box-shadow: var(--ft-shadow);
+        padding: 26px;
+    }
+    .event-form-section { margin-bottom: 22px; }
+    .event-form-title {
+        margin: 0 0 12px;
+        font-size: 15px;
+        color: #143d71;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+    }
+    .event-form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+    }
+    .event-field { display: grid; gap: 6px; }
+    .event-field--full { grid-column: 1 / -1; }
+    .event-error {
+        color: #b91c1c;
+        font-size: 12px;
+        margin-top: 4px;
+        font-weight: 600;
+    }
+    .event-help {
+        font-size: 12px;
+        color: #64748b;
+    }
+    .form-control {
+        display: block;
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        font-size: 14px;
+        font-family: inherit;
+        background: #fff;
+    }
+    .form-control:focus {
+        outline: none;
+        border-color: #38bdf8;
+        box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+    }
+    label {
+        display: block;
+        margin-bottom: 2px;
+        font-weight: 700;
+        font-size: 13px;
+        color: #334155;
+    }
+    .event-form-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        border-top: 1px solid #e2e8f0;
+        padding-top: 16px;
+    }
+    @media (max-width: 860px) {
+        .event-form-grid { grid-template-columns: 1fr; }
+        .event-form-actions { flex-direction: column; align-items: stretch; }
+    }
+</style>
+{% endblock %}

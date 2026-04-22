@@ -1,0 +1,37 @@
+<header class="admin-topbar">
+    <div>
+        <h1>{% block admin_page_title %}Dashboard{% endblock %}</h1>
+        <p>Vue d'ensemble — <span data-refresh-date></span></p>
+    </div>
+    <div class="front-tools">
+        <form class="search-pill" method="get" action="{{ path('app_admin_users') }}" data-admin-search-form>
+            <span>🔎</span>
+            <input type="text" name="q" value="{{ app.request.query.get('q') }}" placeholder="Rechercher par nom / email / rôle / statut..." data-admin-search-input>
+        </form>
+        <button class="outline-btn">Refresh</button>
+        {% set adminRawImage = app.user ? (app.user.imageUrl|default('')) : '' %}
+        {% if adminRawImage and (adminRawImage starts with 'http://' or adminRawImage starts with 'https://') %}
+            {% set adminImageSrc = adminRawImage %}
+        {% elseif adminRawImage and (adminRawImage starts with '/theme/' or adminRawImage starts with '/uploads/') %}
+            {% set adminImageSrc = asset(adminRawImage|trim('/')) %}
+        {% elseif adminRawImage and (adminRawImage starts with 'theme/' or adminRawImage starts with 'uploads/') %}
+            {% set adminImageSrc = asset(adminRawImage|trim('/')) %}
+        {% elseif adminRawImage and (adminRawImage starts with '/public/' or adminRawImage starts with 'public/') %}
+            {% set adminImageSrc = asset(adminRawImage|replace({'/public/': '', 'public/': ''})|trim('/')) %}
+        {% elseif adminRawImage and ('uploads/' in adminRawImage) %}
+            {% set adminImageSrc = asset(adminRawImage|split('uploads/')|last|trim('/')|replace({'users/': 'uploads/users/'}) ) %}
+        {% elseif adminRawImage and adminRawImage != 'default.png' %}
+            {% set adminImageSrc = asset('uploads/users/' ~ adminRawImage|trim('/')) %}
+        {% else %}
+            {% set adminImageSrc = asset('theme/images/logo.png') %}
+        {% endif %}
+        <div class="user-chip">
+            <img class="avatar-circle" src="{{ adminImageSrc }}" alt="Admin" onerror="this.onerror=null;this.src='{{ asset('theme/images/logo.png') }}';">
+            <div>
+                <div class="user-chip__name">{{ app.user ? app.user.prenom ~ ' ' ~ app.user.nom : 'Admin' }}</div>
+                <div class="user-chip__role">{{ app.user ? app.user.role|upper : 'ADMIN' }}</div>
+            </div>
+        </div>
+        <a href="{{ path('app_logout') }}" class="cta-btn" style="text-decoration:none;display:inline-flex;align-items:center;">Déconnexion</a>
+    </div>
+</header>

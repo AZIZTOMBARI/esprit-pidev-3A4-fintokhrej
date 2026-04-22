@@ -1,0 +1,27 @@
+<aside class="admin-sidebar" style="display:flex;flex-direction:column;">
+    <div>
+        <div class="admin-brand">
+            <div class="brand__logo">
+                <img src="{{ asset('theme/images/logo.png') }}" alt="Fin Tokhroj">
+            </div>
+            <div>
+                <div class="brand__title">Fin Tokhroj</div>
+                <div class="brand__subtitle">Votre Guide Social</div>
+            </div>
+        </div>
+
+        <div class="admin-menu-label">Menu</div>
+        <nav>
+            <a href="{{ path('app_admin_dashboard') }}" class="{{ active == 'dashboard' ? 'active' : '' }}">📊 Dashboard</a>
+            <a href="{{ path('app_admin_users') }}" class="{{ active == 'users' ? 'active' : '' }}">👤 Utilisateurs</a>
+            <a href="{{ path('app_admin_sorties') }}" class="{{ active == 'sorties' ? 'active' : '' }}">🧭 Sorties</a>
+            <a href="{{ path('app_admin_lieux') }}" class="{{ active == 'lieux' ? 'active' : '' }}">📍 Lieux</a>
+            <a href="{{ path('app_admin_offres') }}" class="{{ active == 'offres' ? 'active' : '' }}">🏷 Offres</a>
+            <a href="{{ path('app_admin_evenements') }}" class="{{ active == 'evenements' ? 'active' : '' }}">🎫 Événements</a>
+        </nav>
+    </div>
+
+    <div class="logout-box">
+        <a href="{{ path('app_logout') }}">Déconnexion</a>
+    </div>
+</aside>

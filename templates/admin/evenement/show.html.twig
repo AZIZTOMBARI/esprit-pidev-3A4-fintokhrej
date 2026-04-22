@@ -1,0 +1,53 @@
+{% extends 'admin/base_admin.html.twig' %}
+
+{% block title %}Evenement | {{ evenement.titre }}{% endblock %}
+{% block admin_page_title %}Événements{% endblock %}
+
+{% block admin_content %}
+<div class="admin-container" style="max-width: 1100px; margin: 30px auto;">
+    <div class="section-head" style="margin-bottom: 20px;">
+        <div>
+            <h1 class="section-title">{{ evenement.titre }}</h1>
+            <p class="section-subtitle">{{ evenement.dateDebut|date('d/m/Y H:i') }} - {{ evenement.dateFin|date('d/m/Y H:i') }}</p>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <a href="{{ path('app_admin_evenements_edit', {id: evenement.id}) }}" class="outline-btn">Modifier</a>
+            <a href="{{ path('app_admin_inscriptions', {id: evenement.id}) }}" class="cta-btn">Gerer les inscriptions</a>
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px;">
+        <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px;">
+            <h3 style="margin: 0 0 10px 0; font-size: 16px;">Informations</h3>
+            <div style="display: grid; gap: 6px;">
+                <div><strong>Lieu:</strong> {{ evenement.lieu ? evenement.lieu.nom : 'Lieu a confirmer' }}</div>
+                <div><strong>Type:</strong> {{ evenement.type }}</div>
+                <div><strong>Statut:</strong> {{ evenement.statut }}</div>
+                <div><strong>Capacite:</strong> {{ evenement.capaciteMax }} places</div>
+                <div><strong>Prix:</strong> {{ evenement.prix }} TND</div>
+                <div><strong>Places restantes:</strong> {{ stats.places_restantes }}</div>
+            </div>
+
+            {% if evenement.description %}
+                <div style="margin-top: 12px;">
+                    <h4 style="margin: 0 0 6px 0; font-size: 14px;">Description</h4>
+                    <p style="margin: 0; color: #475569;">{{ evenement.description }}</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px;">
+            <h3 style="margin: 0 0 10px 0; font-size: 16px;">Statistiques</h3>
+            <div style="display: grid; gap: 8px;">
+                <div>Demandes: <strong>{{ stats.total_demandes }}</strong></div>
+                <div>En attente: <strong>{{ stats.en_attente }}</strong></div>
+                <div>Confirmees: <strong>{{ stats.confirmees }}</strong></div>
+                <div>Payees: <strong>{{ stats.payees }}</strong></div>
+                <div>Rejetees: <strong>{{ stats.rejetees }}</strong></div>
+                <div>Annulees: <strong>{{ stats.annulees }}</strong></div>
+                <div>Taux de remplissage: <strong>{{ stats.taux_remplissage }}%</strong></div>
+            </div>
+        </div>
+    </div>
+ </div>
+{% endblock %}
