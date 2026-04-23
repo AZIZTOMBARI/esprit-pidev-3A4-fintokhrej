@@ -12,12 +12,14 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormInterface;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\String\Slugger\SluggerInterface;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 #[IsGranted('ROLE_ADMIN')]
 class LieuController extends AbstractController
@@ -211,6 +213,90 @@ class LieuController extends AbstractController
         $this->addFlash('success', 'Lieu supprimé avec succès.');
 
         return $this->redirectToRoute('app_admin_lieu_index');
+    }
+
+    #[Route('/admin/lieu/reverse-geocode', name: 'app_admin_lieu_reverse_geocode', methods: ['GET'])]
+    public function reverseGeocode(Request $request, HttpClientInterface $httpClient): JsonResponse
+    {
+        $latRaw = str_replace(',', '.', trim((string) $request->query->get('lat', '')));
+        $lngRaw = str_replace(',', '.', trim((string) $request->query->get('lng', '')));
+
+        if (!is_numeric($latRaw) || !is_numeric($lngRaw)) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Coordonnees invalides.',
+            ], 400);
+        }
+
+        $latitude = (float) $latRaw;
+        $longitude = (float) $lngRaw;
+
+        if ($latitude < -90 || $latitude > 90 || $longitude < -180 || $longitude > 180) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Coordonnees hors limites.',
+            ], 400);
+        }
+
+        try {
+            $response = $httpClient->request('GET', 'https://nominatim.openstreetmap.org/reverse', [
+                'query' => [
+                    'format' => 'jsonv2',
+                    'lat' => $latitude,
+                    'lon' => $longitude,
+                    'addressdetails' => 1,
+                ],
+                'headers' => [
+                    'Accept' => 'application/json',
+                    'Accept-Language' => 'fr',
+                    'User-Agent' => 'fintokhrej-admin/1.0',
+                ],
+                'timeout' => 8,
+            ]);
+
+            $payload = $response->toArray(false);
+            if (!is_array($payload)) {
+                throw new \RuntimeException('Reponse geocodage invalide.');
+            }
+
+            $address = is_array($payload['address'] ?? null) ? $payload['address'] : [];
+
+            $ville = '';
+            foreach (['city', 'town', 'village', 'municipality', 'state_district', 'county', 'state'] as $key) {
+                if (!empty($address[$key]) && is_string($address[$key])) {
+                    $ville = trim($address[$key]);
+                    break;
+                }
+            }
+
+            $adresse = '';
+            if (!empty($payload['display_name']) && is_string($payload['display_name'])) {
+                $adresse = trim($payload['display_name']);
+            }
+
+            if ($adresse === '') {
+                $chunks = [];
+                foreach (['road', 'house_number', 'suburb', 'neighbourhood', 'postcode', 'city', 'town', 'village', 'country'] as $key) {
+                    if (!empty($address[$key]) && is_string($address[$key])) {
+                        $chunks[] = trim($address[$key]);
+                    }
+                }
+                $adresse = implode(', ', array_unique($chunks));
+            }
+
+            return $this->json([
+                'success' => true,
+                'latitude' => $latitude,
+                'longitude' => $longitude,
+                'ville' => $ville,
+                'adresse' => $adresse,
+            ]);
+        } catch (\Throwable) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Impossible de recuperer l\'adresse pour ces coordonnees.',
+            ], 502);
+        }
     }
 
     private function extractFilters(Request $request): array

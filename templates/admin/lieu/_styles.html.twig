@@ -1,4 +1,6 @@
 <style>
+    @import url('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
+
     .lieu-feedback {
         border-radius: 14px;
         padding: 12px 14px;
@@ -225,6 +227,52 @@
         border-radius: 16px;
         background: #f8fbff;
         padding: 14px;
+    }
+
+    .lieu-map-card {
+        border: 1px solid #dbeafe;
+        border-radius: 16px;
+        background: linear-gradient(180deg, #f8fbff, #ffffff);
+        padding: 14px;
+    }
+
+    .lieu-map-card__head {
+        margin-bottom: 10px;
+    }
+
+    .lieu-map-canvas {
+        width: 100%;
+        min-height: 350px;
+        border: 1px solid #d7e1ee;
+        border-radius: 14px;
+        overflow: hidden;
+    }
+
+    .lieu-map-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .lieu-map-status {
+        font-size: 13px;
+        font-weight: 600;
+        color: #475569;
+    }
+
+    .lieu-map-status--error {
+        color: #b91c1c;
+    }
+
+    .lieu-map-status--loading {
+        color: #1d4ed8;
+    }
+
+    .leaflet-popup-content {
+        font-size: 13px;
+        margin: 10px 12px;
     }
 
     .lieu-horaires-grid {

@@ -1,0 +1,138 @@
+{% extends 'admin/base_admin.html.twig' %}
+
+{% block title %}Supervision Modération | Admin{% endblock %}
+
+{% block admin_content %}
+    <div class="section-head" style="margin-bottom:14px;">
+        <div>
+            <h2 class="section-title">Supervision Modération</h2>
+            <p class="section-subtitle">Suivi des tentatives de contenu toxique sur les avis.</p>
+        </div>
+    </div>
+
+    <div class="stats-grid" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:14px;">
+        <article class="app-card stat-card">
+            <div class="stat-card__label">Tentatives aujourd'hui</div>
+            <div class="stat-card__value">{{ stats.today }}</div>
+        </article>
+        <article class="app-card stat-card">
+            <div class="stat-card__label">Niveau sévère</div>
+            <div class="stat-card__value">{{ stats.severe }}</div>
+        </article>
+        <article class="app-card stat-card">
+            <div class="stat-card__label">Niveau modéré</div>
+            <div class="stat-card__value">{{ stats.moderate }}</div>
+        </article>
+    </div>
+
+    <form method="get" action="{{ path('app_admin_moderation') }}" class="app-card" style="padding:14px;margin-bottom:14px;display:grid;gap:12px;">
+        <div class="event-filter-grid" style="grid-template-columns:repeat(4,minmax(0,1fr));align-items:end;">
+            <div class="event-filter-field">
+                <label>Date début</label>
+                <input type="date" name="date_from" value="{{ filters.date_from }}">
+            </div>
+            <div class="event-filter-field">
+                <label>Sévérité</label>
+                <select name="severity">
+                    <option value="">Toutes</option>
+                    <option value="moderate" {{ filters.severity == 'moderate' ? 'selected' : '' }}>Modéré</option>
+                    <option value="severe" {{ filters.severity == 'severe' ? 'selected' : '' }}>Sévère</option>
+                </select>
+            </div>
+            <div class="event-filter-field">
+                <label>Lieu</label>
+                <select name="lieu_id">
+                    <option value="">Tous</option>
+                    {% for l in lieux %}
+                        <option value="{{ l.id }}" {{ filters.lieu_id == l.id ? 'selected' : '' }}>{{ l.nom }} ({{ l.ville }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="event-filter-actions" style="display:flex;gap:8px;">
+                <button type="submit" class="primary-btn">Filtrer</button>
+                <a href="{{ path('app_admin_moderation') }}" class="outline-btn">Reset</a>
+            </div>
+        </div>
+    </form>
+
+    <div class="app-card" style="padding:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <strong>Total: {{ total }}</strong>
+            <span class="field-hint">Page {{ page }} / {{ totalPages }}</span>
+        </div>
+
+        <div style="overflow:auto;">
+            <table style="width:100%;border-collapse:separate;border-spacing:0 8px;min-width:1120px;">
+                <thead>
+                    <tr>
+                        <th style="text-align:left;padding:6px 8px;">Date</th>
+                        <th style="text-align:left;padding:6px 8px;">Utilisateur</th>
+                        <th style="text-align:left;padding:6px 8px;">Lieu</th>
+                        <th style="text-align:left;padding:6px 8px;">Sévérité</th>
+                        <th style="text-align:left;padding:6px 8px;">Score</th>
+                        <th style="text-align:left;padding:6px 8px;">Termes détectés</th>
+                        <th style="text-align:left;padding:6px 8px;">Aperçu commentaire</th>
+                        <th style="text-align:left;padding:6px 8px;">Action admin</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                        <tr style="background:rgba(255,255,255,.8);border:1px solid rgba(20,61,113,.1);">
+                            <td style="padding:10px 8px;">{{ row.created_at ? row.created_at|date('d/m/Y H:i:s') : '-' }}</td>
+                            <td style="padding:10px 8px;">{{ row.prenom|default('') }} {{ row.nom|default('') }}<br><small>{{ row.email|default('-') }}</small></td>
+                            <td style="padding:10px 8px;">{{ row.lieu_nom|default('-') }}<br><small>{{ row.lieu_ville|default('') }}</small></td>
+                            <td style="padding:10px 8px;">
+                                <span class="status-pill {{ row.severity == 'severe' ? 'status-annulee' : 'status-en_attente' }}">{{ row.severity|upper }}</span>
+                            </td>
+                            <td style="padding:10px 8px;">{{ row.score }}</td>
+                            <td style="padding:10px 8px;">{{ row.terms_text }}</td>
+                            <td style="padding:10px 8px;max-width:380px;white-space:normal;word-break:break-word;">{{ row.comment_preview|default('-') }}</td>
+                            <td style="padding:10px 8px;min-width:250px;">
+                                {% if row.active_ban_until %}
+                                    <div style="margin-bottom:8px;">
+                                        <span class="status-pill status-annulee">Banni jusqu'au {{ row.active_ban_until|date('d/m/Y H:i') }}</span>
+                                    </div>
+                                    <small style="display:block;color:#60758f;max-width:220px;word-break:break-word;">{{ row.active_ban_reason|default('Motif non précisé') }}</small>
+                                    <form method="post" action="{{ path('app_admin_moderation_unban_user') }}" style="margin-top:8px;">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('admin_moderation_unban_' ~ row.user_id) }}">
+                                        <input type="hidden" name="user_id" value="{{ row.user_id }}">
+                                        <button type="submit" class="outline-btn" style="width:100%;">Lever le ban</button>
+                                    </form>
+                                {% else %}
+                                    <form method="post" action="{{ path('app_admin_moderation_ban_user') }}" style="display:grid;gap:6px;">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('admin_moderation_ban_' ~ row.user_id) }}">
+                                        <input type="hidden" name="user_id" value="{{ row.user_id }}">
+                                        <input type="hidden" name="source_log_id" value="{{ row.id }}">
+                                        <select name="duration_days" style="padding:6px;border:1px solid rgba(20,61,113,.2);border-radius:8px;">
+                                            <option value="3">3 jours</option>
+                                            <option value="7" selected>7 jours</option>
+                                            <option value="14">14 jours</option>
+                                            <option value="30">30 jours</option>
+                                        </select>
+                                        <input type="text" name="reason" maxlength="255" value="Contenu toxique détecté par modération" style="padding:6px;border:1px solid rgba(20,61,113,.2);border-radius:8px;" required>
+                                        <button type="submit" class="outline-btn" style="width:100%;">Bannir utilisateur</button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="8" style="padding:16px;text-align:center;color:#60758f;">Aucune tentative trouvée pour ces filtres.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if totalPages > 1 %}
+            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+                {% if page > 1 %}
+                    <a class="outline-btn" href="{{ path('app_admin_moderation', app.request.query.all|merge({page: page - 1})) }}">Précédent</a>
+                {% endif %}
+                {% if page < totalPages %}
+                    <a class="outline-btn" href="{{ path('app_admin_moderation', app.request.query.all|merge({page: page + 1})) }}">Suivant</a>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

@@ -73,6 +73,28 @@
             {{ form_errors(form.longitude) }}
         </div>
 
+        <div class="col-12">
+            <div
+                class="lieu-map-card"
+                data-lieu-map="1"
+                data-reverse-geocode-url="{{ path('app_admin_lieu_reverse_geocode') }}"
+                data-latitude-id="{{ form.latitude.vars.id }}"
+                data-longitude-id="{{ form.longitude.vars.id }}"
+                data-ville-id="{{ form.ville.vars.id }}"
+                data-adresse-id="{{ form.adresse.vars.id }}"
+            >
+                <div class="lieu-map-card__head">
+                    <h3 class="h5 mb-1">Localisation intelligente</h3>
+                    <p class="text-muted mb-0">Cliquez sur la carte pour récupérer automatiquement latitude, longitude, ville et adresse.</p>
+                </div>
+                <div id="lieu-map-canvas" class="lieu-map-canvas" role="region" aria-label="Carte de sélection du lieu"></div>
+                <div class="lieu-map-actions mt-2">
+                    <button type="button" class="secondary-btn" id="lieu-map-geolocate">Utiliser ma position</button>
+                    <span class="lieu-map-status" id="lieu-map-status" aria-live="polite"></span>
+                </div>
+            </div>
+        </div>
+
         {% set dayLabels = {
             'lundi': 'Lundi',
             'mardi': 'Mardi',
