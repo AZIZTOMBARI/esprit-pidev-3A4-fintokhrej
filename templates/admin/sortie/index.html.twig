@@ -1,0 +1,506 @@
+{% extends 'admin/base_admin.html.twig' %}
+
+{% block title %}Gestion des sorties | Fin Tokhroj{% endblock %}
+{% block admin_page_title %}Gestion des sorties{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .sortie-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 18px;
+            align-items: stretch;
+        }
+
+        .sortie-card {
+            position: relative;
+            width: 100%;
+            border: 1px solid rgba(31, 78, 138, 0.14);
+            border-radius: 22px;
+            background:
+                radial-gradient(circle at top right, rgba(110, 194, 255, 0.14), transparent 34%),
+                linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 248, 255, 0.96));
+            box-shadow: 0 18px 38px rgba(16, 45, 88, 0.12);
+            overflow: hidden;
+            transition: transform 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease;
+        }
+
+        .sortie-card.listing-card {
+            padding: 14px;
+        }
+
+        .sortie-card > *:not(.sortie-card__link) {
+            position: relative;
+            z-index: 2;
+        }
+
+        .sortie-card__link {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            border-radius: inherit;
+        }
+
+        .sortie-card::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.28), transparent 54%);
+            pointer-events: none;
+        }
+
+        .sortie-card:hover {
+            transform: translateY(-7px);
+            border-color: rgba(49, 116, 200, 0.2);
+            box-shadow: 0 26px 52px rgba(16, 45, 88, 0.18);
+        }
+
+        .sortie-card .cover-thumb {
+            position: relative;
+            overflow: hidden;
+            border-radius: 18px;
+            height: 150px;
+            margin-bottom: 14px;
+            padding: 0;
+        }
+
+        .sortie-card .cover-thumb::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, transparent 40%, rgba(8, 25, 49, 0.2) 100%);
+            pointer-events: none;
+        }
+
+        .sortie-card .cover-thumb img {
+            transition: transform 0.45s ease, filter 0.45s ease;
+        }
+
+        .sortie-card:hover .cover-thumb img {
+            transform: scale(1.05);
+            filter: saturate(1.05);
+        }
+
+        .sortie-card .listing-card__top h3 {
+            margin-bottom: 4px;
+            font-size: 1.06rem;
+            line-height: 1.2;
+            letter-spacing: -0.02em;
+            color: #163f73;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .sortie-card .listing-card__top p {
+            color: #5a769d;
+            font-weight: 600;
+            font-size: 0.92rem;
+            line-height: 1.35;
+        }
+
+        .sortie-card .owner-avatar-row {
+            margin-top: 10px;
+            padding: 6px 10px 6px 6px;
+            width: fit-content;
+            border-radius: 999px;
+            background: rgba(233, 242, 255, 0.88);
+            box-shadow: inset 0 0 0 1px rgba(43, 93, 161, 0.1);
+        }
+
+        .sortie-card .owner-avatar {
+            width: 34px;
+            height: 34px;
+            border: 2px solid rgba(255, 255, 255, 0.96);
+            box-shadow: 0 8px 18px rgba(31, 83, 146, 0.18);
+        }
+
+        .sortie-card .owner-avatar-name {
+            color: #173d73;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .sortie-card .price-pill,
+        .sortie-card .status-pill,
+        .sortie-card .owner-pill {
+            border-radius: 999px;
+            box-shadow: 0 10px 24px rgba(16, 45, 88, 0.1);
+        }
+
+        .sortie-card .price-pill {
+            padding: 8px 12px;
+            background: linear-gradient(135deg, #143d71, #2f72b6);
+            color: #fff;
+            font-weight: 800;
+            font-size: 0.9rem;
+        }
+
+        .sortie-card .meta-row {
+            margin-top: 12px;
+            gap: 8px;
+        }
+
+        .sortie-card .meta-row span {
+            padding: 7px 10px;
+            border-radius: 999px;
+            background: rgba(237, 244, 255, 0.92);
+            border: 1px solid rgba(44, 95, 166, 0.08);
+            color: #355983;
+            font-weight: 600;
+            font-size: 0.84rem;
+        }
+
+        .sortie-card .sortie-card__description {
+            margin-top: 12px;
+            color: #3b5d86;
+            font-size: 0.93rem;
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .sortie-card .btn-row {
+            margin-top: auto;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+            position: relative;
+            z-index: 3;
+        }
+
+        .sortie-card__body {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-height: 0;
+        }
+
+        .sortie-card__header {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        .sortie-card__content {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .sortie-card .btn-row .outline-btn,
+        .sortie-card .btn-row .primary-btn,
+        .sortie-card .btn-row .danger-btn {
+            border-radius: 13px;
+            box-shadow: 0 10px 24px rgba(16, 45, 88, 0.1);
+            min-height: 42px;
+            padding: 10px 12px;
+            font-size: 0.92rem;
+            width: 100%;
+        }
+
+        .sortie-card .btn-row .btn-icon {
+            font-size: 0.92rem;
+        }
+
+        .sortie-card .btn-row .btn-inline-form,
+        .sortie-card .btn-row .btn-inline-form button {
+            width: 100%;
+        }
+
+        .sortie-card .btn-row > :first-child,
+        .sortie-card .btn-row > :nth-child(2),
+        .sortie-card .btn-row > .btn-inline-form:first-of-type {
+            grid-column: auto;
+        }
+
+        .sortie-card .btn-row > .btn-inline-form:first-of-type {
+            grid-column: 1 / -1;
+        }
+
+        @media (max-width: 1100px) {
+            .sortie-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 640px) {
+            .sortie-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .sortie-card {
+                max-width: none;
+            }
+
+            .sortie-card .btn-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .users-pagination {
+            margin-top: 18px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: nowrap;
+            gap: 8px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            white-space: nowrap;
+            scrollbar-width: thin;
+            padding-bottom: 4px;
+            -webkit-mask-image: linear-gradient(to right, transparent 0, #000 22px, #000 calc(100% - 22px), transparent 100%);
+            mask-image: linear-gradient(to right, transparent 0, #000 22px, #000 calc(100% - 22px), transparent 100%);
+        }
+
+        .users-page-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 38px;
+            height: 38px;
+            padding: 0 12px;
+            flex: 0 0 auto;
+            border-radius: 10px;
+            border: 1px solid #d1d5db;
+            background: #fff;
+            color: #0f172a;
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        .users-page-link:hover {
+            border-color: #93c5fd;
+            background: #eff6ff;
+        }
+
+        .users-page-link.is-active {
+            border-color: #2563eb;
+            background: #2563eb;
+            color: #fff;
+        }
+
+        .users-page-link.is-disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .users-page-indicator {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 38px;
+            padding: 0 12px;
+            border-radius: 10px;
+            border: 1px solid #d1d5db;
+            background: #f8fafc;
+            color: #334155;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+    </style>
+{% endblock %}
+
+{% block admin_content %}
+    <div class="admin-table-card">
+        <div class="section-head">
+            <div>
+                <h2 class="section-title">Gestion des sorties</h2>
+                <p class="section-subtitle">Affichage en cartes pour une lecture plus moderne.</p>
+            </div>
+            <div class="btn-row">
+                <a href="{{ path('app_admin_sorties_create') }}" class="primary-btn"><span class="btn-icon">+</span>Ajouter une annonce</a>
+                <a href="{{ path('app_admin_sorties_stats') }}" class="outline-btn"><span class="btn-icon">&#128202;</span>Statistiques</a>
+                <a href="{{ path('app_admin_sorties_calendar') }}" class="outline-btn"><span class="btn-icon">&#128197;</span>Calendrier</a>
+                <a href="{{ path('app_admin_dashboard') }}" class="outline-btn"><span class="btn-icon">&larr;</span>Retour dashboard</a>
+            </div>
+        </div>
+
+        <section class="sortie-notification-board notification-root" data-notification-root data-feed-url="{{ path('app_notifications_api_feed') }}" data-read-all-url="{{ path('app_notifications_api_read_all') }}" data-notification-type-prefixes="PARTICIPATION_,SORTIE_" data-notification-inline="true">
+            <div class="sortie-notification-board__head">
+                <div>
+                    <h3>Centre notifications sorties</h3>
+                    <p>Flux en quasi temps réel des demandes, validations et changements de capacité.</p>
+                </div>
+                <div class="btn-row">
+                    <button type="button" class="outline-btn notification-toggle-btn" data-notification-toggle aria-label="Ouvrir ou fermer les notifications" title="Notifications">
+                        <span class="btn-icon" aria-hidden="true">🔔</span>
+                        <span class="notification-badge" data-notification-badge hidden>0</span>
+                    </button>
+                    <button type="button" class="primary-btn" data-notification-read-all data-notification-token="{{ csrf_token('notifications_read_all') }}">Tout marquer lu</button>
+                </div>
+            </div>
+            <div class="notification-panel notification-panel--inline" data-notification-panel hidden>
+                <div class="notification-panel__list" data-notification-list>
+                    <div class="notification-empty">Aucune notification</div>
+                </div>
+            </div>
+        </section>
+
+        {% for label in ['success', 'error', 'warning', 'info'] %}
+            {% for message in app.flashes(label) %}
+                <div class="sortie-flash sortie-flash-{{ label }}" style="margin: 10px 0 14px;">{{ message }}</div>
+            {% endfor %}
+        {% endfor %}
+
+        <form class="sortie-toolbar" method="get" action="{{ path('app_admin_sorties') }}">
+            <input type="search" class="custom-input" name="q" value="{{ filters.q|default('') }}" placeholder="Rechercher une sortie (titre, ville, type, créateur...)">
+            <select class="custom-input" name="status">
+                <option value="" {{ (filters.status|default('')) == '' ? 'selected' : '' }}>Tous les statuts</option>
+                <option value="OUVERTE" {{ (filters.status|default('')) == 'OUVERTE' ? 'selected' : '' }}>OUVERTE</option>
+                <option value="CLOTUREE" {{ (filters.status|default('')) == 'CLOTUREE' ? 'selected' : '' }}>CLOTUREE</option>
+                <option value="ANNULEE" {{ (filters.status|default('')) == 'ANNULEE' ? 'selected' : '' }}>ANNULEE</option>
+                <option value="TERMINEE" {{ (filters.status|default('')) == 'TERMINEE' ? 'selected' : '' }}>TERMINEE</option>
+            </select>
+            <select class="custom-input" name="sort">
+                <option value="recent" {{ (filters.sort|default('recent')) == 'recent' ? 'selected' : '' }}>Plus récentes</option>
+                <option value="date_asc" {{ (filters.sort|default('recent')) == 'date_asc' ? 'selected' : '' }}>Date sortie (croissant)</option>
+                <option value="date_desc" {{ (filters.sort|default('recent')) == 'date_desc' ? 'selected' : '' }}>Date sortie (décroissant)</option>
+                <option value="title_asc" {{ (filters.sort|default('recent')) == 'title_asc' ? 'selected' : '' }}>Titre (A-Z)</option>
+                <option value="title_desc" {{ (filters.sort|default('recent')) == 'title_desc' ? 'selected' : '' }}>Titre (Z-A)</option>
+                <option value="city_asc" {{ (filters.sort|default('recent')) == 'city_asc' ? 'selected' : '' }}>Ville (A-Z)</option>
+                <option value="places_desc" {{ (filters.sort|default('recent')) == 'places_desc' ? 'selected' : '' }}>Places (max-min)</option>
+                <option value="status_asc" {{ (filters.sort|default('recent')) == 'status_asc' ? 'selected' : '' }}>Statut (A-Z)</option>
+                <option value="creator_asc" {{ (filters.sort|default('recent')) == 'creator_asc' ? 'selected' : '' }}>Créateur (A-Z)</option>
+            </select>
+            <button type="submit" class="primary-btn">Filtrer</button>
+            <a href="{{ path('app_admin_sorties') }}" class="outline-btn">Réinitialiser</a>
+        </form>
+
+        <div class="listing-grid sortie-grid" data-sortie-list>
+            {% for item in sorties %}
+                {% set cardImage = item.image_url is defined and item.image_url ? (item.image_url starts with 'http' ? item.image_url : '/' ~ item.image_url|trim('/')) : null %}
+                <article class="listing-card sortie-card" data-sortie-id="{{ item.id|default(0) }}" data-sortie-title="{{ attribute(item, 'titre')|e('html_attr') }}" data-sortie-city="{{ (item.ville|default(''))|e('html_attr') }}" data-sortie-type="{{ (item.type_activite|default(''))|e('html_attr') }}" data-sortie-date="{{ item.date_sortie is defined and item.date_sortie ? item.date_sortie|date('d/m/Y H:i') : '-' }}" data-sortie-date-ts="{{ item.date_sortie is defined and item.date_sortie ? item.date_sortie|date('U') : '' }}" data-sortie-places="{{ (item.nb_places|default('-'))|e('html_attr') }}" data-sortie-budget="{{ (item.budget_max|default('-'))|e('html_attr') }}" data-sortie-status="{{ (item.statut|default('-'))|e('html_attr') }}" data-sortie-description="{{ (item.description|default('Aucune description'))|striptags|e('html_attr') }}" data-sortie-lieu="{{ (item.lieu_texte|default('-'))|e('html_attr') }}" data-sortie-point="{{ (item.point_rencontre|default('-'))|e('html_attr') }}" data-sortie-questions="{{ (item.questions_json|default(''))|e('html_attr') }}" data-sortie-createur="{{ ((item.prenom|default('') ~ ' ' ~ item.nom|default(''))|trim ?: 'Inconnu')|e('html_attr') }}" data-sortie-image="{{ (cardImage|default(''))|e('html_attr') }}">
+                    <a href="{{ path('app_admin_sorties_show', {id: item.id}) }}" class="sortie-card__link" aria-label="Voir le detail de {{ attribute(item, 'titre') }}"></a>
+                    <div class="cover-thumb">
+                        {% if cardImage %}
+                            <img src="{{ cardImage }}" alt="Image {{ attribute(item, 'titre') }}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;">
+                        {% else %}
+                            <span>{{ attribute(item, 'titre') }}</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="sortie-card__body">
+                    <div class="listing-card__top sortie-card__header">
+                        <div class="sortie-card__content">
+                            <h3>{{ attribute(item, 'titre') }}</h3>
+                            <p>
+                                {% if item.ville is defined and item.ville %}{{ item.ville }}{% endif %}
+                                {% if item.type_activite is defined and item.type_activite %} · {{ item.type_activite }}{% endif %}
+                            </p>
+                            {% set creatorRawImage = item.user_image_url|default('') %}
+                            {% if creatorRawImage and (creatorRawImage starts with 'http://' or creatorRawImage starts with 'https://') %}
+                                {% set creatorImageSrc = creatorRawImage %}
+                            {% elseif creatorRawImage and (creatorRawImage starts with '/theme/' or creatorRawImage starts with '/uploads/') %}
+                                {% set creatorImageSrc = asset(creatorRawImage|trim('/')) %}
+                            {% elseif creatorRawImage and (creatorRawImage starts with 'theme/' or creatorRawImage starts with 'uploads/') %}
+                                {% set creatorImageSrc = asset(creatorRawImage|trim('/')) %}
+                            {% elseif creatorRawImage and (creatorRawImage starts with '/public/' or creatorRawImage starts with 'public/') %}
+                                {% set creatorImageSrc = asset(creatorRawImage|replace({'/public/': '', 'public/': ''})|trim('/')) %}
+                            {% elseif creatorRawImage and ('uploads/' in creatorRawImage) %}
+                                {% set creatorImageSrc = asset('uploads/' ~ creatorRawImage|split('uploads/')|last|trim('/')) %}
+                            {% elseif creatorRawImage and creatorRawImage != 'default.png' %}
+                                {% set creatorImageSrc = asset('uploads/users/' ~ creatorRawImage|trim('/')) %}
+                            {% else %}
+                                {% set creatorImageSrc = asset('theme/images/logo.png') %}
+                            {% endif %}
+                            <div class="owner-avatar-row">
+                                <img class="owner-avatar" src="{{ creatorImageSrc }}" alt="Créateur" onerror="this.onerror=null;this.src='{{ asset('theme/images/logo.png') }}';">
+                                <span class="owner-avatar-name">{{ (item.prenom|default('') ~ ' ' ~ item.nom|default(''))|trim ?: 'Inconnu' }}</span>
+                            </div>
+                            {% if app.user and item.user_id is defined and item.user_id and app.user.id == item.user_id %}
+                                <span class="owner-pill">Créée par vous</span>
+                            {% endif %}
+                        </div>
+                        {% if item.budget_max is defined and item.budget_max is not null %}
+                            <span class="price-pill">{{ item.budget_max }} TND</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="meta-row">
+                        {% if item.date_sortie is defined and item.date_sortie %}<span>🗓 {{ item.date_sortie|date('d/m/Y H:i') }}</span>{% endif %}
+                        {% if item.nb_places is defined %}<span>👥 {{ item.nb_places }} places</span>{% endif %}
+                        {% if item.statut is defined %}
+                            {% set statusClass = 'status-pill status-' ~ item.statut|lower %}
+                            {% set statusLabel = item.statut %}
+                            {% if item.statut == 'TERMINEE' %}{% set statusLabel = '✅ TERMINÉE' %}{% endif %}
+                            {% if item.statut == 'CLOTUREE' %}{% set statusLabel = '🔒 CLÔTURÉE' %}{% endif %}
+                            {% if item.statut == 'OUVERTE' %}{% set statusLabel = '🟢 OUVERTE' %}{% endif %}
+                            {% if item.statut == 'ANNULEE' %}{% set statusLabel = '⛔ ANNULÉE' %}{% endif %}
+                            <span class="{{ statusClass }}">{{ statusLabel }}</span>
+                        {% endif %}
+                    </div>
+
+                    {% if item.description is defined and item.description %}
+                        <p class="sortie-card__description">{{ item.description }}</p>
+                    {% endif %}
+
+                    {% set canManage = is_granted('ROLE_ADMIN') or (app.user and item.user_id is defined and item.user_id and app.user.id == item.user_id) %}
+                    <div class="btn-row" style="margin-top: 12px;">
+                        <a href="{{ path('app_admin_participations', {annonce: item.id}) }}" class="outline-btn"><span class="btn-icon">&#128065;</span>Participations</a>
+                        {% if item.chat_group_id is defined and item.chat_group_id %}
+                            <a href="{{ path('app_sorties_chat', {id: item.id}) }}" class="primary-btn"><span class="btn-icon">&#128172;</span>Chat</a>
+                        {% endif %}
+                        {% if canManage %}
+                            {% if item.statut is defined and item.statut not in ['TERMINEE', 'ANNULEE'] %}
+                                <form method="post" class="btn-inline-form" action="{{ path('app_admin_sorties_mark_terminee', {id: item.id}) }}" onsubmit="return confirm('Marquer cette sortie comme TERMINEE ?');">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('sortie_terminee_admin_' ~ item.id) }}">
+                                    <button type="submit" class="primary-btn"><span class="btn-icon">&#10003;</span>Marquer terminée</button>
+                                </form>
+                            {% endif %}
+                            <a href="{{ path('app_admin_sorties_edit', {id: item.id}) }}" class="outline-btn"><span class="btn-icon">&#9998;</span>Modifier</a>
+                            <form method="post" class="btn-inline-form" action="{{ path('app_admin_sorties_delete', {id: item.id}) }}" onsubmit="return confirm('Supprimer cette annonce ?');">
+                                <input type="hidden" name="_token" value="{{ csrf_token('sortie_delete_admin_' ~ item.id) }}">
+                                <button type="submit" class="danger-btn"><span class="btn-icon">&#128465;</span>Supprimer</button>
+                            </form>
+                        {% endif %}
+                    </div>
+                    </div>
+                </article>
+            {% else %}
+                <div class="empty-state">Aucune sortie disponible.</div>
+            {% endfor %}
+        </div>
+        <div class="empty-state" data-sortie-empty hidden>Aucune sortie ne correspond à votre recherche.</div>
+
+        {% if totalPages is defined and totalPages >= 1 %}
+            <nav class="users-pagination" aria-label="Pagination sorties">
+                {% set prevPage = page > 1 ? page - 1 : 1 %}
+                {% set nextPage = page < totalPages ? page + 1 : totalPages %}
+
+                <a
+                    class="users-page-link {{ page <= 1 ? 'is-disabled' : '' }}"
+                    href="{{ path('app_admin_sorties', {page: prevPage, q: filters.q|default(''), status: filters.status|default(''), sort: filters.sort|default('recent')}) }}"
+                    aria-label="Page précédente"
+                >
+                    Précédent
+                </a>
+
+                {% for i in 1..totalPages %}
+                    <a
+                        class="users-page-link {{ i == page ? 'is-active' : '' }}"
+                        href="{{ path('app_admin_sorties', {page: i, q: filters.q|default(''), status: filters.status|default(''), sort: filters.sort|default('recent')}) }}"
+                        aria-current="{{ i == page ? 'page' : 'false' }}"
+                    >
+                        {{ i }}
+                    </a>
+                {% endfor %}
+
+                <span class="users-page-indicator">Page {{ page }} / {{ totalPages }}</span>
+
+                <a
+                    class="users-page-link {{ page >= totalPages ? 'is-disabled' : '' }}"
+                    href="{{ path('app_admin_sorties', {page: nextPage, q: filters.q|default(''), status: filters.status|default(''), sort: filters.sort|default('recent')}) }}"
+                    aria-label="Page suivante"
+                >
+                    Suivant
+                </a>
+            </nav>
+        {% endif %}
+
+    </div>
+{% endblock %}

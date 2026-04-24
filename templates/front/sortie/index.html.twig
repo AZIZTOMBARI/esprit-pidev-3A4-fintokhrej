@@ -1,0 +1,454 @@
+{% extends 'front/base_front.html.twig' %}
+
+{% block title %}Sorties | Fin Tokhroj{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .sortie-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 22px;
+            align-items: stretch;
+        }
+
+        .sortie-card {
+            position: relative;
+            width: 100%;
+            border: 1px solid rgba(20, 61, 113, 0.12);
+            border-radius: 26px;
+            background:
+                radial-gradient(circle at top right, rgba(111, 189, 255, 0.16), transparent 34%),
+                linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(245, 249, 255, 0.96));
+            box-shadow: 0 18px 40px rgba(15, 49, 93, 0.12);
+            overflow: hidden;
+            transition: transform 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease;
+        }
+
+        .sortie-card > *:not(.sortie-card__link) {
+            position: relative;
+            z-index: 2;
+        }
+
+        .sortie-card__link {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            border-radius: inherit;
+        }
+
+        .sortie-card::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.34), transparent 52%);
+            pointer-events: none;
+        }
+
+        .sortie-card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(41, 121, 255, 0.22);
+            box-shadow: 0 26px 54px rgba(15, 49, 93, 0.18);
+        }
+
+        .sortie-card .cover-thumb {
+            position: relative;
+            overflow: hidden;
+            border-radius: 22px;
+            box-shadow: inset 0 -48px 80px rgba(8, 27, 50, 0.2);
+        }
+
+        .sortie-card .cover-thumb::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, transparent 34%, rgba(7, 23, 45, 0.16) 100%);
+            pointer-events: none;
+        }
+
+        .sortie-card .cover-thumb img {
+            transition: transform 0.45s ease, filter 0.45s ease;
+        }
+
+        .sortie-card:hover .cover-thumb img {
+            transform: scale(1.06);
+            filter: saturate(1.06);
+        }
+
+        .sortie-card .listing-card__top {
+            gap: 16px;
+        }
+
+        .sortie-card .listing-card__top h3 {
+            margin-bottom: 6px;
+            font-size: 1.2rem;
+            line-height: 1.25;
+            letter-spacing: -0.02em;
+            color: #143d71;
+        }
+
+        .sortie-card .listing-card__top p {
+            color: #53719a;
+            font-weight: 600;
+        }
+
+        .sortie-card .owner-avatar-row {
+            margin-top: 12px;
+            padding: 8px 12px 8px 8px;
+            border-radius: 999px;
+            background: rgba(235, 244, 255, 0.86);
+            width: fit-content;
+            box-shadow: inset 0 0 0 1px rgba(62, 119, 190, 0.1);
+        }
+
+        .sortie-card .owner-avatar {
+            width: 38px;
+            height: 38px;
+            border: 2px solid rgba(255, 255, 255, 0.95);
+            box-shadow: 0 8px 18px rgba(31, 83, 146, 0.18);
+        }
+
+        .sortie-card .owner-avatar-name {
+            color: #173d73;
+            font-weight: 700;
+        }
+
+        .sortie-card .owner-pill,
+        .sortie-card .price-pill,
+        .sortie-card .status-pill {
+            border-radius: 999px;
+            box-shadow: 0 10px 24px rgba(15, 49, 93, 0.09);
+        }
+
+        .sortie-card .price-pill {
+            background: linear-gradient(135deg, #143d71, #2f72b6);
+            color: #fff;
+            padding: 10px 14px;
+            font-weight: 800;
+            letter-spacing: 0.01em;
+        }
+
+        .sortie-card .meta-row {
+            margin-top: 14px;
+            gap: 10px;
+        }
+
+        .sortie-card .meta-row span {
+            padding: 9px 12px;
+            border-radius: 14px;
+            background: rgba(237, 244, 255, 0.9);
+            border: 1px solid rgba(44, 95, 166, 0.08);
+            color: #33557f;
+            font-weight: 600;
+        }
+
+        .sortie-card .sortie-card__description {
+            margin-top: 16px;
+            color: #39597f;
+            line-height: 1.7;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .sortie-card .btn-row {
+            margin-top: 16px;
+            gap: 10px;
+            position: relative;
+            z-index: 3;
+        }
+
+        .sortie-card .btn-row .outline-btn,
+        .sortie-card .btn-row .primary-btn,
+        .sortie-card .btn-row .danger-btn {
+            border-radius: 14px;
+            box-shadow: 0 10px 24px rgba(15, 49, 93, 0.1);
+        }
+
+        .sortie-card .btn-row .outline-btn:hover,
+        .sortie-card .btn-row .primary-btn:hover,
+        .sortie-card .btn-row .danger-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        @media (max-width: 1100px) {
+            .sortie-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 720px) {
+            .sortie-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .sortie-pagination {
+            margin-top: 18px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: nowrap;
+            gap: 8px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            white-space: nowrap;
+            scrollbar-width: thin;
+            padding-bottom: 4px;
+            -webkit-mask-image: linear-gradient(to right, transparent 0, #000 22px, #000 calc(100% - 22px), transparent 100%);
+            mask-image: linear-gradient(to right, transparent 0, #000 22px, #000 calc(100% - 22px), transparent 100%);
+        }
+
+        .sortie-page-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 38px;
+            height: 38px;
+            padding: 0 12px;
+            flex: 0 0 auto;
+            border-radius: 10px;
+            border: 1px solid #d1d5db;
+            background: #fff;
+            color: #0f172a;
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        .sortie-page-link:hover {
+            border-color: #93c5fd;
+            background: #eff6ff;
+        }
+
+        .sortie-page-link.is-active {
+            border-color: #2563eb;
+            background: #2563eb;
+            color: #fff;
+        }
+
+        .sortie-page-link.is-disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .sortie-page-indicator {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 38px;
+            padding: 0 12px;
+            border-radius: 10px;
+            border: 1px solid #d1d5db;
+            background: #f8fafc;
+            color: #334155;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+    </style>
+{% endblock %}
+
+{% block front_content %}
+<section>
+    <div class="section-head">
+        <div>
+            <h1 class="section-title">Sorties</h1>
+            <p class="section-subtitle">Toutes les annonces de sorties disponibles.</p>
+        </div>
+        <div class="btn-row">
+            <a href="{{ path('app_sorties_create') }}" class="primary-btn"><span class="btn-icon">+</span>Ajouter une annonce</a>
+            <a href="{{ path('app_home') }}" class="outline-btn"><span class="btn-icon">&larr;</span>Retour accueil</a>
+        </div>
+    </div>
+
+    {% if app.user %}
+        <section class="sortie-notification-board notification-root" data-notification-root data-feed-url="{{ path('app_notifications_api_feed') }}" data-read-all-url="{{ path('app_notifications_api_read_all') }}" data-notification-type-prefixes="PARTICIPATION_,SORTIE_" data-notification-inline="true">
+            <div class="sortie-notification-board__head">
+                <div>
+                    <h3>Notifications sorties</h3>
+                    <p>Demandes, validations et mises à jour de capacité en direct.</p>
+                </div>
+                <div class="btn-row">
+                    <button type="button" class="outline-btn notification-toggle-btn" data-notification-toggle aria-label="Ouvrir ou fermer les notifications" title="Notifications">
+                        <span class="btn-icon" aria-hidden="true">🔔</span>
+                        <span class="notification-badge" data-notification-badge hidden>0</span>
+                    </button>
+                    <button type="button" class="primary-btn" data-notification-read-all data-notification-token="{{ csrf_token('notifications_read_all') }}">Tout marquer lu</button>
+                </div>
+            </div>
+            <div class="notification-panel notification-panel--inline" data-notification-panel hidden>
+                <div class="notification-panel__list" data-notification-list>
+                    <div class="notification-empty">Aucune notification</div>
+                </div>
+            </div>
+        </section>
+    {% endif %}
+
+    {% for label in ['success', 'error', 'warning', 'info'] %}
+        {% for message in app.flashes(label) %}
+            <div class="sortie-flash sortie-flash-{{ label }}" style="margin: 10px 0 14px;">{{ message }}</div>
+        {% endfor %}
+    {% endfor %}
+
+    <form class="sortie-toolbar" method="get" action="{{ path('app_sorties') }}">
+        <input type="search" class="custom-input" name="q" value="{{ filters.q|default('') }}" placeholder="Rechercher une sortie (titre, ville, type, créateur...)">
+        <select class="custom-input" name="status">
+            <option value="" {{ (filters.status|default('')) == '' ? 'selected' : '' }}>Tous les statuts</option>
+            <option value="OUVERTE" {{ (filters.status|default('')) == 'OUVERTE' ? 'selected' : '' }}>OUVERTE</option>
+            <option value="CLOTUREE" {{ (filters.status|default('')) == 'CLOTUREE' ? 'selected' : '' }}>CLOTUREE</option>
+            <option value="ANNULEE" {{ (filters.status|default('')) == 'ANNULEE' ? 'selected' : '' }}>ANNULEE</option>
+            <option value="TERMINEE" {{ (filters.status|default('')) == 'TERMINEE' ? 'selected' : '' }}>TERMINEE</option>
+        </select>
+        <select class="custom-input" name="sort">
+            <option value="recent" {{ (filters.sort|default('recent')) == 'recent' ? 'selected' : '' }}>Plus récentes</option>
+            <option value="date_asc" {{ (filters.sort|default('recent')) == 'date_asc' ? 'selected' : '' }}>Date sortie (croissant)</option>
+            <option value="date_desc" {{ (filters.sort|default('recent')) == 'date_desc' ? 'selected' : '' }}>Date sortie (décroissant)</option>
+            <option value="title_asc" {{ (filters.sort|default('recent')) == 'title_asc' ? 'selected' : '' }}>Titre (A-Z)</option>
+            <option value="title_desc" {{ (filters.sort|default('recent')) == 'title_desc' ? 'selected' : '' }}>Titre (Z-A)</option>
+            <option value="city_asc" {{ (filters.sort|default('recent')) == 'city_asc' ? 'selected' : '' }}>Ville (A-Z)</option>
+            <option value="places_desc" {{ (filters.sort|default('recent')) == 'places_desc' ? 'selected' : '' }}>Places (max-min)</option>
+            <option value="status_asc" {{ (filters.sort|default('recent')) == 'status_asc' ? 'selected' : '' }}>Statut (A-Z)</option>
+            <option value="creator_asc" {{ (filters.sort|default('recent')) == 'creator_asc' ? 'selected' : '' }}>Créateur (A-Z)</option>
+        </select>
+        <button type="submit" class="primary-btn">Filtrer</button>
+        <a href="{{ path('app_sorties') }}" class="outline-btn">Réinitialiser</a>
+    </form>
+
+    <div class="listing-grid sortie-grid" data-sortie-list>
+        {% for item in sorties %}
+            {% set cardImage = item.image_url is defined and item.image_url ? (item.image_url starts with 'http' ? item.image_url : '/' ~ item.image_url|trim('/')) : null %}
+            <article class="listing-card sortie-card" data-sortie-id="{{ item.id|default(0) }}" data-sortie-title="{{ attribute(item, 'titre')|e('html_attr') }}" data-sortie-city="{{ (item.ville|default(''))|e('html_attr') }}" data-sortie-type="{{ (item.type_activite|default(''))|e('html_attr') }}" data-sortie-date="{{ item.date_sortie is defined and item.date_sortie ? item.date_sortie|date('d/m/Y H:i') : '-' }}" data-sortie-date-ts="{{ item.date_sortie is defined and item.date_sortie ? item.date_sortie|date('U') : '' }}" data-sortie-places="{{ (item.nb_places|default('-'))|e('html_attr') }}" data-sortie-budget="{{ (item.budget_max|default('-'))|e('html_attr') }}" data-sortie-status="{{ (item.statut|default('-'))|e('html_attr') }}" data-sortie-description="{{ (item.description|default('Aucune description'))|striptags|e('html_attr') }}" data-sortie-lieu="{{ (item.lieu_texte|default('-'))|e('html_attr') }}" data-sortie-point="{{ (item.point_rencontre|default('-'))|e('html_attr') }}" data-sortie-questions="{{ (item.questions_json|default(''))|e('html_attr') }}" data-sortie-createur="{{ ((item.prenom|default('') ~ ' ' ~ item.nom|default(''))|trim ?: 'Inconnu')|e('html_attr') }}" data-sortie-image="{{ (cardImage|default(''))|e('html_attr') }}">
+                <a href="{{ path('app_sorties_show', {id: item.id}) }}" class="sortie-card__link" aria-label="Voir le detail de {{ attribute(item, 'titre') }}"></a>
+                <div class="cover-thumb">
+                    {% if cardImage %}
+                        <img src="{{ cardImage }}" alt="Image {{ attribute(item, 'titre') }}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;">
+                    {% else %}
+                        <span>{{ attribute(item, 'titre') }}</span>
+                    {% endif %}
+                </div>
+                <div class="listing-card__top">
+                    <div>
+                        <h3>{{ attribute(item, 'titre') }}</h3>
+                        <p>
+                            {% if item.ville is defined and item.ville %}{{ item.ville }}{% endif %}
+                            {% if item.type_activite is defined and item.type_activite %} · {{ item.type_activite }}{% endif %}
+                        </p>
+                        {% set creatorRawImage = item.user_image_url|default('') %}
+                        {% if creatorRawImage and (creatorRawImage starts with 'http://' or creatorRawImage starts with 'https://') %}
+                            {% set creatorImageSrc = creatorRawImage %}
+                        {% elseif creatorRawImage and (creatorRawImage starts with '/theme/' or creatorRawImage starts with '/uploads/') %}
+                            {% set creatorImageSrc = asset(creatorRawImage|trim('/')) %}
+                        {% elseif creatorRawImage and (creatorRawImage starts with 'theme/' or creatorRawImage starts with 'uploads/') %}
+                            {% set creatorImageSrc = asset(creatorRawImage|trim('/')) %}
+                        {% elseif creatorRawImage and (creatorRawImage starts with '/public/' or creatorRawImage starts with 'public/') %}
+                            {% set creatorImageSrc = asset(creatorRawImage|replace({'/public/': '', 'public/': ''})|trim('/')) %}
+                        {% elseif creatorRawImage and ('uploads/' in creatorRawImage) %}
+                            {% set creatorImageSrc = asset('uploads/' ~ creatorRawImage|split('uploads/')|last|trim('/')) %}
+                        {% elseif creatorRawImage and creatorRawImage != 'default.png' %}
+                            {% set creatorImageSrc = asset('uploads/users/' ~ creatorRawImage|trim('/')) %}
+                        {% else %}
+                            {% set creatorImageSrc = asset('theme/images/logo.png') %}
+                        {% endif %}
+                        <div class="owner-avatar-row">
+                            <img class="owner-avatar" src="{{ creatorImageSrc }}" alt="Créateur" onerror="this.onerror=null;this.src='{{ asset('theme/images/logo.png') }}';">
+                            <span class="owner-avatar-name">{{ (item.prenom|default('') ~ ' ' ~ item.nom|default(''))|trim ?: 'Inconnu' }}</span>
+                        </div>
+                        {% if app.user and item.user_id is defined and item.user_id and app.user.id == item.user_id %}
+                            <span class="owner-pill">Créée par vous</span>
+                        {% endif %}
+                    </div>
+                    {% if item.prix is defined %}<span class="price-pill">{{ item.prix }} TND</span>{% endif %}
+                    {% if item.pourcentage is defined %}<span class="price-pill">{{ item.pourcentage }}%</span>{% endif %}
+                </div>
+                <div class="meta-row">
+                    {% if item.adresse is defined and item.adresse %}<span>📍 {{ item.adresse }}</span>{% endif %}
+                    {% if item.date_sortie is defined %}<span>🗓 {{ item.date_sortie|date('d/m/Y H:i') }}</span>{% endif %}
+                    {% if item.date_debut is defined %}<span>🗓 {{ item.date_debut|date('d/m/Y H:i') }}</span>{% endif %}
+                    {% if item.date_fin is defined %}<span>⏳ {{ item.date_fin|date('d/m/Y') }}</span>{% endif %}
+                    {% if item.budget_min is defined %}<span>💸 {{ item.budget_min ?? 0 }} - {{ item.budget_max ?? 0 }} TND</span>{% endif %}
+                    {% if item.nb_places is defined %}<span>👥 {{ item.nb_places }} places</span>{% endif %}
+                    {% if item.statut is defined %}
+                        {% set statusClass = 'status-pill status-' ~ item.statut|lower %}
+                        {% set statusLabel = item.statut %}
+                        {% if item.statut == 'TERMINEE' %}{% set statusLabel = '✅ TERMINÉE' %}{% endif %}
+                        {% if item.statut == 'CLOTUREE' %}{% set statusLabel = '🔒 CLÔTURÉE' %}{% endif %}
+                        {% if item.statut == 'OUVERTE' %}{% set statusLabel = '🟢 OUVERTE' %}{% endif %}
+                        {% if item.statut == 'ANNULEE' %}{% set statusLabel = '⛔ ANNULÉE' %}{% endif %}
+                        <span class="{{ statusClass }}">{{ statusLabel }}</span>
+                    {% endif %}
+                </div>
+                {% if item.description is defined and item.description %}
+                    <p class="sortie-card__description">{{ item.description }}</p>
+                {% endif %}
+                {% set canManage = is_granted('ROLE_ADMIN') or (app.user and item.user_id is defined and item.user_id and app.user.id == item.user_id) %}
+                {% set isParticipationBlocked = item.statut is defined and item.statut in ['CLOTUREE', 'TERMINEE', 'ANNULEE'] %}
+                {% set hasChatGroup = item.chat_group_id is defined and item.chat_group_id %}
+                <div class="btn-row" style="margin-top: 12px;">
+                    {% if app.user and item.user_id is defined and item.user_id and app.user.id == item.user_id %}
+                        <a href="{{ path('app_sorties_show', {id: item.id}) }}#demandes-attente" class="outline-btn"><span class="btn-icon">&#128065;</span>Voir participations</a>
+                        {% if hasChatGroup %}
+                            <a href="{{ path('app_sorties_chat', {id: item.id}) }}" class="primary-btn"><span class="btn-icon">&#128172;</span>Groupe chat</a>
+                        {% endif %}
+                    {% elseif isParticipationBlocked %}
+                        <button type="button" class="outline-btn" disabled aria-disabled="true" title="Participation indisponible pour ce statut">
+                            <span class="btn-icon">&#128274;</span>Participation indisponible
+                        </button>
+                    {% elseif app.user and participationsConfirmees is defined and participationsConfirmees[item.id|default(0)] is defined %}
+                        <a href="{{ path('app_sorties_show', {id: item.id}) }}#participation" class="outline-btn"><span class="btn-icon">&#128065;</span>Voir participation</a>
+                        {% if hasChatGroup %}
+                            <a href="{{ path('app_sorties_chat', {id: item.id}) }}" class="primary-btn"><span class="btn-icon">&#128172;</span>Groupe chat</a>
+                        {% endif %}
+                    {% else %}
+                        <a href="{{ path('app_sorties_show', {id: item.id}) }}" class="outline-btn"><span class="btn-icon">&#128279;</span>participer</a>
+                    {% endif %}
+                    {% if canManage %}
+                        <a href="{{ path('app_sorties_edit', {id: item.id}) }}" class="outline-btn"><span class="btn-icon">&#9998;</span>Modifier</a>
+                        <form method="post" class="btn-inline-form" action="{{ path('app_sorties_delete', {id: item.id}) }}" onsubmit="return confirm('Supprimer cette annonce ?');">
+                            <input type="hidden" name="_token" value="{{ csrf_token('sortie_delete_front_' ~ item.id) }}">
+                            <button type="submit" class="danger-btn"><span class="btn-icon">&#128465;</span>Supprimer</button>
+                        </form>
+                    {% endif %}
+                </div>
+            </article>
+        {% else %}
+            <div class="empty-state">Aucune donnée disponible pour cette page.</div>
+        {% endfor %}
+    </div>
+    <div class="empty-state" data-sortie-empty hidden>Aucune sortie ne correspond à votre recherche.</div>
+
+    {% if totalPages is defined and totalPages >= 1 %}
+        <nav class="sortie-pagination" aria-label="Pagination sorties">
+            {% set prevPage = page > 1 ? page - 1 : 1 %}
+            {% set nextPage = page < totalPages ? page + 1 : totalPages %}
+
+            <a
+                class="sortie-page-link {{ page <= 1 ? 'is-disabled' : '' }}"
+                href="{{ path('app_sorties', {page: prevPage, q: filters.q|default(''), status: filters.status|default(''), sort: filters.sort|default('recent')}) }}"
+                aria-label="Page précédente"
+            >
+                Précédent
+            </a>
+
+            {% for i in 1..totalPages %}
+                <a
+                    class="sortie-page-link {{ i == page ? 'is-active' : '' }}"
+                    href="{{ path('app_sorties', {page: i, q: filters.q|default(''), status: filters.status|default(''), sort: filters.sort|default('recent')}) }}"
+                    aria-current="{{ i == page ? 'page' : 'false' }}"
+                >
+                    {{ i }}
+                </a>
+            {% endfor %}
+
+            <span class="sortie-page-indicator">Page {{ page }} / {{ totalPages }}</span>
+
+            <a
+                class="sortie-page-link {{ page >= totalPages ? 'is-disabled' : '' }}"
+                href="{{ path('app_sorties', {page: nextPage, q: filters.q|default(''), status: filters.status|default(''), sort: filters.sort|default('recent')}) }}"
+                aria-label="Page suivante"
+            >
+                Suivant
+            </a>
+        </nav>
+    {% endif %}
+
+</section>
+{% endblock %}

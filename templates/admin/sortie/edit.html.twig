@@ -1,0 +1,38 @@
+{% extends 'admin/base_admin.html.twig' %}
+
+{% block title %}Admin - Modifier sortie | Fin Tokhroj{% endblock %}
+{% block admin_page_title %}Modifier une sortie{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    {% include 'sortie/_form_styles.html.twig' only %}
+{% endblock %}
+
+{% block admin_content %}
+<section>
+    <div class="section-head">
+        <div>
+            <h2 class="section-title">Modifier annonce</h2>
+            <p class="section-subtitle">Mettez a jour les donnees et le statut.</p>
+        </div>
+        <div class="btn-row">
+            {% if chatGroupExists|default(false) %}
+                <a href="{{ path('app_sorties_chat', {id: sortie.id}) }}" class="primary-btn"><span class="btn-icon">&#128172;</span>Ouvrir groupe chat</a>
+            {% endif %}
+            <a href="{{ path('app_admin_sorties') }}" class="outline-btn"><span class="btn-icon">&larr;</span>Retour liste admin</a>
+        </div>
+    </div>
+
+    {% include 'sortie/_form.html.twig' with {
+        form: form,
+        sortie: sortie,
+        cancel_path: path('app_admin_sorties'),
+        submit_label: 'Sauvegarder'
+    } %}
+</section>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    {% include 'sortie/_form_scripts.html.twig' with { form: form } only %}
+{% endblock %}

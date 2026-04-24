@@ -1,0 +1,186 @@
+{% extends 'admin/base_admin.html.twig' %}
+
+{% block title %}Statistiques sorties | Fin Tokhroj{% endblock %}
+{% block admin_page_title %}Statistiques sorties{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .stats-shell {
+            display: grid;
+            gap: 18px;
+        }
+        .stats-topbar {
+            display: flex;
+            justify-content: space-between;
+            gap: 14px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .stats-card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 16px;
+        }
+        .stats-kpi {
+            padding: 20px;
+            border-radius: 24px;
+            border: 1px solid rgba(24, 71, 129, .1);
+            background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(244,248,255,.96));
+            box-shadow: 0 20px 44px rgba(16, 45, 88, .1);
+        }
+        .stats-kpi span {
+            display: block;
+            color: #5d7698;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .stats-kpi strong {
+            display: block;
+            font-size: 2rem;
+            color: #163f73;
+            letter-spacing: -.05em;
+        }
+        .stats-layout {
+            display: grid;
+            grid-template-columns: 1.15fr .85fr;
+            gap: 18px;
+        }
+        .stats-panel {
+            padding: 18px;
+            border-radius: 26px;
+            border: 1px solid rgba(24, 71, 129, .1);
+            background:
+                radial-gradient(circle at top right, rgba(116, 199, 255, .12), transparent 28%),
+                linear-gradient(180deg, rgba(255,255,255,.98), rgba(245,249,255,.96));
+            box-shadow: 0 22px 48px rgba(16, 45, 88, .1);
+        }
+        .stats-panel h3 {
+            margin: 0 0 6px;
+            color: #163f73;
+        }
+        .stats-panel p {
+            margin: 0;
+            color: #617c9f;
+        }
+        .chart-box {
+            height: 320px;
+            margin-top: 16px;
+        }
+        .stats-list {
+            margin-top: 16px;
+            display: grid;
+            gap: 10px;
+        }
+        .stats-list-item {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: center;
+            padding: 12px 14px;
+            border-radius: 18px;
+            background: rgba(239, 245, 255, .92);
+            border: 1px solid rgba(24, 71, 129, .08);
+            color: #214873;
+        }
+        @media (max-width: 980px) {
+            .stats-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    {{ importmap('app') }}
+{% endblock %}
+
+{% block admin_content %}
+    <div class="stats-shell">
+        <div class="stats-topbar">
+            <div>
+                <h2 class="section-title">Statistiques intelligentes des sorties</h2>
+                <p class="section-subtitle">Lecture par villes, statuts, types d'activite, budget et evolution recente.</p>
+            </div>
+            <div class="btn-row">
+                <a href="{{ path('app_admin_sorties_calendar') }}" class="primary-btn">Calendrier</a>
+                <a href="{{ path('app_admin_sorties') }}" class="outline-btn">Retour sorties</a>
+            </div>
+        </div>
+
+        <div class="stats-card-grid">
+            <article class="stats-kpi">
+                <span>Total sorties</span>
+                <strong>{{ statsCards.total }}</strong>
+            </article>
+            <article class="stats-kpi">
+                <span>Ville la plus active</span>
+                <strong>{{ statsCards.topCity }}</strong>
+                <small style="color:#5d7698;">{{ statsCards.topCityCount }} sortie(s)</small>
+            </article>
+            <article class="stats-kpi">
+                <span>Sorties a venir</span>
+                <strong>{{ statsCards.upcoming }}</strong>
+            </article>
+            <article class="stats-kpi">
+                <span>Taux de sorties terminees</span>
+                <strong>{{ statsCards.completionRate }}%</strong>
+            </article>
+        </div>
+
+        <div class="stats-layout">
+            <section class="stats-panel">
+                <h3>Top villes par nombre de sorties</h3>
+                <p>La concentration des sorties par ville aide a identifier les zones les plus actives.</p>
+                <div class="chart-box">
+                    {{ render_chart(cityChart) }}
+                </div>
+            </section>
+
+            <section class="stats-panel">
+                <h3>Repartition des statuts</h3>
+                <p>Vue rapide de l'etat global des sorties dans l'application.</p>
+                <div class="chart-box">
+                    {{ render_chart(statusChart) }}
+                </div>
+            </section>
+        </div>
+
+        <div class="stats-layout">
+            <section class="stats-panel">
+                <h3>Types d'activite les plus proposes</h3>
+                <p>Idee utile pour voir les formats de sorties qui dominent dans la communaute.</p>
+                <div class="chart-box">
+                    {{ render_chart(typeChart) }}
+                </div>
+            </section>
+
+            <section class="stats-panel">
+                <h3>Top villes par budget moyen</h3>
+                <p>Autre lecture utile: les villes ou les sorties ont en moyenne le budget le plus eleve.</p>
+                <div class="stats-list">
+                    {% for row in budgetRows %}
+                        <div class="stats-list-item">
+                            <strong>{{ row.city }}</strong>
+                            <span>{{ row.avg_budget }} TND</span>
+                        </div>
+                    {% else %}
+                        <div class="stats-list-item">
+                            <strong>Aucune donnee</strong>
+                            <span>-</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            </section>
+        </div>
+
+        <section class="stats-panel">
+            <h3>Evolution sur les 6 derniers mois</h3>
+            <p>Permet de voir si le rythme de creation des sorties accelere ou ralentit.</p>
+            <div class="chart-box" style="height: 340px;">
+                {{ render_chart(trendChart) }}
+            </div>
+        </section>
+    </div>
+{% endblock %}
