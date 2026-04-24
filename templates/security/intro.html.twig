@@ -1,6 +1,6 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Intro{% endblock %}
+{% block title %}{{ 'intro.title'|trans }}{% endblock %}
 
 {% block stylesheets %}
     <link rel="stylesheet" href="{{ asset('styles/intro.css') }}">
@@ -16,13 +16,13 @@
 
         <div class="intro-content">
             <div class="intro-top">
-                <a class="intro-skip" href="{{ path('app_login') }}" data-intro-skip>Skip</a>
+                <a class="intro-skip" href="{{ path('app_login') }}" data-intro-skip>{{ 'intro.skip'|trans }}</a>
             </div>
 
             <div class="intro-hero">
-                <div class="intro-kicker">Bienvenue sur Fintokhrej</div>
-                <h1>Profitez de la Tunisie autrement</h1>
-                <p>Fintokhrej vous aide à découvrir, organiser et profiter de vos sorties en Tunisie. Regardez la vidéo, ou passez directement à la connexion quand vous le souhaitez.</p>
+                <div class="intro-kicker">{{ 'intro.kicker'|trans }}</div>
+                <h1>{{ 'intro.heading'|trans }}</h1>
+                <p>{{ 'intro.description'|trans }}</p>
             </div>
 
             <div class="intro-bottom">

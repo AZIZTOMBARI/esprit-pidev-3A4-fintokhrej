@@ -7,15 +7,22 @@ parameters:
     app.mailer_from_email: 'touzihayfa9@gmail.com'
     app.mailer_from_name: 'FinTokhroj'
     app.sms_from: 'FinTokhroj'
+    default_groq_chat_model: 'llama-3.3-70b-versatile'
+    default_openweathermap_api_url: 'https://api.openweathermap.org/data/2.5/'
+    default_openweathermap_units: 'metric'
+    default_openweathermap_language: 'fr'
 
 services:
     # default configuration for services in *this* file
     _defaults:
-        autowire: true      # Automatically injects dependencies in your services.
-        autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
+        autowire: true
+        autoconfigure: true
+        bind:
+            $groqApiKey: '%env(string:GROQ_API_KEY)%'
+            $groqModel: '%env(default:default_groq_chat_model:GROQ_CHAT_MODEL)%'
+            $openWeatherApiKey: '%env(string:OPENWEATHERMAP_API_KEY)%'
+            $faceAuthApiUrl: '%env(string:FACE_AUTH_API_URL)%'
 
-    # makes classes in src/ available to be used as services
-    # this creates a service per class whose id is the fully-qualified class name
     App\:
         resource: '../src/'
         exclude:
@@ -29,5 +36,14 @@ services:
             $mailerFromName: '%app.mailer_from_name%'
             $smsFrom: '%app.sms_from%'
 
-    # add more service definitions when explicit configuration is needed
-    # please note that last definitions always *replace* previous ones
+    pyrrah.openweathermap.client:
+        class: Pyrrah\OpenWeatherMapBundle\Services\Client
+        arguments:
+            $apiKey: '%env(string:OPENWEATHERMAP_API_KEY)%'
+            $apiUrl: '%env(default:default_openweathermap_api_url:OPENWEATHERMAP_API_URL)%'
+            $units: '%env(default:default_openweathermap_units:OPENWEATHERMAP_UNITS)%'
+            $lang: '%env(default:default_openweathermap_language:OPENWEATHERMAP_LANGUAGE)%'
+
+    App\Service\LieuWeatherService:
+        arguments:
+            $client: '@pyrrah.openweathermap.client'
