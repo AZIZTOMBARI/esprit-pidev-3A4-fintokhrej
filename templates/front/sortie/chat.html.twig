@@ -690,7 +690,7 @@
                                                 {% endif %}
 
                                                 {% if matchedTask and not message.deletedAt|default(null) %}
-                                                    {% set taskCanToggle = matchedTask.assigned_to is not null ? (matchedTask.assigned_to == currentUserId or canManageTasks) : canManageTasks %}
+                                                    {% set taskCanToggle = matchedTask.assigned_to is not null ? ((matchedTask.assigned_to ~ '') == (currentUserId ~ '') or canManageTasks) : true %}
                                                     <div class="chat-card">
                                                         <div class="chat-cardtitle">
                                                             <div>
@@ -782,7 +782,7 @@
                                 <h4>Taches pas encore realisees · {{ pendingTasks|length }}</h4>
                                 <div class="chat-task-list-side">
                                     {% for task in pendingTasks %}
-                                        {% set canToggle = task.assigned_to is not null ? (task.assigned_to == currentUserId or canManageTasks) : canManageTasks %}
+                                        {% set canToggle = task.assigned_to is not null ? ((task.assigned_to ~ '') == (currentUserId ~ '') or canManageTasks) : true %}
                                         <article class="chat-task-mini">
                                             <strong>{{ task.title }}</strong>
                                             {% if task.description %}
@@ -806,7 +806,7 @@
                                 <h4>Taches realisees · {{ doneTasks|length }}</h4>
                                 <div class="chat-task-list-side">
                                     {% for task in doneTasks %}
-                                        {% set canToggle = task.assigned_to is not null ? (task.assigned_to == currentUserId or canManageTasks) : canManageTasks %}
+                                        {% set canToggle = task.assigned_to is not null ? ((task.assigned_to ~ '') == (currentUserId ~ '') or canManageTasks) : true %}
                                         <article class="chat-task-mini chat-task--done">
                                             <strong>{{ task.title }}</strong>
                                             {% if task.description %}

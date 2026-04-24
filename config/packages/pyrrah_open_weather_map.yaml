@@ -1,0 +1,5 @@
+pyrrah_open_weather_map:
+    api_key: '%env(string:OPENWEATHERMAP_API_KEY)%'
+    api_url: '%env(default:default_openweathermap_api_url:OPENWEATHERMAP_API_URL)%'
+    units: '%env(default:default_openweathermap_units:OPENWEATHERMAP_UNITS)%'
+    language: '%env(default:default_openweathermap_language:OPENWEATHERMAP_LANGUAGE)%'

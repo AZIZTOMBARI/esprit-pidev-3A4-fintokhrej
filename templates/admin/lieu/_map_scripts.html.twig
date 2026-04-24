@@ -1,0 +1,177 @@
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+<script defer>
+(function () {
+    const setupMap = function () {
+        const root = document.querySelector('[data-lieu-map="1"]');
+        if (!root) {
+            return;
+        }
+
+        const canvas = document.getElementById('lieu-map-canvas');
+        const statusNode = document.getElementById('lieu-map-status');
+        const geolocateBtn = document.getElementById('lieu-map-geolocate');
+
+        const latInput = document.getElementById(root.dataset.latitudeId);
+        const lngInput = document.getElementById(root.dataset.longitudeId);
+        const villeInput = document.getElementById(root.dataset.villeId);
+        const adresseInput = document.getElementById(root.dataset.adresseId);
+
+        if (!canvas || !latInput || !lngInput || typeof window.L === 'undefined') {
+            return;
+        }
+
+        const toFloat = function (value) {
+            if (typeof value !== 'string' && typeof value !== 'number') {
+                return NaN;
+            }
+            return Number.parseFloat(String(value).replace(',', '.'));
+        };
+
+        const setStatus = function (message, state) {
+            if (!statusNode) {
+                return;
+            }
+
+            statusNode.textContent = message;
+            statusNode.classList.remove('lieu-map-status--error', 'lieu-map-status--loading');
+            if (state === 'error') {
+                statusNode.classList.add('lieu-map-status--error');
+            } else if (state === 'loading') {
+                statusNode.classList.add('lieu-map-status--loading');
+            }
+        };
+
+        const initialLat = toFloat(latInput.value);
+        const initialLng = toFloat(lngInput.value);
+        const hasInitialPoint = Number.isFinite(initialLat) && Number.isFinite(initialLng);
+        const defaultCenter = hasInitialPoint ? [initialLat, initialLng] : [36.8065, 10.1815];
+        const defaultZoom = hasInitialPoint ? 14 : 7;
+
+        const map = window.L.map(canvas).setView(defaultCenter, defaultZoom);
+        window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        let marker = null;
+
+        const setCoordinates = function (lat, lng) {
+            latInput.value = lat.toFixed(7);
+            lngInput.value = lng.toFixed(7);
+        };
+
+        const updateMarker = function (lat, lng) {
+            const latLng = [lat, lng];
+            if (!marker) {
+                marker = window.L.marker(latLng, { draggable: true }).addTo(map);
+                marker.on('dragend', function (event) {
+                    const point = event.target.getLatLng();
+                    setCoordinates(point.lat, point.lng);
+                    reverseGeocode(point.lat, point.lng);
+                });
+            } else {
+                marker.setLatLng(latLng);
+            }
+            marker.bindPopup('Position sélectionnée').openPopup();
+        };
+
+        const reverseGeocode = async function (lat, lng) {
+            const baseUrl = root.dataset.reverseGeocodeUrl;
+            if (!baseUrl) {
+                return;
+            }
+
+            setStatus('Recherche de l\'adresse...', 'loading');
+
+            try {
+                const url = new URL(baseUrl, window.location.origin);
+                url.searchParams.set('lat', String(lat));
+                url.searchParams.set('lng', String(lng));
+
+                const response = await fetch(url.toString(), {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                });
+
+                const payload = await response.json();
+                if (!response.ok || !payload.success) {
+                    throw new Error(payload.message || 'Geocodage indisponible.');
+                }
+
+                if (villeInput && payload.ville) {
+                    villeInput.value = payload.ville;
+                }
+
+                if (adresseInput && payload.adresse) {
+                    adresseInput.value = payload.adresse;
+                }
+
+                setStatus('Coordonnées et adresse mises à jour.', 'ok');
+            } catch (error) {
+                setStatus(error instanceof Error ? error.message : 'Erreur lors du geocodage.', 'error');
+            }
+        };
+
+        const onPickPoint = function (lat, lng) {
+            setCoordinates(lat, lng);
+            updateMarker(lat, lng);
+            reverseGeocode(lat, lng);
+        };
+
+        map.on('click', function (event) {
+            onPickPoint(event.latlng.lat, event.latlng.lng);
+        });
+
+        if (hasInitialPoint) {
+            updateMarker(initialLat, initialLng);
+            setStatus('Position actuelle chargée.', 'ok');
+        } else {
+            setStatus('Cliquez sur la carte pour choisir un emplacement.', 'ok');
+        }
+
+        latInput.addEventListener('change', function () {
+            const lat = toFloat(latInput.value);
+            const lng = toFloat(lngInput.value);
+            if (Number.isFinite(lat) && Number.isFinite(lng)) {
+                updateMarker(lat, lng);
+                map.setView([lat, lng], 14);
+            }
+        });
+
+        lngInput.addEventListener('change', function () {
+            const lat = toFloat(latInput.value);
+            const lng = toFloat(lngInput.value);
+            if (Number.isFinite(lat) && Number.isFinite(lng)) {
+                updateMarker(lat, lng);
+                map.setView([lat, lng], 14);
+            }
+        });
+
+        if (geolocateBtn && navigator.geolocation) {
+            geolocateBtn.addEventListener('click', function () {
+                setStatus('Récupération de votre position...', 'loading');
+                navigator.geolocation.getCurrentPosition(
+                    function (position) {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        map.setView([lat, lng], 15);
+                        onPickPoint(lat, lng);
+                    },
+                    function () {
+                        setStatus('Impossible d\'accéder à votre position.', 'error');
+                    },
+                    { enableHighAccuracy: true, timeout: 9000 }
+                );
+            });
+        }
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupMap);
+    } else {
+        setupMap();
+    }
+})();
+</script>

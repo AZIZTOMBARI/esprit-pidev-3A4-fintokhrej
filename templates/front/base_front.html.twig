@@ -8,4 +8,9 @@
             <div class="footer-note">Fin Tokhroj — Ne cherche plus… Tokhrej !</div>
         </div>
     </div>
+
+    {% if app.user %}
+        {% include 'front/partials/chatbot_widget.html.twig' %}
+        {% include 'front/partials/gamification_toasts.html.twig' %}
+    {% endif %}
 {% endblock %}
