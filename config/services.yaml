@@ -15,12 +15,6 @@ services:
             - '../src/Entity/'
             - '../src/Kernel.php'
 
-    App\Service\HfImageService:
-        arguments:
-            $hfToken: '%env(HF_TOKEN)%'
-            $model: '%env(HF_IMAGE_MODEL)%'
-            $projectDir: '%kernel.project_dir%'
-
     # ═══ Notion Sync (v2) ═══
     App\Service\NotionService:
         arguments:

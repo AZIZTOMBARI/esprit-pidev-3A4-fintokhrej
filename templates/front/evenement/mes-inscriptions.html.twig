@@ -7,7 +7,7 @@
     <div class="section-head" style="margin-bottom: 20px;">
         <div>
             <h1 class="section-title">Mes inscriptions</h1>
-            <p class="section-subtitle">Suivez vos demandes, paiements et tickets</p>
+            <p class="section-subtitle">Suivez vos inscriptions confirmées, paiements et tickets</p>
         </div>
     </div>
 
@@ -53,7 +53,7 @@
                                     {% if inscription.statut == 'PAYEE' %}
                                         <a href="{{ path('app_inscription_tickets', {id: inscription.id}) }}" class="outline-btn" style="padding: 8px 12px;">Voir tickets</a>
                                     {% endif %}
-                                    {% if inscription.statut in ['EN_ATTENTE', 'CONFIRMEE', 'PAYEE'] %}
+                                    {% if inscription.statut in ['CONFIRMEE', 'PAYEE', 'EN_ATTENTE'] %}
                                         <form method="POST" action="{{ path('app_inscription_annuler', {id: inscription.id}) }}">
                                             <input type="hidden" name="_token" value="{{ csrf_token('annuler' ~ inscription.id) }}">
                                             <button type="submit" class="outline-btn" style="padding: 8px 12px; color: #b91c1c;">Annuler</button>

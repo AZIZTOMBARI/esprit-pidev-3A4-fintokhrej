@@ -35,7 +35,7 @@ class WeatherService
                     'longitude' => $longitude,
                     'timezone' => 'auto',
                     'forecast_days' => 16,
-                    'daily' => 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max',
+                    'daily' => 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,wind_speed_10m_max',
                 ],
                 'timeout' => 15,
             ]);
@@ -52,6 +52,7 @@ class WeatherService
                 $tempMin = isset($daily['temperature_2m_min'][$index]) ? (float) $daily['temperature_2m_min'][$index] : null;
                 $tempMax = isset($daily['temperature_2m_max'][$index]) ? (float) $daily['temperature_2m_max'][$index] : null;
                 $precipProb = isset($daily['precipitation_probability_max'][$index]) ? (int) round((float) $daily['precipitation_probability_max'][$index]) : null;
+                $precipSum = isset($daily['precipitation_sum'][$index]) ? (float) $daily['precipitation_sum'][$index] : null;
                 $windMax = isset($daily['wind_speed_10m_max'][$index]) ? (float) $daily['wind_speed_10m_max'][$index] : null;
 
                 $days[] = [
@@ -61,18 +62,40 @@ class WeatherService
                     'temp_min' => $tempMin !== null ? round($tempMin, 1) : null,
                     'temp_max' => $tempMax !== null ? round($tempMax, 1) : null,
                     'precip_prob' => $precipProb,
+                    'precip_sum' => $precipSum !== null ? round($precipSum, 1) : null,
                     'wind_max' => $windMax !== null ? round($windMax, 1) : null,
                     'participation' => $this->estimateParticipation($weatherCode, $precipProb, $windMax, $tempMin, $tempMax),
                 ];
             }
 
+            $participationValues = array_values(array_filter(
+                array_column($days, 'participation'),
+                static fn ($value): bool => $value !== null
+            ));
+
+            $avgParticipation = $participationValues === []
+                ? null
+                : (int) round(array_sum($participationValues) / count($participationValues));
+
+            $estimatedParticipants = $avgParticipation === null
+                ? null
+                : (int) round(($evenement->getCapaciteMax() ?? 0) * ($avgParticipation / 100));
+
             return [
                 'status' => $days !== [] ? 'ok' : 'unavailable',
                 'days' => $days,
                 'location' => $locationLabel,
+                'avg_participation' => $avgParticipation,
+                'estimated_participants' => $estimatedParticipants,
             ];
         } catch (\Throwable) {
-            return ['status' => 'unavailable', 'days' => [], 'location' => $lieu->getNom()];
+            return [
+                'status' => 'unavailable',
+                'days' => [],
+                'location' => $lieu->getNom(),
+                'avg_participation' => null,
+                'estimated_participants' => null,
+            ];
         }
     }
 

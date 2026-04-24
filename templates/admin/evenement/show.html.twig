@@ -201,17 +201,17 @@
                                 </div>
                                 <div>
                                     <span>Accum.</span>
-                                    <strong>{{ firstDay.precip_sum }} mm</strong>
+                                    <strong>{{ firstDay.precip_sum|default(0) }} mm</strong>
                                 </div>
                             </div>
                             <div class="event-weather-hero__insights">
                                 <div>
                                     <span>Participation estimee</span>
-                                    <strong>{{ weather.avg_participation }}%</strong>
+                                    <strong>{{ weather.avg_participation|default(0) }}%</strong>
                                 </div>
                                 <div>
                                     <span>Participants estimes</span>
-                                    <strong>{{ weather.estimated_participants }}</strong>
+                                    <strong>{{ weather.estimated_participants|default(0) }}</strong>
                                 </div>
                             </div>
                         </div>

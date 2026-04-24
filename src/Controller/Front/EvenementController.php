@@ -262,14 +262,13 @@ class EvenementController extends AbstractController
         }
 
         try {
-            // ✨ Créer inscription EN_ATTENTE (validation admin requise)
             $inscription = $this->evenementService->demanderInscription($evenement, $user, $nbTickets);
-            
+
             $this->addFlash('success', sprintf(
-                '✅ Inscription réussie ! Vous avez demandé %d ticket(s). En attente de validation de l\'administrateur.',
+                '✅ Inscription confirmée automatiquement pour %d ticket(s). Vous pouvez passer au paiement.',
                 $nbTickets
             ));
-            
+
             return $this->redirectToRoute('app_mon_profil_inscriptions');
         } catch (\Exception $e) {
             $this->addFlash('error', '❌ ' . $e->getMessage());
@@ -434,11 +433,11 @@ class EvenementController extends AbstractController
         // Organiser par statut
         $parStatut = [];
         foreach ([
-            Inscription::STATUT_EN_ATTENTE => '⏳ En attente de validation',
-            Inscription::STATUT_CONFIRMEE => '✔️ Confirmée (en attente de paiement)',
+            Inscription::STATUT_CONFIRMEE => '✔️ Confirmée automatiquement',
             Inscription::STATUT_PAYEE => '✅ Payée',
             Inscription::STATUT_REJETEE => '❌ Refusée',
             Inscription::STATUT_ANNULEE => '🗑️ Annulée',
+            Inscription::STATUT_EN_ATTENTE => '⏳ Ancienne demande en attente',
         ] as $statut => $label) {
             $parStatut[$label] = array_filter($inscriptions, fn(Inscription $i) => $i->getStatut() === $statut);
         }

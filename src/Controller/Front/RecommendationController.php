@@ -53,7 +53,7 @@ class RecommendationController extends AbstractController
      */
     #[Route('/recommandations/json', name: 'app_evenements_recommandations_json', methods: ['GET'])]
     #[IsGranted('IS_AUTHENTICATED')]
-    public function json(Request $request): JsonResponse
+    public function recommendationsJson(Request $request): JsonResponse
     {
         /** @var \App\Entity\User $user */
         $user = $this->getUser();

@@ -13,7 +13,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 class Inscription
 {
     // ========== CONSTANTES DE STATUTS ==========
-    public const STATUT_EN_ATTENTE = 'EN_ATTENTE';          // Attente validation admin
+    public const STATUT_EN_ATTENTE = 'EN_ATTENTE';          // Legacy : ancien workflow avec validation admin
     public const STATUT_CONFIRMEE = 'CONFIRMEE';            // Admin a accepté, en attente paiement
     public const STATUT_PAYEE = 'PAYEE';                    // Paiement effectué
     public const STATUT_ANNULEE = 'ANNULEE';                // Utilisateur/admin a annulé
@@ -44,7 +44,7 @@ private ?Evenement $evenement = null;
 
     #[ORM\Column(type: 'string', length: 20)]
     #[Assert\Choice(choices: self::STATUTS_VALIDES)]
-    private string $statut = 'EN_ATTENTE';
+    private string $statut = 'CONFIRMEE';
 
     #[ORM\Column(type: 'float')]
     private float $paiement = 0.0; // champ legacy du schéma
