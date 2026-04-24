@@ -16,17 +16,28 @@ class LieuImageRepository extends ServiceEntityRepository
         parent::__construct($registry, LieuImage::class);
     }
 
-    /**
-     * @return LieuImage[]
-     */
-    public function findByLieu(int $lieuId): array
-    {
-        return $this->createQueryBuilder('li')
-            ->where('li.lieu = :lieuId')
-            ->setParameter('lieuId', $lieuId)
-            ->orderBy('li.ordre', 'ASC')
-            ->addOrderBy('li.id', 'ASC')
-            ->getQuery()
-            ->getResult();
-    }
+//    /**
+//     * @return LieuImage[] Returns an array of LieuImage objects
+//     */
+//    public function findByExampleField($value): array
+//    {
+//        return $this->createQueryBuilder('l')
+//            ->andWhere('l.exampleField = :val')
+//            ->setParameter('val', $value)
+//            ->orderBy('l.id', 'ASC')
+//            ->setMaxResults(10)
+//            ->getQuery()
+//            ->getResult()
+//        ;
+//    }
+
+//    public function findOneBySomeField($value): ?LieuImage
+//    {
+//        return $this->createQueryBuilder('l')
+//            ->andWhere('l.exampleField = :val')
+//            ->setParameter('val', $value)
+//            ->getQuery()
+//            ->getOneOrNullResult()
+//        ;
+//    }
 }

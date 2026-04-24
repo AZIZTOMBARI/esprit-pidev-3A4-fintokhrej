@@ -1,9 +1,9 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}{{ 'auth.register'|trans }}{% endblock %}
+{% block title %}Inscription{% endblock %}
 
 {% block stylesheets %}
-    <link rel="stylesheet" href="{{ asset('styles/auth.css') }}?v=20260418v3">
+    <link rel="stylesheet" href="{{ asset('styles/auth.css') }}?v=20260411b">
 {% endblock %}
 
 {% block javascripts %}
@@ -32,18 +32,12 @@
             </aside>
 
             <section class="auth-form-wrap">
-                <div class="auth-switch"><a href="{{ path('app_login') }}">{{ 'auth.login'|trans }}</a></div>
+                <div class="auth-switch"><a href="{{ path('app_login') }}">Connexion</a></div>
 
                 <div class="auth-card">
-                    <p class="auth-kicker">{{ 'auth.new_account'|trans }}</p>
-                    <h1 class="auth-title">{{ 'auth.create_account'|trans }}</h1>
-                    <p class="auth-subtitle">{{ 'auth.register_subtitle'|trans }}</p>
-
-                    <a href="{{ path('app_connect_google_start') }}" class="auth-google-btn" style="text-decoration:none;">
-                        <span class="auth-google-btn__icon">G</span>
-                        <span>{{ 'auth.google_continue'|trans }}</span>
-                    </a>
-                    <div class="auth-google-sep"><span>{{ 'auth.or_classic_signup'|trans }}</span></div>
+                    <p class="auth-kicker">Nouveau compte</p>
+                    <h1 class="auth-title">Cree ton compte</h1>
+                    <p class="auth-subtitle">Inscription en moins d'une minute</p>
 
                     {{ form_start(form, { attr: { novalidate: 'novalidate', 'data-auth-morph': 'true' } }) }}
 
@@ -134,12 +128,12 @@
                         </div>
 
                         <button class="auth-submit" type="submit">
-                            <span class="auth-submit__label">{{ 'auth.create_my_account'|trans }}</span>
+                            <span class="auth-submit__label">Creer mon compte</span>
                             <span class="auth-submit__spinner" aria-hidden="true"></span>
                         </button>
                     {{ form_end(form) }}
 
-                    <p class="auth-footer">{{ 'auth.already_account'|trans }} <a href="{{ path('app_login') }}">{{ 'auth.login_now'|trans }}</a></p>
+                    <p class="auth-footer">Tu as deja un compte ? <a href="{{ path('app_login') }}">Connecte-toi</a></p>
                 </div>
             </section>
         </div>

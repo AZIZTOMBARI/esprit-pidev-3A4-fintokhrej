@@ -29,17 +29,18 @@ class BadgeRecompense
         return $this;
     }
 
-    #[ORM\Column(name: 'badge_code', type: 'string', nullable: false, unique: true)]
-    private ?string $badge_code = null;
+    #[ORM\OneToOne(targetEntity: Badge::class, inversedBy: 'badgeRecompense')]
+    #[ORM\JoinColumn(name: 'badge_code', referencedColumnName: 'code', unique: true)]
+    private ?Badge $badge = null;
 
-    public function getBadgeCode(): ?string
+    public function getBadge(): ?Badge
     {
-        return $this->badge_code;
+        return $this->badge;
     }
 
-    public function setBadgeCode(string $badge_code): self
+    public function setBadge(?Badge $badge): self
     {
-        $this->badge_code = $badge_code;
+        $this->badge = $badge;
         return $this;
     }
 

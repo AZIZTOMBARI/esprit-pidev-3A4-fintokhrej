@@ -5,16 +5,14 @@ namespace App\Controller;
 use App\Entity\User;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception;
-use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Mailer\MailerInterface;
-use Symfony\Component\Mime\Email;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Annotation\Route;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Symfony\UX\Chartjs\Builder\ChartBuilderInterface;
+use Symfony\UX\Chartjs\Model\Chart;
 
 #[Route('/admin')]
 class AdminController extends AbstractController
@@ -31,228 +29,6 @@ class AdminController extends AbstractController
                 'visiteurs' => $this->fetchValue($connection, "SELECT COUNT(*) FROM user WHERE role = 'visiteur'"),
             ],
         ]);
-    }
-
-    #[Route('/moderation', name: 'app_admin_moderation')]
-    public function moderation(Request $request, Connection $connection): Response
-    {
-        $page = max(1, (int) $request->query->get('page', 1));
-        $pageSize = 12;
-        $dateFrom = trim((string) $request->query->get('date_from', ''));
-        $severity = trim((string) $request->query->get('severity', ''));
-        $lieuId = trim((string) $request->query->get('lieu_id', ''));
-
-        $filters = [
-            'date_from' => $dateFrom,
-            'severity' => $severity,
-            'lieu_id' => $lieuId,
-        ];
-
-        $hasModerationTable = $this->hasReviewModerationTable($connection);
-        $hasBanColumns = $this->hasUserBanColumns($connection);
-
-        if (!$hasModerationTable) {
-            return $this->render('admin/moderation/index.html.twig', [
-                'active' => 'moderation',
-                'stats' => [
-                    'today' => 0,
-                    'severe' => 0,
-                    'moderate' => 0,
-                ],
-                'filters' => $filters,
-                'lieux' => $this->fetchAll($connection, 'SELECT id, nom, ville FROM lieu ORDER BY nom ASC'),
-                'rows' => [],
-                'total' => 0,
-                'page' => 1,
-                'totalPages' => 1,
-                'hasModerationTable' => false,
-                'hasBanColumns' => $hasBanColumns,
-            ]);
-        }
-
-        $whereParts = [];
-        $params = [];
-
-        if ($dateFrom !== '') {
-            $whereParts[] = 'DATE(m.created_at) >= ?';
-            $params[] = $dateFrom;
-        }
-
-        if ($severity === 'severe') {
-            $whereParts[] = "m.severity = 'severe'";
-        } elseif ($severity === 'moderate') {
-            $whereParts[] = "m.severity = 'moderate'";
-        }
-
-        if ($lieuId !== '' && ctype_digit($lieuId)) {
-            $whereParts[] = 'm.lieu_id = ?';
-            $params[] = (int) $lieuId;
-        }
-
-        $whereSql = $whereParts !== [] ? ' WHERE '.implode(' AND ', $whereParts) : '';
-
-        $total = (int) $connection->fetchOne('SELECT COUNT(*) FROM review_moderation_log m'.$whereSql, $params);
-        $totalPages = max(1, (int) ceil($total / $pageSize));
-        $page = min($page, $totalPages);
-        $offset = ($page - 1) * $pageSize;
-
-        if ($hasBanColumns) {
-            $rowsSql = "SELECT m.id,
-                        m.user_id,
-                        u.prenom,
-                        u.nom,
-                        u.email,
-                        u.banned_until AS active_ban_until,
-                        u.ban_reason AS active_ban_reason,
-                        m.created_at,
-                        l.nom AS lieu_nom,
-                        l.ville AS lieu_ville,
-                        m.severity,
-                        m.score,
-                        COALESCE(m.terms_text, '') AS terms_text,
-                        COALESCE(m.comment_preview, '') AS comment_preview
-                 FROM review_moderation_log m
-                 LEFT JOIN user u ON u.id = m.user_id
-                 LEFT JOIN lieu l ON l.id = m.lieu_id";
-        } else {
-            $rowsSql = "SELECT m.id,
-                        m.user_id,
-                        u.prenom,
-                        u.nom,
-                        u.email,
-                        NULL AS active_ban_until,
-                        NULL AS active_ban_reason,
-                        m.created_at,
-                        l.nom AS lieu_nom,
-                        l.ville AS lieu_ville,
-                        m.severity,
-                        m.score,
-                        COALESCE(m.terms_text, '') AS terms_text,
-                        COALESCE(m.comment_preview, '') AS comment_preview
-                 FROM review_moderation_log m
-                 LEFT JOIN user u ON u.id = m.user_id
-                 LEFT JOIN lieu l ON l.id = m.lieu_id";
-        }
-
-        $rows = $this->fetchAll(
-            $connection,
-            $rowsSql.$whereSql.' ORDER BY m.created_at DESC, m.id DESC LIMIT '.$pageSize.' OFFSET '.$offset,
-            $params
-        );
-
-        $activeBanCount = 0;
-        foreach ($rows as $row) {
-            if (!empty($row['active_ban_until'])) {
-                $activeBanCount++;
-            }
-        }
-
-        return $this->render('admin/moderation/index.html.twig', [
-            'active' => 'moderation',
-            'stats' => [
-                'today' => $total,
-                'severe' => $activeBanCount,
-                'moderate' => max(0, $total - $activeBanCount),
-            ],
-            'filters' => $filters,
-            'lieux' => $this->fetchAll($connection, 'SELECT id, nom, ville FROM lieu ORDER BY nom ASC'),
-            'rows' => $rows,
-            'total' => $total,
-            'page' => $page,
-            'totalPages' => $totalPages,
-            'hasModerationTable' => true,
-            'hasBanColumns' => $hasBanColumns,
-        ]);
-    }
-
-    #[Route('/moderation/ban-user', name: 'app_admin_moderation_ban_user', methods: ['POST'])]
-    public function moderationBanUser(Request $request, Connection $connection, LoggerInterface $logger, MailerInterface $mailer, HttpClientInterface $httpClient): Response
-    {
-        $userId = (int) $request->request->get('user_id', 0);
-
-        if (!$this->isCsrfTokenValid('admin_moderation_ban_'.$userId, (string) $request->request->get('_token', ''))) {
-            $this->addFlash('error', 'Jeton CSRF invalide pour le bannissement.');
-            return $this->redirectToRoute('app_admin_moderation');
-        }
-
-        if (!$this->hasUserBanColumns($connection)) {
-            $this->addFlash('error', 'La base de données ne contient pas encore les colonnes de modération.');
-            return $this->redirectToRoute('app_admin_moderation');
-        }
-
-        $durationDays = max(1, (int) $request->request->get('duration_days', 7));
-        $reason = trim((string) $request->request->get('reason', 'Contenu toxique détecté par modération'));
-        $bannedUntil = (new \DateTimeImmutable())->modify('+'.$durationDays.' days')->format('Y-m-d H:i:s');
-
-        try {
-            $connection->update('user', [
-                'banned_until' => $bannedUntil,
-                'ban_reason' => $reason,
-            ], [
-                'id' => $userId,
-            ]);
-
-            $userRow = $connection->fetchAssociative(
-                'SELECT email, prenom, nom FROM user WHERE id = ? LIMIT 1',
-                [$userId]
-            );
-
-            if (is_array($userRow)) {
-                $sourceLogId = (int) $request->request->get('source_log_id', 0);
-                $mailSent = $this->sendBanAlertEmail(
-                    $mailer,
-                    $httpClient,
-                    $logger,
-                    (string) ($userRow['email'] ?? ''),
-                    (string) ($userRow['prenom'] ?? ''),
-                    (string) ($userRow['nom'] ?? ''),
-                    $durationDays,
-                    $reason,
-                    $sourceLogId > 0 ? $sourceLogId : null
-                );
-
-                if (!$mailSent) {
-                    $this->addFlash('error', 'Utilisateur banni, mais l\'email de notification n\'a pas pu être envoyé. Vérifiez MAILER_DSN et les logs.');
-                }
-            }
-
-            $this->addFlash('success', 'Utilisateur banni avec succès.');
-        } catch (Exception $e) {
-            $this->addFlash('error', 'Erreur bannissement utilisateur: '.$e->getMessage());
-        }
-
-        return $this->redirectToRoute('app_admin_moderation');
-    }
-
-    #[Route('/moderation/unban-user', name: 'app_admin_moderation_unban_user', methods: ['POST'])]
-    public function moderationUnbanUser(Request $request, Connection $connection): Response
-    {
-        $userId = (int) $request->request->get('user_id', 0);
-
-        if (!$this->isCsrfTokenValid('admin_moderation_unban_'.$userId, (string) $request->request->get('_token', ''))) {
-            $this->addFlash('error', 'Jeton CSRF invalide pour le débanissement.');
-            return $this->redirectToRoute('app_admin_moderation');
-        }
-
-        if (!$this->hasUserBanColumns($connection)) {
-            $this->addFlash('error', 'La base de données ne contient pas encore les colonnes de modération.');
-            return $this->redirectToRoute('app_admin_moderation');
-        }
-
-        try {
-            $connection->update('user', [
-                'banned_until' => null,
-                'ban_reason' => null,
-            ], [
-                'id' => $userId,
-            ]);
-
-            $this->addFlash('success', 'Ban levé avec succès.');
-        } catch (Exception $e) {
-            $this->addFlash('error', 'Erreur lors du débanissement: '.$e->getMessage());
-        }
-
-        return $this->redirectToRoute('app_admin_moderation');
     }
 
     #[Route('/dashboard-offres', name: 'app_admin_dashboard_offres')]
@@ -616,17 +392,7 @@ class AdminController extends AbstractController
 
         return $this->render('admin/sortie/index.html.twig', [
             'active' => 'sorties',
-            'sorties' => $this->fetchAll(
-                $connection,
-                'SELECT s.id, s.user_id, s.titre, s.description, s.ville, s.lieu_texte, s.point_rencontre, s.type_activite, s.date_sortie, s.budget_max, s.nb_places, s.statut, s.image_url, s.questions_json, u.prenom, u.nom, u.imageUrl AS user_image_url
-                 FROM annonce_sortie s
-                 LEFT JOIN user u ON u.id = s.user_id
-                 '.$whereSql.'
-                 ORDER BY '.$sortSql.'
-                 LIMIT '.$pageSize.' OFFSET '.$offset
-            ,
-                $params
-            ),
+            'sorties' => $this->fetchAdminSortiesForListing($connection, $whereSql, $sortSql, $pageSize, $offset, $params),
             'page' => $page,
             'pageSize' => $pageSize,
             'total' => $total,
@@ -636,6 +402,159 @@ class AdminController extends AbstractController
                 'status' => $status,
                 'sort' => $sort,
             ],
+        ]);
+    }
+
+    #[Route('/sorties/statistiques', name: 'app_admin_sorties_stats')]
+    public function sortieStats(Connection $connection, ChartBuilderInterface $chartBuilder): Response
+    {
+        $cityRows = $this->fetchAll($connection, "
+            SELECT COALESCE(NULLIF(ville, ''), 'Non renseignee') AS city, COUNT(*) AS total
+            FROM annonce_sortie
+            GROUP BY city
+            ORDER BY total DESC, city ASC
+            LIMIT 7
+        ");
+        $statusRows = $this->fetchAll($connection, "
+            SELECT COALESCE(NULLIF(statut, ''), 'INCONNU') AS status, COUNT(*) AS total
+            FROM annonce_sortie
+            GROUP BY status
+            ORDER BY total DESC, status ASC
+        ");
+        $typeRows = $this->fetchAll($connection, "
+            SELECT COALESCE(NULLIF(type_activite, ''), 'Non renseignee') AS type_label, COUNT(*) AS total
+            FROM annonce_sortie
+            GROUP BY type_label
+            ORDER BY total DESC, type_label ASC
+            LIMIT 6
+        ");
+        $budgetRows = $this->fetchAll($connection, "
+            SELECT COALESCE(NULLIF(ville, ''), 'Non renseignee') AS city, ROUND(AVG(COALESCE(budget_max, 0)), 1) AS avg_budget
+            FROM annonce_sortie
+            GROUP BY city
+            ORDER BY avg_budget DESC, city ASC
+            LIMIT 6
+        ");
+        $trendRows = $this->fetchAll($connection, "
+            SELECT DATE_FORMAT(date_sortie, '%Y-%m') AS month_key, COUNT(*) AS total
+            FROM annonce_sortie
+            WHERE date_sortie >= DATE_SUB(CURDATE(), INTERVAL 5 MONTH)
+            GROUP BY month_key
+            ORDER BY month_key ASC
+        ");
+
+        $months = [];
+        $trendMap = [];
+        foreach ($trendRows as $trendRow) {
+            $trendMap[(string) $trendRow['month_key']] = (int) $trendRow['total'];
+        }
+        for ($i = 5; $i >= 0; --$i) {
+            $month = (new \DateTimeImmutable('first day of this month'))->modify(sprintf('-%d month', $i));
+            $key = $month->format('Y-m');
+            $months[] = [
+                'label' => $month->format('M Y'),
+                'total' => $trendMap[$key] ?? 0,
+            ];
+        }
+
+        $topCity = $cityRows[0]['city'] ?? 'Aucune donnee';
+        $topCityCount = (int) ($cityRows[0]['total'] ?? 0);
+        $completed = (int) $this->fetchValue($connection, "SELECT COUNT(*) FROM annonce_sortie WHERE statut = 'TERMINEE'");
+        $totalSorties = (int) $this->fetchValue($connection, 'SELECT COUNT(*) FROM annonce_sortie');
+        $upcoming = (int) $this->fetchValue($connection, 'SELECT COUNT(*) FROM annonce_sortie WHERE date_sortie >= NOW()');
+        $completionRate = $totalSorties > 0 ? round(($completed / $totalSorties) * 100) : 0;
+
+        $cityChart = $chartBuilder->createChart(Chart::TYPE_BAR);
+        $cityChart->setData([
+            'labels' => array_map(static fn (array $row) => (string) $row['city'], $cityRows),
+            'datasets' => [[
+                'label' => 'Sorties par ville',
+                'data' => array_map(static fn (array $row) => (int) $row['total'], $cityRows),
+                'backgroundColor' => ['#1d4ed8', '#3b82f6', '#60a5fa', '#7dd3fc', '#38bdf8', '#0ea5e9', '#2563eb'],
+                'borderRadius' => 16,
+            ]],
+        ]);
+        $cityChart->setOptions([
+            'plugins' => ['legend' => ['display' => false]],
+            'scales' => ['y' => ['beginAtZero' => true, 'ticks' => ['precision' => 0]]],
+            'maintainAspectRatio' => false,
+        ]);
+
+        $statusChart = $chartBuilder->createChart(Chart::TYPE_DOUGHNUT);
+        $statusChart->setData([
+            'labels' => array_map(static fn (array $row) => (string) $row['status'], $statusRows),
+            'datasets' => [[
+                'data' => array_map(static fn (array $row) => (int) $row['total'], $statusRows),
+                'backgroundColor' => ['#2563eb', '#f59e0b', '#10b981', '#ef4444', '#94a3b8'],
+                'borderWidth' => 0,
+            ]],
+        ]);
+        $statusChart->setOptions([
+            'maintainAspectRatio' => false,
+            'plugins' => ['legend' => ['position' => 'bottom']],
+        ]);
+
+        $typeChart = $chartBuilder->createChart(Chart::TYPE_POLAR_AREA);
+        $typeChart->setData([
+            'labels' => array_map(static fn (array $row) => (string) $row['type_label'], $typeRows),
+            'datasets' => [[
+                'data' => array_map(static fn (array $row) => (int) $row['total'], $typeRows),
+                'backgroundColor' => ['rgba(37,99,235,.8)', 'rgba(14,165,233,.8)', 'rgba(16,185,129,.8)', 'rgba(249,115,22,.8)', 'rgba(168,85,247,.8)', 'rgba(244,63,94,.8)'],
+            ]],
+        ]);
+        $typeChart->setOptions([
+            'maintainAspectRatio' => false,
+            'plugins' => ['legend' => ['position' => 'bottom']],
+        ]);
+
+        $trendChart = $chartBuilder->createChart(Chart::TYPE_LINE);
+        $trendChart->setData([
+            'labels' => array_map(static fn (array $row) => (string) $row['label'], $months),
+            'datasets' => [[
+                'label' => 'Evolution sur 6 mois',
+                'data' => array_map(static fn (array $row) => (int) $row['total'], $months),
+                'borderColor' => '#0f5fd7',
+                'backgroundColor' => 'rgba(15,95,215,.15)',
+                'fill' => true,
+                'tension' => 0.35,
+            ]],
+        ]);
+        $trendChart->setOptions([
+            'maintainAspectRatio' => false,
+            'scales' => ['y' => ['beginAtZero' => true, 'ticks' => ['precision' => 0]]],
+        ]);
+
+        return $this->render('admin/sortie/stats.html.twig', [
+            'active' => 'sorties_stats',
+            'cityChart' => $cityChart,
+            'statusChart' => $statusChart,
+            'typeChart' => $typeChart,
+            'trendChart' => $trendChart,
+            'cityRows' => $cityRows,
+            'budgetRows' => $budgetRows,
+            'statsCards' => [
+                'total' => $totalSorties,
+                'topCity' => $topCity,
+                'topCityCount' => $topCityCount,
+                'upcoming' => $upcoming,
+                'completionRate' => $completionRate,
+            ],
+        ]);
+    }
+
+    #[Route('/sorties/calendrier', name: 'app_admin_sorties_calendar')]
+    public function sortieCalendar(Connection $connection): Response
+    {
+        $statusCounts = [
+            'OUVERTE' => $this->fetchValue($connection, "SELECT COUNT(*) FROM annonce_sortie WHERE statut = 'OUVERTE'"),
+            'CLOTUREE' => $this->fetchValue($connection, "SELECT COUNT(*) FROM annonce_sortie WHERE statut = 'CLOTUREE'"),
+            'TERMINEE' => $this->fetchValue($connection, "SELECT COUNT(*) FROM annonce_sortie WHERE statut = 'TERMINEE'"),
+            'ANNULEE' => $this->fetchValue($connection, "SELECT COUNT(*) FROM annonce_sortie WHERE statut = 'ANNULEE'"),
+        ];
+
+        return $this->render('admin/sortie/calendar.html.twig', [
+            'active' => 'sorties_calendar',
+            'statusCounts' => $statusCounts,
         ]);
     }
 
@@ -759,12 +678,11 @@ class AdminController extends AbstractController
                 'total' => $total,
                 'totalPages' => max(1, (int) ceil($total / $pageSize)),
             ],
-            'analyses' => $this->getOffresAnalysesFromSession($request, $offres),
         ]);
     }
 
     #[Route('/offres/create', name: 'app_admin_offres_create', methods: ['POST'])]
-    public function offresCreate(Request $request, Connection $connection, HttpClientInterface $httpClient): Response
+    public function offresCreate(Request $request, Connection $connection): Response
     {
         if (!$this->isCsrfTokenValid('admin_offre_create', (string) $request->request->get('_token', ''))) {
             $this->addFlash('error', 'Jeton CSRF invalide pour la création d\'offre.');
@@ -804,116 +722,12 @@ class AdminController extends AbstractController
                 'lieu_id' => $payload['lieu_id'],
             ]);
 
-            $offreId = (int) $connection->lastInsertId();
-            $webhookWarning = $this->sendOffreCreateWebhook($httpClient, $offreId, $userId, $payload);
-            if ($webhookWarning !== null) {
-                $this->addFlash('warning', $webhookWarning);
-            }
-
             $this->addFlash('success', 'Offre créée avec succès.');
         } catch (Exception $e) {
             $this->addFlash('error', 'Erreur création offre: '.$e->getMessage());
         }
 
         return $this->redirectToRoute('app_admin_offres');
-    }
-
-    #[Route('/offres/analyze', name: 'app_admin_offres_analyze', methods: ['POST'])]
-    public function offresAnalyze(Request $request, HttpClientInterface $httpClient, Connection $connection): Response
-    {
-        // Lire les données JSON ou form POST
-        $contentType = $request->headers->get('Content-Type', '');
-        $data = [];
-        
-        if (str_contains($contentType, 'application/json')) {
-            // Données JSON depuis AJAX
-            $data = json_decode($request->getContent(), true) ?? [];
-        } else {
-            // Données de formulaire POST
-            $data = $request->request->all();
-        }
-
-        if (!$this->isCsrfTokenValid('admin_offre_create', (string) ($data['_token'] ?? ''))) {
-            $this->addFlash('error', 'Jeton CSRF invalide pour l\'analyse d\'offre.');
-            if ($request->isXmlHttpRequest() || str_contains($contentType, 'application/json')) {
-                return $this->json(['success' => false, 'error' => 'CSRF invalide'], 403);
-            }
-            return $this->redirectToRoute('app_admin_offres');
-        }
-
-        // offre_id est optionnel (peut être vide si c'est une création)
-        $offreId = (string) ($data['offre_id'] ?? '');
-
-        $payload = $this->normalizeOffrePayload([
-            'titre' => (string) ($data['titre'] ?? ''),
-            'type' => (string) ($data['type'] ?? ''),
-            'pourcentage' => (string) ($data['pourcentage'] ?? ''),
-            'date_debut' => (string) ($data['date_debut'] ?? ''),
-            'date_fin' => (string) ($data['date_fin'] ?? ''),
-            'statut' => (string) ($data['statut'] ?? ''),
-            'description' => (string) ($data['description'] ?? ''),
-            'lieu_id' => (string) ($data['lieu_id'] ?? ''),
-        ]);
-
-        $webhookUrl = trim((string) ($_ENV['N8N_OFFRE_ANALYZE_WEBHOOK_URL'] ?? $_SERVER['N8N_OFFRE_ANALYZE_WEBHOOK_URL'] ?? ''));
-        if ($webhookUrl === '') {
-            $this->addFlash('error', 'Webhook n8n non configuré. Ajoutez N8N_OFFRE_ANALYZE_WEBHOOK_URL dans votre .env.local.');
-            if ($request->isXmlHttpRequest() || str_contains($contentType, 'application/json')) {
-                return $this->json(['success' => false, 'error' => 'Webhook non configuré'], 500);
-            }
-            return $this->redirectToRoute('app_admin_offres');
-        }
-
-        // Créer un ID de tracking unique
-        $trackingId = bin2hex(random_bytes(18)); // 36 caractères
-
-        // Sauvegarder le tracking
-        $connection->insert('offre_analysis_tracking', [
-            'tracking_id' => $trackingId,
-            'offre_id' => !empty($offreId) ? (int) $offreId : null,
-            'status' => 'pending',
-            'created_at' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
-            'expires_at' => (new \DateTimeImmutable())->modify('+1 hour')->format('Y-m-d H:i:s'),
-        ]);
-
-        $currentUser = $this->getUser();
-        $adminUserId = $currentUser instanceof User ? $currentUser->getId() : null;
-
-        try {
-            $response = $httpClient->request('POST', $webhookUrl, [
-                'json' => [
-                    'source' => 'admin_offre_analyze_button',
-                    'sent_at' => (new \DateTimeImmutable())->format(DATE_ATOM),
-                    'admin_user_id' => $adminUserId,
-                    'offre_id' => !empty($offreId) ? (int) $offreId : null,
-                    'tracking_id' => $trackingId,
-                    'offre' => $payload,
-                ],
-            ]);
-
-            if ($response->getStatusCode() >= 400) {
-                $errorMsg = 'Le webhook n8n a répondu avec une erreur HTTP '.$response->getStatusCode().'.';
-                if ($request->isXmlHttpRequest() || str_contains($contentType, 'application/json')) {
-                    return $this->json(['success' => false, 'error' => $errorMsg], 400);
-                }
-                $this->addFlash('error', $errorMsg);
-                return $this->redirectToRoute('app_admin_offres');
-            }
-
-            // Retourner JSON pour le modal popup
-            return $this->json([
-                'success' => true,
-                'tracking_id' => $trackingId,
-                'message' => 'Analyse envoyée à n8n...',
-            ]);
-        } catch (\Throwable $e) {
-            $errorMsg = 'Impossible d\'envoyer les données à n8n: '.$e->getMessage();
-            if ($request->isXmlHttpRequest() || str_contains($contentType, 'application/json')) {
-                return $this->json(['success' => false, 'error' => $errorMsg], 500);
-            }
-            $this->addFlash('error', $errorMsg);
-            return $this->redirectToRoute('app_admin_offres');
-        }
     }
 
     #[Route('/offres/{id}/update', name: 'app_admin_offres_update', methods: ['POST'])]
@@ -1331,51 +1145,43 @@ class AdminController extends AbstractController
         }
     }
 
+    private function fetchAdminSortiesForListing(
+        Connection $connection,
+        string $whereSql,
+        string $sortSql,
+        int $limit,
+        int $offset,
+        array $params
+    ): array {
+        $sqlWithChat = 'SELECT s.id, s.user_id, s.titre, s.description, s.ville, s.lieu_texte, s.point_rencontre, s.type_activite, s.date_sortie, s.budget_max, s.nb_places, s.statut, s.image_url, s.questions_json, u.prenom, u.nom, u.imageUrl AS user_image_url, cg.id AS chat_group_id
+                        FROM annonce_sortie s
+                        LEFT JOIN user u ON u.id = s.user_id
+                        LEFT JOIN chat_groupe cg ON cg.annonce_id = s.id
+                        '.$whereSql.'
+                        ORDER BY '.$sortSql.'
+                        LIMIT '.$limit.' OFFSET '.$offset;
+
+        $sorties = $this->fetchAll($connection, $sqlWithChat, $params);
+        if ($sorties !== []) {
+            return $sorties;
+        }
+
+        $sqlFallback = 'SELECT s.id, s.user_id, s.titre, s.description, s.ville, s.lieu_texte, s.point_rencontre, s.type_activite, s.date_sortie, s.budget_max, s.nb_places, s.statut, s.image_url, s.questions_json, u.prenom, u.nom, u.imageUrl AS user_image_url, NULL AS chat_group_id
+                        FROM annonce_sortie s
+                        LEFT JOIN user u ON u.id = s.user_id
+                        '.$whereSql.'
+                        ORDER BY '.$sortSql.'
+                        LIMIT '.$limit.' OFFSET '.$offset;
+
+        return $this->fetchAll($connection, $sqlFallback, $params);
+    }
+
     private function fetchValue(Connection $connection, string $sql): int
     {
         try {
             return (int) $connection->fetchOne($sql);
         } catch (Exception) {
             return 0;
-        }
-    }
-
-    private function sendOffreCreateWebhook(HttpClientInterface $httpClient, int $offreId, ?int $adminUserId, array $payload): ?string
-    {
-        $webhookUrl = trim((string) ($_ENV['N8N_OFFRE_CREATE_WEBHOOK_URL'] ?? $_SERVER['N8N_OFFRE_CREATE_WEBHOOK_URL'] ?? ''));
-        if ($webhookUrl === '') {
-            return null;
-        }
-
-        try {
-            $response = $httpClient->request('POST', $webhookUrl, [
-                'timeout' => 10,
-                'max_duration' => 12,
-                'json' => [
-                    'source' => 'admin_offre_create',
-                    'sent_at' => (new \DateTimeImmutable())->format(DATE_ATOM),
-                    'admin_user_id' => $adminUserId,
-                    'offre' => [
-                        'id' => $offreId,
-                        'titre' => $payload['titre'],
-                        'type' => $payload['type'],
-                        'pourcentage' => $payload['pourcentage'],
-                        'date_debut' => $payload['date_debut'],
-                        'date_fin' => $payload['date_fin'],
-                        'statut' => $payload['statut'],
-                        'description' => $payload['description'],
-                        'lieu_id' => $payload['lieu_id'],
-                    ],
-                ],
-            ]);
-
-            if ($response->getStatusCode() >= 400) {
-                return 'Offre créée, mais échec envoi webhook n8n (HTTP '.$response->getStatusCode().').';
-            }
-
-            return null;
-        } catch (\Throwable $e) {
-            return 'Offre créée, mais webhook n8n indisponible: '.$e->getMessage();
         }
     }
 
@@ -1524,131 +1330,6 @@ class AdminController extends AbstractController
         return $column.' '.strtoupper($direction);
     }
 
-    private function hasUserBanColumns(Connection $connection): bool
-    {
-        $requiredColumns = ['banned_until', 'ban_reason'];
-        $placeholders = implode(', ', array_fill(0, count($requiredColumns), '?'));
-
-        $foundColumns = $connection->fetchFirstColumn(
-                        "SELECT COLUMN_NAME
-                         FROM INFORMATION_SCHEMA.COLUMNS
-                         WHERE TABLE_SCHEMA = DATABASE()
-                             AND TABLE_NAME = 'user'
-                             AND COLUMN_NAME IN (".$placeholders.")",
-            $requiredColumns
-        );
-
-        return count(array_unique($foundColumns)) === count($requiredColumns);
-    }
-
-    private function hasReviewModerationTable(Connection $connection): bool
-    {
-        $exists = $connection->fetchOne(
-            "SELECT COUNT(*)
-             FROM INFORMATION_SCHEMA.TABLES
-             WHERE TABLE_SCHEMA = DATABASE()
-               AND TABLE_NAME = 'review_moderation_log'"
-        );
-
-        return (int) $exists > 0;
-    }
-
-    private function sendBanAlertEmail(
-        MailerInterface $mailer,
-        HttpClientInterface $httpClient,
-        LoggerInterface $logger,
-        string $to,
-        string $prenom,
-        string $nom,
-        int $durationDays,
-        string $reason,
-        ?int $sourceLogId
-    ): bool {
-        $recipient = strtolower(trim($to));
-        if ($recipient === '' || !filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
-            return false;
-        }
-
-        $overrideRecipient = strtolower(trim((string) ($_ENV['BAN_ALERT_RECIPIENT_OVERRIDE'] ?? $_SERVER['BAN_ALERT_RECIPIENT_OVERRIDE'] ?? '')));
-        if ($overrideRecipient !== '' && filter_var($overrideRecipient, FILTER_VALIDATE_EMAIL)) {
-            $recipient = $overrideRecipient;
-        }
-
-        $displayName = trim($prenom.' '.$nom);
-        if ($displayName === '') {
-            $displayName = 'Utilisateur';
-        }
-
-        $subject = 'Alerte moderation - Votre compte est temporairement banni';
-        $body = implode("\n", [
-            'Bonjour '.$displayName.',',
-            '',
-            'Suite a une tentative de publication non conforme, votre compte a ete banni temporairement.',
-            'Duree du ban: '.$durationDays.' jour(s).',
-            'Motif: '.$reason,
-            '',
-            $sourceLogId ? 'Reference de moderation: #'.$sourceLogId : 'Reference de moderation: non specifiee',
-            '',
-            'Vous pourrez vous reconnecter a la fin de cette periode.',
-            'Si vous pensez qu\'il s\'agit d\'une erreur, contactez l\'administrateur.',
-            '',
-            'Equipe Fintokhrej',
-        ]);
-
-        $from = (string) (
-            $_ENV['MAILING_FROM_ADDRESS']
-            ?? $_SERVER['MAILING_FROM_ADDRESS']
-            ?? $_ENV['MAILER_FROM_ADDRESS']
-            ?? $_SERVER['MAILER_FROM_ADDRESS']
-            ?? 'no-reply@fintokhrej.local'
-        );
-
-        $mailtrapApiKey = trim((string) ($_ENV['MAILTRAP_API_KEY'] ?? $_SERVER['MAILTRAP_API_KEY'] ?? ''));
-
-        try {
-            if ($mailtrapApiKey !== '') {
-                $httpClient->request('POST', 'https://send.api.mailtrap.io/api/send', [
-                    'headers' => [
-                        'Authorization' => 'Bearer '.$mailtrapApiKey,
-                        'Content-Type' => 'application/json',
-                        'Accept' => 'application/json',
-                    ],
-                    'json' => [
-                        'from' => [
-                            'email' => $from,
-                            'name' => 'Fintokhrej',
-                        ],
-                        'to' => [
-                            ['email' => $recipient],
-                        ],
-                        'subject' => $subject,
-                        'text' => $body,
-                        'category' => 'ban_alert',
-                    ],
-                ]);
-
-                return true;
-            }
-
-            $email = (new Email())
-                ->from($from)
-                ->to($recipient)
-                ->subject($subject)
-                ->text($body);
-
-            $mailer->send($email);
-
-            return true;
-        } catch (\Throwable $e) {
-            $logger->error('Envoi email bannissement échoué', [
-                'to' => $recipient,
-                'error' => $e->getMessage(),
-            ]);
-
-            return false;
-        }
-    }
-
     /**
      * @return string[]
      */
@@ -1719,42 +1400,5 @@ class AdminController extends AbstractController
             'read_at' => null,
             'metadata_json' => $metadata !== [] ? json_encode($metadata, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null,
         ]);
-    }
-
-    private function getOffresAnalysesFromSession(Request $request, array $offres): array
-    {
-        $analyses = [];
-        $session = $request->getSession();
-
-        foreach ($offres as $offre) {
-            $offreId = (string) $offre['id'];
-            $sessionKey = 'offre_analysis_' . $offreId;
-            
-            if ($session->has($sessionKey)) {
-                $analyses[$offreId] = $session->get($sessionKey);
-            }
-        }
-
-        return $analyses;
-    }
-
-    #[Route('/offres/dismiss-analysis', name: 'app_admin_offres_dismiss_analysis', methods: ['POST'])]
-    public function offresAnalyzeDismiss(Request $request): Response
-    {
-        try {
-            $data = json_decode($request->getContent(), true);
-            $offreId = $data['offre_id'] ?? null;
-
-            if (!$offreId) {
-                return new JsonResponse(['error' => 'offre_id manquant'], 400);
-            }
-
-            $session = $request->getSession();
-            $session->remove('offre_analysis_' . $offreId);
-
-            return new JsonResponse(['status' => 'success']);
-        } catch (\Throwable $e) {
-            return new JsonResponse(['error' => $e->getMessage()], 500);
-        }
     }
 }

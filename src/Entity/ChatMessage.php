@@ -2,12 +2,8 @@
 
 namespace App\Entity;
 
-use Doctrine\DBAL\Types\Types;
-use Doctrine\ORM\Mapping as ORM;
-use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\Common\Collections\Collection;
-
 use App\Repository\ChatMessageRepository;
+use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: ChatMessageRepository::class)]
 #[ORM\Table(name: 'chat_message')]
@@ -18,6 +14,46 @@ class ChatMessage
     #[ORM\Column(type: 'integer')]
     private ?int $id = null;
 
+    #[ORM\ManyToOne(targetEntity: AnnonceSortie::class, inversedBy: 'chatMessages')]
+    #[ORM\JoinColumn(name: 'annonce_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
+    private ?AnnonceSortie $annonceSortie = null;
+
+    #[ORM\ManyToOne(targetEntity: ChatGroupe::class, inversedBy: 'messages')]
+    #[ORM\JoinColumn(name: 'chat_groupe_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    private ?ChatGroupe $chatGroupe = null;
+
+    #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'chatMessages')]
+    #[ORM\JoinColumn(name: 'sender_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    private ?User $user = null;
+
+    #[ORM\Column(type: 'text')]
+    private ?string $content = null;
+
+    #[ORM\Column(name: 'message_type', type: 'string', length: 50)]
+    private ?string $messageType = null;
+
+    #[ORM\ManyToOne(targetEntity: Poll::class, inversedBy: 'chatMessages')]
+    #[ORM\JoinColumn(name: 'poll_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    private ?Poll $poll = null;
+
+    #[ORM\Column(name: 'meta_json', type: 'text', nullable: true)]
+    private ?string $metaJson = null;
+
+    #[ORM\Column(name: 'sent_at', type: 'datetime')]
+    private ?\DateTimeInterface $sentAt = null;
+
+    #[ORM\Column(name: 'edited_at', type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $editedAt = null;
+
+    #[ORM\Column(name: 'deleted_at', type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $deletedAt = null;
+
+    #[ORM\Column(name: 'attachment_path', type: 'string', length: 255, nullable: true)]
+    private ?string $attachmentPath = null;
+
+    #[ORM\Column(name: 'attachment_type', type: 'string', length: 60, nullable: true)]
+    private ?string $attachmentType = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -26,12 +62,9 @@ class ChatMessage
     public function setId(int $id): self
     {
         $this->id = $id;
+
         return $this;
     }
-
-    #[ORM\ManyToOne(targetEntity: AnnonceSortie::class, inversedBy: 'chatMessages')]
-    #[ORM\JoinColumn(name: 'annonce_id', referencedColumnName: 'id')]
-    private ?AnnonceSortie $annonceSortie = null;
 
     public function getAnnonceSortie(): ?AnnonceSortie
     {
@@ -41,12 +74,21 @@ class ChatMessage
     public function setAnnonceSortie(?AnnonceSortie $annonceSortie): self
     {
         $this->annonceSortie = $annonceSortie;
+
         return $this;
     }
 
-    #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'chatMessages')]
-    #[ORM\JoinColumn(name: 'sender_id', referencedColumnName: 'id')]
-    private ?User $user = null;
+    public function getChatGroupe(): ?ChatGroupe
+    {
+        return $this->chatGroupe;
+    }
+
+    public function setChatGroupe(?ChatGroupe $chatGroupe): self
+    {
+        $this->chatGroupe = $chatGroupe;
+
+        return $this;
+    }
 
     public function getUser(): ?User
     {
@@ -56,11 +98,21 @@ class ChatMessage
     public function setUser(?User $user): self
     {
         $this->user = $user;
+
         return $this;
     }
 
-    #[ORM\Column(type: 'text', nullable: false)]
-    private ?string $content = null;
+    public function getSender(): ?User
+    {
+        return $this->user;
+    }
+
+    public function setSender(?User $user): self
+    {
+        $this->user = $user;
+
+        return $this;
+    }
 
     public function getContent(): ?string
     {
@@ -70,26 +122,21 @@ class ChatMessage
     public function setContent(string $content): self
     {
         $this->content = $content;
+
         return $this;
     }
 
-    #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $message_type = null;
-
-    public function getMessage_type(): ?string
+    public function getMessageType(): ?string
     {
-        return $this->message_type;
+        return $this->messageType;
     }
 
-    public function setMessage_type(string $message_type): self
+    public function setMessageType(string $messageType): self
     {
-        $this->message_type = $message_type;
+        $this->messageType = $messageType;
+
         return $this;
     }
-
-    #[ORM\ManyToOne(targetEntity: Poll::class, inversedBy: 'chatMessages')]
-    #[ORM\JoinColumn(name: 'poll_id', referencedColumnName: 'id')]
-    private ?Poll $poll = null;
 
     public function getPoll(): ?Poll
     {
@@ -99,71 +146,79 @@ class ChatMessage
     public function setPoll(?Poll $poll): self
     {
         $this->poll = $poll;
-        return $this;
-    }
-
-    #[ORM\Column(type: 'text', nullable: true)]
-    private ?string $meta_json = null;
-
-    public function getMeta_json(): ?string
-    {
-        return $this->meta_json;
-    }
-
-    public function setMeta_json(?string $meta_json): self
-    {
-        $this->meta_json = $meta_json;
-        return $this;
-    }
-
-    #[ORM\Column(type: 'datetime', nullable: false)]
-    private ?\DateTimeInterface $sent_at = null;
-
-    public function getSent_at(): ?\DateTimeInterface
-    {
-        return $this->sent_at;
-    }
-
-    public function setSent_at(\DateTimeInterface $sent_at): self
-    {
-        $this->sent_at = $sent_at;
-        return $this;
-    }
-
-    public function getMessageType(): ?string
-    {
-        return $this->message_type;
-    }
-
-    public function setMessageType(string $message_type): static
-    {
-        $this->message_type = $message_type;
 
         return $this;
     }
 
     public function getMetaJson(): ?string
     {
-        return $this->meta_json;
+        return $this->metaJson;
     }
 
-    public function setMetaJson(?string $meta_json): static
+    public function setMetaJson(?string $metaJson): self
     {
-        $this->meta_json = $meta_json;
+        $this->metaJson = $metaJson;
 
         return $this;
     }
 
-    public function getSentAt(): ?\DateTime
+    public function getSentAt(): ?\DateTimeInterface
     {
-        return $this->sent_at;
+        return $this->sentAt;
     }
 
-    public function setSentAt(\DateTime $sent_at): static
+    public function setSentAt(\DateTimeInterface $sentAt): self
     {
-        $this->sent_at = $sent_at;
+        $this->sentAt = $sentAt;
 
         return $this;
     }
 
+    public function getEditedAt(): ?\DateTimeInterface
+    {
+        return $this->editedAt;
+    }
+
+    public function setEditedAt(?\DateTimeInterface $editedAt): self
+    {
+        $this->editedAt = $editedAt;
+
+        return $this;
+    }
+
+    public function getDeletedAt(): ?\DateTimeInterface
+    {
+        return $this->deletedAt;
+    }
+
+    public function setDeletedAt(?\DateTimeInterface $deletedAt): self
+    {
+        $this->deletedAt = $deletedAt;
+
+        return $this;
+    }
+
+    public function getAttachmentPath(): ?string
+    {
+        return $this->attachmentPath;
+    }
+
+    public function setAttachmentPath(?string $attachmentPath): self
+    {
+        $this->attachmentPath = $attachmentPath;
+
+        return $this;
+    }
+
+    public function getAttachmentType(): ?string
+    {
+        return $this->attachmentType;
+    }
+
+    public function setAttachmentType(?string $attachmentType): self
+    {
+        $this->attachmentType = $attachmentType;
+
+        return $this;
+    }
 }

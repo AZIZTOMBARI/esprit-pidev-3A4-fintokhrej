@@ -4,14 +4,10 @@ namespace App\Controller;
 
 use App\Entity\EvaluationLieu;
 use App\Entity\User;
-use App\Service\GamificationService;
-use App\Service\LieuWeatherService;
 use App\Service\OffreManager;
-use App\Service\ReviewContentModerator;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
@@ -19,29 +15,6 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 class FrontController extends AbstractController
 {
-    #[Route('/reviews/moderation-preview', name: 'app_review_moderation_preview', methods: ['POST'])]
-    public function reviewModerationPreview(Request $request, ReviewContentModerator $moderator): JsonResponse
-    {
-        $text = trim((string) $request->request->get('text', ''));
-        if ($text === '') {
-            return $this->json([
-                'hasViolation' => false,
-                'score' => 0,
-                'severity' => 'none',
-                'matches' => [],
-            ]);
-        }
-
-        $analysis = $moderator->analyze(mb_substr($text, 0, 2000));
-
-        return $this->json([
-            'hasViolation' => (bool) ($analysis['hasViolation'] ?? false),
-            'score' => (int) ($analysis['score'] ?? 0),
-            'severity' => (string) ($analysis['severity'] ?? 'none'),
-            'matches' => is_array($analysis['matches'] ?? null) ? $analysis['matches'] : [],
-        ]);
-    }
-
     #[Route('/home', name: 'app_home')]
     public function home(Connection $connection): Response
     {
@@ -103,37 +76,19 @@ class FrontController extends AbstractController
     #[Route('/lieux', name: 'app_lieux')]
     public function lieux(Connection $connection): Response
     {
-        $places = $this->fetchAll($connection, "
-            SELECT id, nom, ville, adresse, categorie, type, budget_min, budget_max, site_web, instagram, latitude, longitude
-            FROM lieu
-            ORDER BY ville ASC, nom ASC
-        ");
-
-        $currentUser = $this->getUser();
-        $favoriteLookup = [];
-        if ($currentUser instanceof User) {
-            $favoriteIds = $connection->fetchFirstColumn(
-                'SELECT lieu_id FROM favori_lieu WHERE user_id = ?',
-                [$currentUser->getId()]
-            );
-
-            $favoriteLookup = array_fill_keys(array_map('intval', $favoriteIds), true);
-        }
-
-        foreach ($places as &$place) {
-            $place['is_favorite'] = isset($favoriteLookup[(int) ($place['id'] ?? 0)]);
-        }
-        unset($place);
-
         return $this->render('front/lieu/index.html.twig', [
             'active' => 'lieux',
-            'places' => $places,
+            'places' => $this->fetchAll($connection, "
+                SELECT id, nom, ville, adresse, categorie, type, budget_min, budget_max, site_web, instagram
+                FROM lieu
+                ORDER BY ville ASC, nom ASC
+            "),
             'notificationData' => $this->getNotificationData($connection),
         ]);
     }
 
     #[Route('/lieux/{id}', name: 'app_lieu_show', methods: ['GET'], requirements: ['id' => '\\d+'])]
-    public function lieuShow(int $id, Connection $connection, LieuWeatherService $lieuWeatherService, GamificationService $gamificationService): Response
+    public function lieuShow(int $id, Connection $connection): Response
     {
         $lieu = $connection->fetchAssociative(
             "SELECT id, nom, ville, adresse, categorie, type, budget_min, budget_max, description, telephone, site_web, instagram, image_url, latitude, longitude
@@ -191,26 +146,12 @@ class FrontController extends AbstractController
 
         $currentUserEvaluation = null;
         $user = $this->getUser();
-        $isFavorite = false;
         if ($user instanceof User) {
-            $this->flashGamificationBadges($gamificationService->trackLieuVisit($user->getId(), $id));
-
             $currentUserEvaluation = $connection->fetchAssociative(
                 'SELECT id, note, commentaire, date_evaluation, updated_at FROM evaluation_lieu WHERE lieu_id = ? AND user_id = ? LIMIT 1',
                 [$id, $user->getId()]
             );
-
-            $isFavorite = (int) $connection->fetchOne(
-                'SELECT COUNT(*) FROM favori_lieu WHERE lieu_id = ? AND user_id = ?',
-                [$id, $user->getId()]
-            ) > 0;
         }
-
-        $weather = $lieuWeatherService->getCurrentWeather(
-            isset($lieu['latitude']) ? (float) $lieu['latitude'] : null,
-            isset($lieu['longitude']) ? (float) $lieu['longitude'] : null,
-            isset($lieu['ville']) ? (string) $lieu['ville'] : null,
-        );
 
         return $this->render('front/lieu/show.html.twig', [
             'active' => 'lieux',
@@ -221,61 +162,12 @@ class FrontController extends AbstractController
             'evaluations' => $evaluations,
             'evaluationStats' => $evaluationStats,
             'currentUserEvaluation' => $currentUserEvaluation,
-            'isFavorite' => $isFavorite,
-            'weather' => $weather,
             'notificationData' => $this->getNotificationData($connection),
         ]);
     }
 
-    #[Route('/lieux/{id}/favorite-toggle', name: 'app_lieu_favorite_toggle', methods: ['POST'], requirements: ['id' => '\\d+'])]
-    public function toggleLieuFavorite(int $id, Request $request, Connection $connection, GamificationService $gamificationService): Response
-    {
-        $user = $this->getUser();
-        if (!$user instanceof User) {
-            $this->addFlash('error', 'Veuillez vous connecter pour gérer vos favoris.');
-            return $this->redirectToRoute('app_login');
-        }
-
-        if (!$this->isCsrfTokenValid('front_fav_toggle_'.$id, (string) $request->request->get('_token', ''))) {
-            $this->addFlash('error', 'Jeton CSRF invalide.');
-            return $this->redirectToRoute('app_lieux');
-        }
-
-        $lieuExists = (int) $connection->fetchOne('SELECT COUNT(*) FROM lieu WHERE id = ?', [$id]) > 0;
-        if (!$lieuExists) {
-            throw $this->createNotFoundException('Lieu introuvable.');
-        }
-
-        $isAlreadyFavorite = (int) $connection->fetchOne(
-            'SELECT COUNT(*) FROM favori_lieu WHERE user_id = ? AND lieu_id = ?',
-            [$user->getId(), $id]
-        ) > 0;
-
-        if ($isAlreadyFavorite) {
-            $connection->executeStatement(
-                'DELETE FROM favori_lieu WHERE user_id = ? AND lieu_id = ?',
-                [$user->getId(), $id]
-            );
-            $this->flashGamificationBadges($gamificationService->awardActionPoints($user->getId(), 'FAVORI'));
-            $this->addFlash('success', 'Lieu retiré des favoris.');
-        } else {
-            $connection->executeStatement(
-                'INSERT INTO favori_lieu (user_id, lieu_id) VALUES (?, ?)',
-                [$user->getId(), $id]
-            );
-            $this->addFlash('success', 'Lieu ajouté aux favoris.');
-        }
-
-        $redirect = (string) $request->request->get('_redirect', '');
-        if ($redirect !== '' && str_starts_with($redirect, '/')) {
-            return $this->redirect($redirect);
-        }
-
-        return $this->redirectToRoute('app_lieu_show', ['id' => $id]);
-    }
-
     #[Route('/lieux/{id}/evaluations', name: 'app_lieu_evaluation_create', methods: ['POST'], requirements: ['id' => '\\d+'])]
-    public function createLieuEvaluation(int $id, Request $request, Connection $connection, ValidatorInterface $validator, ReviewContentModerator $moderator, GamificationService $gamificationService): Response
+    public function createLieuEvaluation(int $id, Request $request, Connection $connection, ValidatorInterface $validator): Response
     {
         $user = $this->getUser();
         if (!$user instanceof User) {
@@ -290,25 +182,6 @@ class FrontController extends AbstractController
 
         $note = (int) $request->request->get('note', 0);
         $commentaire = trim((string) $request->request->get('commentaire', ''));
-
-        if ($commentaire !== '') {
-            $analysis = $moderator->analyze(mb_substr($commentaire, 0, 2000));
-            if ((bool) ($analysis['hasViolation'] ?? false)) {
-                $this->logReviewModerationAttempt(
-                    $connection,
-                    $user->getId(),
-                    $id,
-                    (string) ($analysis['severity'] ?? 'moderate'),
-                    (int) ($analysis['score'] ?? 0),
-                    is_array($analysis['matches'] ?? null) ? $analysis['matches'] : [],
-                    $commentaire,
-                    'create'
-                );
-
-                $this->addFlash('error', 'Votre avis contient un contenu inapproprié et a été refusé.');
-                return $this->redirectToRoute('app_lieu_show', ['id' => $id]);
-            }
-        }
 
         $evaluationInput = (new EvaluationLieu())
             ->setNote($note)
@@ -342,7 +215,6 @@ class FrontController extends AbstractController
                 'date_evaluation' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
                 'updated_at' => null,
             ]);
-            $this->flashGamificationBadges($gamificationService->awardActionPoints($user->getId(), 'AVIS_LAISSE'));
             $this->addFlash('success', 'Avis publié avec succès.');
         } catch (\Throwable) {
             $this->addFlash('error', 'Impossible de publier cet avis pour le moment.');
@@ -352,7 +224,7 @@ class FrontController extends AbstractController
     }
 
     #[Route('/lieux/{id}/evaluations/{evaluationId}/update', name: 'app_lieu_evaluation_update', methods: ['POST'], requirements: ['id' => '\\d+', 'evaluationId' => '\\d+'])]
-    public function updateLieuEvaluation(int $id, int $evaluationId, Request $request, Connection $connection, ValidatorInterface $validator, ReviewContentModerator $moderator): Response
+    public function updateLieuEvaluation(int $id, int $evaluationId, Request $request, Connection $connection, ValidatorInterface $validator): Response
     {
         $user = $this->getUser();
         if (!$user instanceof User) {
@@ -377,25 +249,6 @@ class FrontController extends AbstractController
 
         $note = (int) $request->request->get('note', 0);
         $commentaire = trim((string) $request->request->get('commentaire', ''));
-
-        if ($commentaire !== '') {
-            $analysis = $moderator->analyze(mb_substr($commentaire, 0, 2000));
-            if ((bool) ($analysis['hasViolation'] ?? false)) {
-                $this->logReviewModerationAttempt(
-                    $connection,
-                    $user->getId(),
-                    $id,
-                    (string) ($analysis['severity'] ?? 'moderate'),
-                    (int) ($analysis['score'] ?? 0),
-                    is_array($analysis['matches'] ?? null) ? $analysis['matches'] : [],
-                    $commentaire,
-                    'update'
-                );
-
-                $this->addFlash('error', 'La mise à jour a été refusée: contenu inapproprié détecté.');
-                return $this->redirectToRoute('app_lieu_show', ['id' => $id]);
-            }
-        }
 
         $evaluationInput = (new EvaluationLieu())
             ->setNote($note)
@@ -510,21 +363,26 @@ class FrontController extends AbstractController
         $page = min($page, $totalPages);
         $offset = ($page - 1) * $pageSize;
 
+        $sorties = $this->fetchSortiesForListing($connection, $whereSql, $sortSql, $pageSize, $offset, $params);
+
+        // Ajout : participations confirmées de l'utilisateur courant
+        $user = $this->getUser();
+        $participationsConfirmees = [];
+        if ($user instanceof \App\Entity\User && count($sorties) > 0) {
+            $ids = array_column($sorties, 'id');
+            $in = implode(',', array_fill(0, count($ids), '?'));
+            $sql = 'SELECT annonce_id FROM participation_annonce WHERE user_id = ? AND statut = "CONFIRMEE" AND annonce_id IN ('.$in.')';
+            $paramsPart = array_merge([$user->getId()], $ids);
+            $rows = $connection->fetchFirstColumn($sql, $paramsPart);
+            foreach ($rows as $annonceId) {
+                $participationsConfirmees[(int)$annonceId] = true;
+            }
+        }
+
         return $this->render('front/sortie/index.html.twig', [
             'active' => 'sorties',
-            'sorties' => $this->fetchAll(
-                $connection,
-                'SELECT s.id, s.user_id, s.titre, s.description, s.ville, s.lieu_texte, s.point_rencontre,
-                        s.type_activite, s.date_sortie, s.budget_max, s.nb_places, s.statut, s.image_url, s.questions_json,
-                        u.prenom, u.nom, u.imageUrl AS user_image_url
-                 FROM annonce_sortie s
-                 LEFT JOIN user u ON u.id = s.user_id
-                 '.$whereSql.'
-                 ORDER BY '.$sortSql.'
-                 LIMIT '.$pageSize.' OFFSET '.$offset
-            ,
-                $params
-            ),
+            'sorties' => $sorties,
+            'participationsConfirmees' => $participationsConfirmees,
             'page' => $page,
             'pageSize' => $pageSize,
             'total' => $total,
@@ -1146,62 +1004,6 @@ class FrontController extends AbstractController
         ]);
     }
 
-    /**
-     * @param array<int, array{term?:string}> $matches
-     */
-    private function logReviewModerationAttempt(
-        Connection $connection,
-        int $userId,
-        int $lieuId,
-        string $severity,
-        int $score,
-        array $matches,
-        string $comment,
-        string $action
-    ): void {
-        try {
-            $terms = [];
-            foreach ($matches as $match) {
-                $term = trim((string) ($match['term'] ?? ''));
-                if ($term !== '') {
-                    $terms[] = $term;
-                }
-            }
-
-            $connection->insert('review_moderation_log', [
-                'user_id' => $userId,
-                'lieu_id' => $lieuId,
-                'severity' => in_array($severity, ['moderate', 'severe'], true) ? $severity : 'moderate',
-                'score' => max(0, $score),
-                'terms_text' => implode(', ', array_values(array_unique($terms))),
-                'comment_preview' => mb_substr(trim($comment), 0, 500),
-                'action' => $action,
-                'created_at' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
-            ]);
-        } catch (\Throwable) {
-            // La modération doit rester bloquante même si le log échoue.
-        }
-    }
-
-    /**
-     * @param list<array<string, mixed>> $badges
-     */
-    private function flashGamificationBadges(array $badges): void
-    {
-        foreach ($badges as $badge) {
-            $this->addFlash('gamification_badges', [
-                'emoji' => (string) ($badge['emoji'] ?? '🏅'),
-                'nom' => (string) ($badge['nom'] ?? 'Badge'),
-                'description' => (string) ($badge['description'] ?? ''),
-                'points_bonus' => (int) ($badge['points_bonus'] ?? 0),
-            ]);
-
-            if (!empty($badge['reward_offer']['titre'] ?? null)) {
-                $this->addFlash('success', 'Nouvelle recompense debloquee: '.(string) $badge['reward_offer']['titre']);
-            }
-        }
-    }
-
     private function getFrontStats(Connection $connection): array
     {
         return [
@@ -1215,6 +1017,41 @@ class FrontController extends AbstractController
     private function enrichOffersCountdown(array $offers): array
     {
         return array_map(fn (array $offer): array => $this->enrichOfferCountdown($offer), $offers);
+    }
+
+    private function fetchSortiesForListing(
+        Connection $connection,
+        string $whereSql,
+        string $sortSql,
+        int $limit,
+        int $offset,
+        array $params
+    ): array {
+        $sqlWithChat = 'SELECT s.id, s.user_id, s.titre, s.description, s.ville, s.lieu_texte, s.point_rencontre,
+                               s.type_activite, s.date_sortie, s.budget_max, s.nb_places, s.statut, s.image_url, s.questions_json,
+                               u.prenom, u.nom, u.imageUrl AS user_image_url, cg.id AS chat_group_id
+                        FROM annonce_sortie s
+                        LEFT JOIN user u ON u.id = s.user_id
+                        LEFT JOIN chat_groupe cg ON cg.annonce_id = s.id
+                        '.$whereSql.'
+                        ORDER BY '.$sortSql.'
+                        LIMIT '.$limit.' OFFSET '.$offset;
+
+        $sorties = $this->fetchAll($connection, $sqlWithChat, $params);
+        if ($sorties !== []) {
+            return $sorties;
+        }
+
+        $sqlFallback = 'SELECT s.id, s.user_id, s.titre, s.description, s.ville, s.lieu_texte, s.point_rencontre,
+                               s.type_activite, s.date_sortie, s.budget_max, s.nb_places, s.statut, s.image_url, s.questions_json,
+                               u.prenom, u.nom, u.imageUrl AS user_image_url, NULL AS chat_group_id
+                        FROM annonce_sortie s
+                        LEFT JOIN user u ON u.id = s.user_id
+                        '.$whereSql.'
+                        ORDER BY '.$sortSql.'
+                        LIMIT '.$limit.' OFFSET '.$offset;
+
+        return $this->fetchAll($connection, $sqlFallback, $params);
     }
 
     private function enrichOfferCountdown(array $offer): array

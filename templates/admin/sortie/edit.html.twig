@@ -12,10 +12,15 @@
 <section>
     <div class="section-head">
         <div>
-            <h2 class="section-title">Modifier annonce #{{ sortie.id }}</h2>
-            <p class="section-subtitle">Mettez à jour les données et le statut.</p>
+            <h2 class="section-title">Modifier annonce</h2>
+            <p class="section-subtitle">Mettez a jour les donnees et le statut.</p>
         </div>
-        <a href="{{ path('app_admin_sorties') }}" class="outline-btn"><span class="btn-icon">&larr;</span>Retour liste admin</a>
+        <div class="btn-row">
+            {% if chatGroupExists|default(false) %}
+                <a href="{{ path('app_sorties_chat', {id: sortie.id}) }}" class="primary-btn"><span class="btn-icon">&#128172;</span>Ouvrir groupe chat</a>
+            {% endif %}
+            <a href="{{ path('app_admin_sorties') }}" class="outline-btn"><span class="btn-icon">&larr;</span>Retour liste admin</a>
+        </div>
     </div>
 
     {% include 'sortie/_form.html.twig' with {

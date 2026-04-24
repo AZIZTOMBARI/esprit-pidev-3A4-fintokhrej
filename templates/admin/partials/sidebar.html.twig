@@ -6,23 +6,22 @@
             </div>
             <div>
                 <div class="brand__title">Fin Tokhroj</div>
-                <div class="brand__subtitle">{{ 'admin.brand_subtitle'|trans }}</div>
+                <div class="brand__subtitle">Votre Guide Social</div>
             </div>
         </div>
 
-        <div class="admin-menu-label">{{ 'admin.menu'|trans }}</div>
+        <div class="admin-menu-label">Menu</div>
         <nav>
-            <a href="{{ path('app_admin_dashboard') }}" class="{{ active == 'dashboard' ? 'active' : '' }}">📊 {{ 'admin.dashboard'|trans }}</a>
-            <a href="{{ path('app_admin_users') }}" class="{{ active == 'users' ? 'active' : '' }}">👤 {{ 'admin.users'|trans }}</a>
-            <a href="{{ path('app_admin_sorties') }}" class="{{ active == 'sorties' ? 'active' : '' }}">🧭 {{ 'admin.outings'|trans }}</a>
-            <a href="{{ path('app_admin_lieux') }}" class="{{ active == 'lieux' ? 'active' : '' }}">📍 {{ 'admin.places'|trans }}</a>
-            <a href="{{ path('app_admin_offres') }}" class="{{ active == 'offres' ? 'active' : '' }}">🏷 {{ 'admin.offers'|trans }}</a>
-            <a href="{{ path('app_admin_moderation') }}" class="{{ active == 'moderation' ? 'active' : '' }}">🛡️ Modération</a>
-            <a href="{{ path('app_admin_evenements') }}" class="{{ active == 'evenements' ? 'active' : '' }}">🎫 {{ 'admin.events'|trans }}</a>
+            <a href="{{ path('app_admin_dashboard') }}" class="{{ active == 'dashboard' ? 'active' : '' }}">Dashboard</a>
+            <a href="{{ path('app_admin_users') }}" class="{{ active == 'users' ? 'active' : '' }}">Utilisateurs</a>
+            <a href="{{ path('app_admin_sorties') }}" class="{{ active in ['sorties', 'sorties_stats', 'sorties_calendar'] ? 'active' : '' }}">Sorties</a>
+            <a href="{{ path('app_admin_lieux') }}" class="{{ active == 'lieux' ? 'active' : '' }}">Lieux</a>
+            <a href="{{ path('app_admin_offres') }}" class="{{ active == 'offres' ? 'active' : '' }}">Offres</a>
+            <a href="{{ path('app_admin_evenements') }}" class="{{ active == 'evenements' ? 'active' : '' }}">Evenements</a>
         </nav>
     </div>
 
     <div class="logout-box">
-        <a href="{{ path('app_logout') }}">{{ 'auth.logout'|trans }}</a>
+        <a href="{{ path('app_logout') }}">Deconnexion</a>
     </div>
 </aside>

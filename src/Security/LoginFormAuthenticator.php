@@ -3,13 +3,10 @@
 namespace App\Security;
 
 use App\Entity\User;
-use Doctrine\DBAL\Connection;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
-use Symfony\Component\Security\Core\Exception\CustomUserMessageAuthenticationException;
 use Symfony\Component\Security\Http\Authenticator\AbstractLoginFormAuthenticator;
 use Symfony\Component\Security\Http\Authenticator\Passport\Badge\CsrfTokenBadge;
 use Symfony\Component\Security\Http\Authenticator\Passport\Badge\RememberMeBadge;
@@ -23,62 +20,13 @@ class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
 {
     use TargetPathTrait;
 
-    public function __construct(
-        private readonly UrlGeneratorInterface $urlGenerator,
-        private readonly Connection $connection,
-    )
+    public function __construct(private readonly UrlGeneratorInterface $urlGenerator)
     {
     }
 
     public function authenticate(Request $request): Passport
     {
         $email = $request->request->getString('email');
-        $captchaToken = $request->request->getString('g-recaptcha-response');
-
-        if ($captchaToken === '') {
-            throw new CustomUserMessageAuthenticationException('Veuillez cocher la case "Je ne suis pas un robot".');
-        }
-
-        $captchaSecret = (string) ($_ENV['RECAPTCHA3_SECRET'] ?? $_SERVER['RECAPTCHA3_SECRET'] ?? '');
-        if ($captchaSecret === '') {
-            throw new CustomUserMessageAuthenticationException('Configuration reCAPTCHA serveur manquante.');
-        }
-
-        $clientIp = $request->getClientIp() ?? '';
-
-        try {
-            $response = HttpClient::create()->request('POST', 'https://www.google.com/recaptcha/api/siteverify', [
-                'body' => [
-                    'secret' => $captchaSecret,
-                    'response' => $captchaToken,
-                    'remoteip' => $clientIp,
-                ],
-            ]);
-
-            $result = $response->toArray(false);
-            $isValid = (bool) ($result['success'] ?? false);
-            if (!$isValid) {
-                throw new CustomUserMessageAuthenticationException('reCAPTCHA invalide. Veuillez reessayer.');
-            }
-        } catch (CustomUserMessageAuthenticationException $exception) {
-            throw $exception;
-        } catch (\Throwable) {
-            throw new CustomUserMessageAuthenticationException('Verification reCAPTCHA indisponible. Veuillez reessayer.');
-        }
-
-        $activeBanUntil = $this->connection->fetchOne(
-            'SELECT banned_until FROM user WHERE LOWER(email) = LOWER(?) LIMIT 1',
-            [$email]
-        );
-
-        if ($activeBanUntil !== false && $activeBanUntil !== null && (string) $activeBanUntil !== '') {
-            $banUntil = new \DateTimeImmutable((string) $activeBanUntil);
-            if ($banUntil >= new \DateTimeImmutable()) {
-                throw new CustomUserMessageAuthenticationException(
-                    'Votre compte est temporairement banni jusqu\'au '.$banUntil->format('d/m/Y H:i').'.'
-                );
-            }
-        }
 
         return new Passport(
             new UserBadge($email),

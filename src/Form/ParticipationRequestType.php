@@ -6,6 +6,7 @@ use App\Model\ParticipationRequestData;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\CollectionType;
+use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
@@ -19,20 +20,10 @@ class ParticipationRequestType extends AbstractType
 {
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
-        $maxPlaces = (int) $options['max_places'];
         $questionCount = (int) $options['question_count'];
 
         $builder
-            ->add('nb_places', IntegerType::class, [
-                'property_path' => 'nbPlaces',
-                'required' => true,
-                'constraints' => [
-                    new Assert\LessThanOrEqual([
-                        'value' => max(1, $maxPlaces),
-                        'message' => 'Le nombre de places demandees depasse les places restantes.',
-                    ]),
-                ],
-            ])
+            // Champ nb_places supprimé
             ->add('contact_prefer', ChoiceType::class, [
                 'property_path' => 'contactPrefer',
                 'required' => true,
@@ -41,7 +32,7 @@ class ParticipationRequestType extends AbstractType
                     'Email' => 'EMAIL',
                 ],
             ])
-            ->add('contact_value', TextType::class, [
+            ->add('contact_value', HiddenType::class, [
                 'property_path' => 'contactValue',
                 'required' => true,
             ])

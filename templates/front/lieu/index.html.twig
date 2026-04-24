@@ -3,154 +3,48 @@
 {% block title %}Lieux | Fin Tokhroj{% endblock %}
 
 {% block front_content %}
-{% set filters = filters|default({
-    categorie: '',
-    ville: '',
-    type: '',
-    budget: ''
-}) %}
-{% set totalPlaces = totalPlaces|default(places|length) %}
-<section class="places-page">
+<section>
     <div class="section-head">
         <div>
             <h1 class="section-title">Lieux</h1>
-            <p class="section-subtitle">Découverte · filtres · détails</p>
+            <p class="section-subtitle">Tous les lieux disponibles dans la base Fintokhrej.</p>
         </div>
+        <a href="{{ path('app_home') }}" class="outline-btn">Retour accueil</a>
     </div>
-
-    <div class="places-board app-card">
-        <div class="places-board__head">
-            <div>
-                <h3>Explorer les lieux</h3>
-                <span class="places-count">{{ totalPlaces|default(0) }} lieu(x)</span>
-            </div>
-
-            <form method="get" action="{{ path('app_lieux') }}" class="places-filters" aria-label="Filtres lieux">
-                <select name="categorie" class="places-filter-select">
-                    <option value="">Catégorie</option>
-                    {% for c in categories|default([]) %}
-                        <option value="{{ c }}" {{ filters.categorie == c ? 'selected' : '' }}>{{ c|replace({'_':' '})|title }}</option>
-                    {% endfor %}
-                </select>
-
-                <select name="ville" class="places-filter-select">
-                    <option value="">Ville</option>
-                    {% for v in cities|default([]) %}
-                        <option value="{{ v }}" {{ filters.ville == v ? 'selected' : '' }}>{{ v }}</option>
-                    {% endfor %}
-                </select>
-
-                <select name="type" class="places-filter-select">
-                    <option value="">Type</option>
-                    {% for t in types|default([]) %}
-                        <option value="{{ t }}" {{ filters.type == t ? 'selected' : '' }}>{{ t|title }}</option>
-                    {% endfor %}
-                </select>
-
-                <select name="budget" class="places-filter-select">
-                    <option value="">Budget</option>
-                    <option value="0-20" {{ filters.budget == '0-20' ? 'selected' : '' }}>0 - 20 TND</option>
-                    <option value="20-60" {{ filters.budget == '20-60' ? 'selected' : '' }}>20 - 60 TND</option>
-                    <option value="60-120" {{ filters.budget == '60-120' ? 'selected' : '' }}>60 - 120 TND</option>
-                    <option value="120+" {{ filters.budget == '120+' ? 'selected' : '' }}>120+ TND</option>
-                </select>
-
-                <button type="submit" class="outline-btn places-filter-btn">Filtres</button>
-                <a href="{{ path('app_lieux') }}" class="places-filter-clear" aria-label="Réinitialiser les filtres">×</a>
-            </form>
-        </div>
-
-        <div class="places-grid">
-            {% for item in places %}
-                {% set rawImage = item.image_url|default('')|trim %}
-                {% if rawImage starts with 'http://' or rawImage starts with 'https://' %}
-                    {% set cardImage = rawImage %}
-                {% elseif rawImage starts with '/uploads/' or rawImage starts with '/theme/' or rawImage starts with '/images/' %}
-                    {% set cardImage = asset(rawImage|slice(1)) %}
-                {% elseif rawImage starts with 'uploads/' or rawImage starts with 'theme/' or rawImage starts with 'images/' %}
-                    {% set cardImage = asset(rawImage) %}
-                {% else %}
-                    {% set cardImage = asset('theme/images/logo.png') %}
+    <div class="listing-grid">
+        {% for item in places %}
+            <article class="listing-card">
+                <div class="cover-thumb"><span>{{ attribute(item, 'nom') }}</span></div>
+                <div class="listing-card__top">
+                    <div>
+                        <h3>{{ attribute(item, 'nom') }}</h3>
+                        <p>
+                            {% if item.ville is defined and item.ville %}{{ item.ville }}{% endif %}
+                            {% if item.categorie is defined and item.categorie %} · {{ item.categorie }}{% endif %}
+                        </p>
+                    </div>
+                    {% if item.prix is defined %}<span class="price-pill">{{ item.prix }} TND</span>{% endif %}
+                    {% if item.pourcentage is defined %}<span class="price-pill">{{ item.pourcentage }}%</span>{% endif %}
+                </div>
+                <div class="meta-row">
+                    {% if item.adresse is defined and item.adresse %}<span>📍 {{ item.adresse }}</span>{% endif %}
+                    {% if item.date_sortie is defined %}<span>🗓 {{ item.date_sortie|date('d/m/Y H:i') }}</span>{% endif %}
+                    {% if item.date_debut is defined %}<span>🗓 {{ item.date_debut|date('d/m/Y H:i') }}</span>{% endif %}
+                    {% if item.date_fin is defined %}<span>⏳ {{ item.date_fin|date('d/m/Y') }}</span>{% endif %}
+                    {% if item.budget_min is defined %}<span>💸 {{ item.budget_min ?? 0 }} - {{ item.budget_max ?? 0 }} TND</span>{% endif %}
+                    {% if item.nb_places is defined %}<span>👥 {{ item.nb_places }} places</span>{% endif %}
+                    {% if item.statut is defined %}<span>✅ {{ item.statut }}</span>{% endif %}
+                </div>
+                <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+                    <a href="{{ path('app_lieu_show', {id: item.id}) }}" class="cta-btn" style="text-decoration:none;">Voir détails</a>
+                </div>
+                {% if item.description is defined and item.description %}
+                    <p style="margin-top:14px;">{{ item.description }}</p>
                 {% endif %}
-
-                <article class="place-card">
-                    <div class="place-card__media" style="background-image:url('{{ cardImage }}');">
-                        <span class="place-card__category">{{ item.categorie|default('LIEU')|replace({'_':' '}) }}</span>
-
-                        {% if app.user %}
-                            <form method="post" action="{{ path('app_lieu_favorite_toggle', {id: item.id}) }}" class="place-fav-form">
-                                <input type="hidden" name="_token" value="{{ csrf_token('front_fav_toggle_' ~ item.id) }}">
-                                <input type="hidden" name="_redirect" value="{{ app.request.requestUri }}">
-                                <button type="submit" class="place-fav-btn {{ item.is_favorite ? 'is-active' : '' }}" aria-label="Ajouter ce lieu aux favoris" title="Favori">
-                                    {{ item.is_favorite ? '❤' : '♡' }}
-                                </button>
-                            </form>
-                        {% else %}
-                            <a href="{{ path('app_login') }}" class="place-fav-btn" aria-label="Se connecter pour ajouter aux favoris" title="Favori">♡</a>
-                        {% endif %}
-                    </div>
-
-                    <div class="place-card__body">
-                        <h4>{{ item.nom }}</h4>
-                        <p class="place-card__city">{{ item.ville }}</p>
-                        <p class="place-card__address">{{ item.adresse|default('Adresse non renseignée') }}</p>
-
-                        <div class="place-card__meta">
-                            {% set min = item.budget_min is not null ? item.budget_min|number_format(0, ',', ' ') : 0 %}
-                            {% set max = item.budget_max is not null ? item.budget_max|number_format(0, ',', ' ') : 0 %}
-                            <span class="budget-pill">{{ min }}-{{ max }} TND</span>
-                        </div>
-
-                        <div class="place-card__actions">
-                            <a href="{{ path('app_lieu_show', {id: item.id}) }}" class="cta-btn">Voir détails</a>
-                            {% if item.latitude is not null and item.longitude is not null %}
-                                <a href="https://www.google.com/maps?q={{ item.latitude }},{{ item.longitude }}" class="outline-btn" target="_blank" rel="noopener">🗺 Maps</a>
-                            {% endif %}
-                        </div>
-                    </div>
-                </article>
-            {% else %}
-                <div class="empty-state">Aucun lieu ne correspond aux filtres choisis.</div>
-            {% endfor %}
-        </div>
+            </article>
+        {% else %}
+            <div class="empty-state">Aucune donnée disponible pour cette page.</div>
+        {% endfor %}
     </div>
 </section>
-
-<style>
-    .places-page{display:grid;gap:16px}
-    .places-board{padding:18px 18px 14px;border-radius:20px}
-    .places-board__head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
-    .places-board__head h3{margin:0;color:#123a6f;font-size:1.9rem;font-weight:800}
-    .places-count{display:inline-flex;margin-top:6px;padding:4px 10px;border-radius:999px;border:1px solid rgba(209,160,38,.45);background:#fff5cf;color:#855f05;font-size:.78rem;font-weight:700}
-
-    .places-filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-    .places-filter-select{min-height:36px;padding:7px 11px;border-radius:12px;border:1px solid rgba(20,61,113,.16);background:#fff;color:#153b6b;font-weight:600;font-size:.82rem;outline:none}
-    .places-filter-select:focus{border-color:rgba(63,168,224,.6);box-shadow:0 0 0 3px rgba(63,168,224,.14)}
-    .places-filter-btn{min-height:36px;padding:7px 13px}
-    .places-filter-clear{width:30px;height:30px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:#eef2f7;border:1px solid rgba(20,61,113,.13);color:#5e7088;font-size:1.1rem;font-weight:700;text-decoration:none}
-
-    .places-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;max-height:62vh;overflow:auto;padding:4px 2px 2px}
-    .place-card{background:#fff;border:1px solid rgba(20,61,113,.1);border-radius:16px;overflow:hidden;box-shadow:0 6px 16px rgba(14,45,94,.08)}
-    .place-card__media{position:relative;height:154px;background-size:cover;background-position:center}
-    .place-card__media::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.06),rgba(0,0,0,.16))}
-    .place-card__category{position:absolute;left:9px;top:9px;z-index:2;padding:5px 10px;border-radius:999px;background:rgba(12,56,104,.9);color:#fff;font-size:.66rem;font-weight:800;letter-spacing:.03em;text-transform:uppercase}
-    .place-fav-form{position:absolute;right:9px;top:9px;z-index:2;margin:0}
-    .place-fav-btn{width:38px;height:38px;border-radius:50%;border:0;background:#fff;color:#d92a57;display:inline-flex;align-items:center;justify-content:center;font-size:1.02rem;font-weight:900;text-decoration:none;cursor:pointer;box-shadow:0 6px 16px rgba(10,22,45,.22);transition:transform .2s ease,box-shadow .2s ease,background .2s ease,color .2s ease}
-    .place-fav-btn:hover{transform:translateY(-1px) scale(1.03);box-shadow:0 9px 18px rgba(10,22,45,.28)}
-    .place-fav-btn.is-active{background:#d7194f;color:#fff;box-shadow:0 8px 18px rgba(215,25,79,.45)}
-
-    .place-card__body{padding:11px 12px 12px}
-    .place-card__body h4{margin:0;color:#173f73;font-size:1.02rem;font-weight:800;line-height:1.2}
-    .place-card__city{margin:4px 0 0;color:#7b8ea7;font-size:.81rem;font-weight:700}
-    .place-card__address{margin:6px 0 0;color:#667b94;font-size:.78rem;min-height:32px;line-height:1.35}
-    .place-card__meta{display:flex;align-items:center;gap:8px;margin-top:8px}
-    .budget-pill{display:inline-flex;padding:3px 9px;border-radius:999px;background:#fff5d6;border:1px solid rgba(208,160,38,.43);color:#85600b;font-size:.72rem;font-weight:800}
-    .place-card__actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-    .place-card__actions .cta-btn,.place-card__actions .outline-btn{min-height:32px;padding:7px 11px;font-size:.76rem;font-weight:800}
-
-    @media (max-width: 900px){
-        .places-grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr));max-height:none}
-        .places-board__head h3{font-size:1.45rem}
-    }
-</style>
 {% endblock %}

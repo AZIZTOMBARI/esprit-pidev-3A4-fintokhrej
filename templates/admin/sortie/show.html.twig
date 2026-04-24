@@ -1,0 +1,435 @@
+{% extends 'admin/base_admin.html.twig' %}
+
+{% block title %}{{ sortie.titre }} | Detail sortie{% endblock %}
+{% block admin_page_title %}Detail sortie{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .sortie-admin-shell {
+            width: min(1180px, 100%);
+            margin: 0 auto;
+        }
+
+        .sortie-admin-hero {
+            display: grid;
+            grid-template-columns: minmax(0, 1.35fr) minmax(320px, .9fr);
+            gap: 22px;
+            align-items: stretch;
+        }
+
+        .sortie-admin-card {
+            background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(245,249,255,.96));
+            border: 1px solid rgba(20, 61, 113, .1);
+            border-radius: 28px;
+            box-shadow: 0 24px 56px rgba(14, 45, 94, .12);
+        }
+
+        .sortie-admin-media {
+            overflow: hidden;
+            min-height: 360px;
+            position: relative;
+        }
+
+        .sortie-admin-media img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .sortie-admin-media-placeholder {
+            min-height: 360px;
+            display: grid;
+            place-items: center;
+            background: linear-gradient(135deg, #143d71, #2d77b6);
+            color: rgba(255,255,255,.92);
+            font-size: 1.2rem;
+            font-weight: 700;
+            text-align: center;
+            padding: 24px;
+        }
+
+        .sortie-admin-summary {
+            padding: 26px;
+            display: grid;
+            gap: 18px;
+        }
+
+        .sortie-admin-kicker {
+            display: inline-flex;
+            width: fit-content;
+            padding: 8px 14px;
+            border-radius: 999px;
+            background: rgba(228, 239, 255, .92);
+            color: #29598f;
+            font-size: .78rem;
+            font-weight: 800;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+
+        .sortie-admin-summary h1 {
+            margin: 0;
+            font-size: clamp(2rem, 3vw, 2.7rem);
+            line-height: 1.08;
+            color: #163b69;
+            letter-spacing: -.03em;
+        }
+
+        .sortie-admin-subtitle {
+            margin: 0;
+            font-size: 1rem;
+            color: #607b9d;
+            line-height: 1.7;
+        }
+
+        .sortie-admin-metrics {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .sortie-admin-metric {
+            padding: 16px 18px;
+            border-radius: 18px;
+            background: rgba(239, 245, 255, .92);
+            border: 1px solid rgba(20, 61, 113, .08);
+        }
+
+        .sortie-admin-metric small {
+            display: block;
+            margin-bottom: 6px;
+            color: #6982a2;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            font-size: .72rem;
+            font-weight: 800;
+        }
+
+        .sortie-admin-metric strong {
+            color: #153b69;
+            font-size: 1rem;
+            line-height: 1.45;
+        }
+
+        .sortie-admin-grid {
+            margin-top: 24px;
+            display: grid;
+            grid-template-columns: minmax(0, 1.3fr) minmax(320px, .9fr);
+            gap: 22px;
+        }
+
+        .sortie-admin-panel {
+            padding: 24px;
+        }
+
+        .sortie-admin-panel h2 {
+            margin: 0 0 14px;
+            color: #153f73;
+            font-size: 1.2rem;
+        }
+
+        .sortie-admin-text {
+            color: #496584;
+            line-height: 1.8;
+            font-size: .98rem;
+        }
+
+        .sortie-admin-meta-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .sortie-admin-meta-item {
+            padding: 16px 18px;
+            border-radius: 18px;
+            background: rgba(241, 246, 255, .9);
+            border: 1px solid rgba(20, 61, 113, .08);
+        }
+
+        .sortie-admin-meta-item small {
+            display: block;
+            margin-bottom: 6px;
+            color: #6e86a4;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            font-size: .72rem;
+            font-weight: 800;
+        }
+
+        .sortie-admin-meta-item strong {
+            color: #173c69;
+            line-height: 1.55;
+        }
+
+        .sortie-admin-map {
+            margin-top: 16px;
+            border-radius: 22px;
+            overflow: hidden;
+            border: 1px solid rgba(20, 61, 113, .12);
+            background: #f5f9ff;
+        }
+
+        .sortie-admin-map iframe {
+            width: 100%;
+            height: 290px;
+            border: 0;
+            display: block;
+        }
+
+        .sortie-admin-questions,
+        .sortie-admin-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .sortie-admin-question,
+        .sortie-admin-person,
+        .sortie-admin-request {
+            padding: 16px 18px;
+            border-radius: 18px;
+            background: rgba(246, 249, 255, .95);
+            border: 1px solid rgba(20, 61, 113, .08);
+        }
+
+        .sortie-admin-person__meta,
+        .sortie-admin-request__meta {
+            margin-top: 6px;
+            color: #607792;
+            line-height: 1.7;
+        }
+
+        .sortie-admin-request__answers {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(20, 61, 113, .08);
+            display: grid;
+            gap: 8px;
+        }
+
+        .sortie-admin-request__answers strong {
+            color: #173e70;
+        }
+
+        @media (max-width: 980px) {
+            .sortie-admin-hero,
+            .sortie-admin-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .sortie-admin-metrics,
+            .sortie-admin-meta-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+{% endblock %}
+
+{% block admin_content %}
+    {% set heroImage = sortie.image_url ? (sortie.image_url starts with 'http' ? sortie.image_url : '/' ~ sortie.image_url|trim('/')) : null %}
+
+    <section class="sortie-admin-shell">
+        <div class="section-head">
+            <div>
+                <h2 class="section-title">{{ sortie.titre }}</h2>
+                <p class="section-subtitle">Vue detaillee de la sortie pour le back office.</p>
+            </div>
+            <div class="btn-row">
+                <a href="{{ path('app_admin_sorties') }}" class="outline-btn"><span class="btn-icon">&larr;</span>Retour liste</a>
+                <a href="{{ path('app_admin_participations', {annonce: sortie.id}) }}" class="outline-btn"><span class="btn-icon">&#128065;</span>Voir participations</a>
+                {% if chatGroupExists %}
+                    <a href="{{ path('app_sorties_chat', {id: sortie.id}) }}" class="primary-btn"><span class="btn-icon">&#128172;</span>Groupe chat</a>
+                {% endif %}
+                <a href="{{ path('app_admin_sorties_edit', {id: sortie.id}) }}" class="primary-btn"><span class="btn-icon">&#9998;</span>Modifier</a>
+            </div>
+        </div>
+
+        {% for label in ['success', 'error', 'warning', 'info'] %}
+            {% for message in app.flashes(label) %}
+                <div class="sortie-flash sortie-flash-{{ label }}" style="margin: 10px 0 14px;">{{ message }}</div>
+            {% endfor %}
+        {% endfor %}
+
+        <div class="sortie-admin-hero">
+            <article class="sortie-admin-card sortie-admin-media">
+                {% if heroImage %}
+                    <img src="{{ heroImage }}" alt="Image {{ sortie.titre }}">
+                {% else %}
+                    <div class="sortie-admin-media-placeholder">{{ sortie.titre }}</div>
+                {% endif %}
+            </article>
+
+            <article class="sortie-admin-card sortie-admin-summary">
+                <span class="sortie-admin-kicker">Annonce sortie</span>
+                <div>
+                    <h1>{{ sortie.titre }}</h1>
+                    <p class="sortie-admin-subtitle">{{ sortie.ville }} · {{ sortie.type_activite }} · Organisee par {{ sortie.prenom }} {{ sortie.nom }}</p>
+                </div>
+
+                <div class="sortie-admin-metrics">
+                    <div class="sortie-admin-metric">
+                        <small>Statut</small>
+                        <strong>{{ sortie.statut }}</strong>
+                    </div>
+                    <div class="sortie-admin-metric">
+                        <small>Date sortie</small>
+                        <strong>{{ sortie.date_sortie|date('d/m/Y H:i') }}</strong>
+                    </div>
+                    <div class="sortie-admin-metric">
+                        <small>Places confirmees</small>
+                        <strong>{{ confirmedCount }} / {{ sortie.nb_places }}</strong>
+                    </div>
+                    <div class="sortie-admin-metric">
+                        <small>Demandes attente</small>
+                        <strong>{{ pendingCount }}</strong>
+                    </div>
+                    <div class="sortie-admin-metric">
+                        <small>Places restantes</small>
+                        <strong>{{ remainingPlaces }}</strong>
+                    </div>
+                    <div class="sortie-admin-metric">
+                        <small>Budget max</small>
+                        <strong>{{ sortie.budget_max }} TND</strong>
+                    </div>
+                </div>
+
+                <div class="btn-row">
+                    {% if sortie.statut not in ['TERMINEE', 'ANNULEE'] %}
+                        <form method="post" class="btn-inline-form" action="{{ path('app_admin_sorties_mark_terminee', {id: sortie.id}) }}" onsubmit="return confirm('Marquer cette sortie comme TERMINEE ?');">
+                            <input type="hidden" name="_token" value="{{ csrf_token('sortie_terminee_admin_' ~ sortie.id) }}">
+                            <button type="submit" class="primary-btn"><span class="btn-icon">&#10003;</span>Marquer terminee</button>
+                        </form>
+                    {% endif %}
+                    <form method="post" class="btn-inline-form" action="{{ path('app_admin_sorties_delete', {id: sortie.id}) }}" onsubmit="return confirm('Supprimer cette annonce ?');">
+                        <input type="hidden" name="_token" value="{{ csrf_token('sortie_delete_admin_' ~ sortie.id) }}">
+                        <button type="submit" class="danger-btn"><span class="btn-icon">&#128465;</span>Supprimer</button>
+                    </form>
+                </div>
+            </article>
+        </div>
+
+        <div class="sortie-admin-grid">
+            <div class="sortie-admin-column">
+                <article class="sortie-admin-card sortie-admin-panel">
+                    <h2>Description</h2>
+                    <p class="sortie-admin-text">{{ sortie.description ?: 'Aucune description disponible.' }}</p>
+                </article>
+
+                <article class="sortie-admin-card sortie-admin-panel" style="margin-top: 22px;">
+                    <h2>Informations cles</h2>
+                    <div class="sortie-admin-meta-grid">
+                        <div class="sortie-admin-meta-item">
+                            <small>Ville</small>
+                            <strong>{{ sortie.ville }}</strong>
+                        </div>
+                        <div class="sortie-admin-meta-item">
+                            <small>Lieu</small>
+                            <strong>{{ sortie.lieu_texte }}</strong>
+                        </div>
+                        <div class="sortie-admin-meta-item">
+                            <small>Point rencontre</small>
+                            <strong>{{ sortie.point_rencontre ?: '-' }}</strong>
+                        </div>
+                        <div class="sortie-admin-meta-item">
+                            <small>Type activite</small>
+                            <strong>{{ sortie.type_activite }}</strong>
+                        </div>
+                    </div>
+
+                    {% if sortie.point_rencontre %}
+                        <div class="sortie-admin-map">
+                            <iframe
+                                title="Carte du point de rencontre"
+                                loading="lazy"
+                                referrerpolicy="no-referrer-when-downgrade"
+                                src="https://maps.google.com/maps?q={{ sortie.point_rencontre|url_encode }}&z=15&output=embed"
+                            ></iframe>
+                        </div>
+                    {% endif %}
+                </article>
+
+                <article class="sortie-admin-card sortie-admin-panel" style="margin-top: 22px;">
+                    <h2>Participants confirmes</h2>
+                    <div class="sortie-admin-list">
+                        {% for participant in confirmedParticipants %}
+                            <div class="sortie-admin-person">
+                                <strong>{{ participant.prenom }} {{ participant.nom }}</strong>
+                                <div class="sortie-admin-person__meta">
+                                    {% if participant.is_organizer %}
+                                        Organisateur{% if participant.is_admin %} · Admin{% endif %}
+                                    {% else %}
+                                        {{ participant.nb_places }} place{{ participant.nb_places > 1 ? 's' : '' }} confirmee{{ participant.nb_places > 1 ? 's' : '' }}
+                                        {% if participant.is_admin %} · Admin{% endif %}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="sortie-flash sortie-flash-info" style="margin: 0;">Aucun participant confirme pour le moment.</div>
+                        {% endfor %}
+                    </div>
+                </article>
+            </div>
+
+            <div class="sortie-admin-column">
+                <article class="sortie-admin-card sortie-admin-panel">
+                    <h2>Questions organisateur</h2>
+                    <div class="sortie-admin-questions">
+                        {% for question in questions %}
+                            <div class="sortie-admin-question">{{ question }}</div>
+                        {% else %}
+                            <div class="sortie-flash sortie-flash-info" style="margin: 0;">Aucune question supplementaire.</div>
+                        {% endfor %}
+                    </div>
+                </article>
+
+                <article class="sortie-admin-card sortie-admin-panel" style="margin-top: 22px;">
+                    <h2>Demandes en attente</h2>
+                    <div class="sortie-admin-list">
+                        {% for demande in pendingRequests %}
+                            <div class="sortie-admin-request">
+                                <strong>{{ demande.prenom }} {{ demande.nom }}</strong>
+                                <div class="sortie-admin-request__meta">
+                                    Demandee le {{ demande.date_demande|date('d/m/Y H:i') }}<br>
+                                    Contact {{ demande.contact_prefer }} : {{ demande.contact_value ?: '-' }}<br>
+                                    Places demandees : {{ demande.nb_places }}
+                                </div>
+
+                                {% if demande.commentaire %}
+                                    <p class="sortie-admin-text" style="margin: 10px 0 0;">{{ demande.commentaire }}</p>
+                                {% endif %}
+
+                                {% if questions is not empty %}
+                                    <div class="sortie-admin-request__answers">
+                                        {% for question in questions %}
+                                            <div>
+                                                <strong>{{ question }}</strong><br>
+                                                <span class="sortie-admin-text">{{ demande.answers[loop.index0]|default('-') }}</span>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+
+                                <div class="btn-row" style="margin-top: 14px;">
+                                    <form method="post" action="{{ path('app_admin_participations_accept', {id: demande.id}) ~ '?annonce=' ~ sortie.id }}" class="btn-inline-form">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('accept_participation_' ~ demande.id) }}">
+                                        <button type="submit" class="primary-btn">Accepter</button>
+                                    </form>
+                                    <form method="post" action="{{ path('app_admin_participations_refuse', {id: demande.id}) ~ '?annonce=' ~ sortie.id }}" class="btn-inline-form">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('refuse_participation_' ~ demande.id) }}">
+                                        <button type="submit" class="outline-btn">Refuser</button>
+                                    </form>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="sortie-flash sortie-flash-info" style="margin: 0;">Aucune demande en attente pour cette sortie.</div>
+                        {% endfor %}
+                    </div>
+                </article>
+            </div>
+        </div>
+    </section>
+{% endblock %}

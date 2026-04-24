@@ -18,25 +18,88 @@
         .sortie-detail-card {
             width: min(980px, 100%);
             margin: 0 auto;
-            padding: clamp(16px, 2vw, 22px);
-            border-radius: 22px;
+            padding: clamp(18px, 2vw, 26px);
+            border-radius: 28px;
+            border: 1px solid rgba(20, 61, 113, .1);
+            background:
+                radial-gradient(circle at top right, rgba(118, 196, 255, .12), transparent 32%),
+                linear-gradient(180deg, rgba(255,255,255,.99), rgba(245,249,255,.97));
+            box-shadow: 0 24px 56px rgba(14, 45, 94, .12);
         }
         .sortie-detail-hero {
             height: clamp(200px, 34vh, 320px);
             margin-bottom: 18px;
+            border-radius: 24px;
+            overflow: hidden;
         }
         .sortie-detail-map {
-            margin-top: 14px;
-            border: 1px solid rgba(20, 61, 113, .14);
-            border-radius: 16px;
+            margin-top: 18px;
+            border: 1px solid rgba(20, 61, 113, .12);
+            border-radius: 22px;
             overflow: hidden;
             background: #f5f9ff;
+            box-shadow: 0 16px 30px rgba(15, 49, 93, .08);
         }
         .sortie-detail-map iframe {
             width: 100%;
             height: clamp(220px, 30vh, 320px);
             border: 0;
             display: block;
+        }
+
+        .sortie-detail-card .meta-row {
+            margin-top: 0;
+            gap: 10px;
+        }
+
+        .sortie-detail-card .meta-row span {
+            padding: 10px 14px;
+            border-radius: 15px;
+            background: rgba(238, 245, 255, .92);
+            border: 1px solid rgba(20, 61, 113, .08);
+            color: #345a84;
+            font-weight: 600;
+        }
+
+        .sortie-detail-lead {
+            margin-top: 18px;
+            font-size: 1rem;
+            line-height: 1.85;
+            color: #486786;
+        }
+
+        .sortie-detail-card .sortie-modal__questions,
+        .sortie-detail-card .participants-board,
+        .sortie-detail-card .pending-requests-board {
+            margin-top: 20px;
+            padding: 20px 22px;
+            border-radius: 22px;
+            border: 1px solid rgba(20, 61, 113, .08);
+            background: rgba(247, 250, 255, .94);
+        }
+
+        .sortie-detail-card .sortie-modal__questions h4,
+        .sortie-detail-card .participants-board h3,
+        .sortie-detail-card .pending-requests-board h3 {
+            margin-top: 0;
+        }
+
+        .participant-chip,
+        .pending-request-card {
+            border-radius: 18px;
+            border: 1px solid rgba(20, 61, 113, .08);
+            background: #fff;
+            box-shadow: 0 12px 24px rgba(15, 49, 93, .06);
+        }
+
+        .pending-request-card {
+            padding: 18px;
+        }
+
+        .sortie-detail-card hr {
+            margin: 22px 0;
+            border: 0;
+            border-top: 1px solid rgba(20, 61, 113, .12);
         }
 
         @media (max-width: 760px) {
@@ -52,6 +115,482 @@
                 justify-content: center;
             }
         }
+        .experience-shell {
+            margin-top: 26px;
+            padding: clamp(20px, 2.8vw, 34px);
+            border-radius: 30px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,.18);
+            background:
+                radial-gradient(circle at top right, rgba(138, 206, 255, .28), transparent 28%),
+                radial-gradient(circle at bottom left, rgba(255, 179, 125, .20), transparent 24%),
+                linear-gradient(135deg, #0b1d34, #133c66 48%, #0c2137);
+            color: #f6fbff;
+            box-shadow: 0 36px 90px rgba(7, 21, 42, .3);
+        }
+        .experience-shell::before {
+            content: '';
+            position: absolute;
+            inset: -30% auto auto -10%;
+            width: 320px;
+            height: 320px;
+            border-radius: 999px;
+            background: rgba(151, 215, 255, .18);
+            filter: blur(42px);
+            pointer-events: none;
+        }
+        .experience-shell > * {
+            position: relative;
+            z-index: 1;
+        }
+        .experience-head {
+            display: grid;
+            gap: 18px;
+            grid-template-columns: minmax(0, 1.4fr) minmax(280px, .9fr);
+            align-items: stretch;
+        }
+        .experience-copy h2 {
+            margin: 0;
+            font-size: clamp(2rem, 4vw, 3.5rem);
+            line-height: .95;
+            letter-spacing: -.05em;
+        }
+        .experience-copy p {
+            margin: 14px 0 0;
+            max-width: 56ch;
+            color: rgba(241, 247, 255, .82);
+            line-height: 1.7;
+        }
+        .experience-eyebrow,
+        .experience-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            width: fit-content;
+            padding: 10px 16px;
+            border-radius: 999px;
+            background: rgba(255,255,255,.1);
+            border: 1px solid rgba(255,255,255,.16);
+            backdrop-filter: blur(18px);
+        }
+        .experience-chips {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+        .experience-upload-card,
+        .experience-recap-card,
+        .experience-gallery,
+        .experience-empty {
+            border-radius: 26px;
+            border: 1px solid rgba(255,255,255,.14);
+            background: rgba(255,255,255,.08);
+            backdrop-filter: blur(20px);
+        }
+        .experience-upload-card {
+            padding: 18px;
+            display: grid;
+            gap: 14px;
+            align-content: start;
+        }
+        .experience-upload-card h3,
+        .experience-recap-card h3,
+        .experience-gallery h3 {
+            margin: 0;
+            color: #fff;
+        }
+        .experience-upload-card p,
+        .experience-recap-card p,
+        .experience-gallery p,
+        .experience-empty p {
+            margin: 0;
+            color: rgba(241, 247, 255, .78);
+            line-height: 1.6;
+        }
+        .experience-file {
+            display: grid;
+            gap: 8px;
+        }
+        .experience-file input {
+            width: 100%;
+            padding: 14px;
+            border-radius: 18px;
+            border: 1px dashed rgba(255,255,255,.28);
+            background: rgba(4, 12, 22, .24);
+            color: #fff;
+        }
+        .experience-upload-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .experience-upload-actions .primary-btn {
+            border: 0;
+        }
+        .experience-grid {
+            display: grid;
+            gap: 18px;
+            margin-top: 22px;
+        }
+        .experience-recap-card {
+            padding: 16px;
+        }
+        .experience-recap-frame {
+            position: relative;
+            margin-top: 14px;
+            aspect-ratio: 16 / 9;
+            border-radius: 22px;
+            overflow: hidden;
+            background: rgba(6, 16, 28, .45);
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+        }
+        .experience-recap-frame iframe,
+        .experience-recap-frame video {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            display: block;
+            object-fit: cover;
+        }
+        .experience-gallery {
+            margin-top: 22px;
+            padding: 18px;
+        }
+        .experience-gallery-grid {
+            margin-top: 16px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 14px;
+        }
+        .experience-media-card {
+            position: relative;
+            height: 220px;
+            overflow: hidden;
+            border-radius: 22px;
+            background: rgba(5, 14, 26, .55);
+            border: 1px solid rgba(255,255,255,.1);
+            box-shadow: 0 18px 38px rgba(5, 12, 24, .18);
+        }
+        .experience-media-card img,
+        .experience-media-card video {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .experience-media-overlay {
+            position: absolute;
+            inset: auto 0 0;
+            padding: 14px;
+            background: linear-gradient(180deg, transparent, rgba(5, 10, 18, .82));
+        }
+        .experience-media-overlay strong,
+        .experience-media-overlay span {
+            display: block;
+        }
+        .experience-media-overlay span {
+            margin-top: 4px;
+            color: rgba(241, 247, 255, .75);
+            font-size: .92rem;
+        }
+        .experience-empty {
+            margin-top: 22px;
+            padding: 22px;
+        }
+        @media (max-width: 900px) {
+            .experience-head {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ── Recap slideshow cinématique ── */
+
+        /* Carte titre intro */
+        .recap-intro-card {
+            position: absolute;
+            inset: 0;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            overflow: hidden;
+            transition: opacity 1s ease;
+            cursor: default;
+        }
+        .recap-intro-bg {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, #050a1a 0%, #0c1e3e 55%, #071528 100%);
+        }
+        .recap-intro-bg::before {
+            content: '';
+            position: absolute;
+            inset: -20%;
+            background:
+                radial-gradient(circle at 28% 40%, rgba(11,124,255,.24), transparent 38%),
+                radial-gradient(circle at 72% 62%, rgba(255,140,80,.2), transparent 34%);
+            animation: recapAmbient 10s linear infinite alternate;
+        }
+        @keyframes recapAmbient {
+            from { transform: translate(-4%,-3%) scale(1); }
+            to   { transform: translate(4%,3%) scale(1.07); }
+        }
+        .recap-intro-content {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            padding: 28px;
+        }
+        .recap-intro-eyebrow {
+            display: inline-block;
+            padding: 7px 16px;
+            border-radius: 999px;
+            background: rgba(255,255,255,.1);
+            border: 1px solid rgba(255,255,255,.18);
+            color: rgba(255,255,255,.82);
+            font-size: .75rem;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+            animation: recapFadeUp .8s ease both;
+        }
+        .recap-intro-title {
+            margin: 0;
+            font-size: clamp(1.7rem, 4.5vw, 3.6rem);
+            font-weight: 900;
+            line-height: 1;
+            letter-spacing: -.05em;
+            background: linear-gradient(135deg, #fff 0%, #b4dcff 46%, #ffc8a0 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: recapFadeUp .8s .2s ease both;
+        }
+        .recap-intro-meta {
+            margin: 0;
+            color: rgba(241,247,255,.62);
+            font-size: clamp(.8rem, 1.4vw, .96rem);
+            animation: recapFadeUp .8s .38s ease both;
+        }
+        .recap-intro-line {
+            width: 38px;
+            height: 1px;
+            background: rgba(255,255,255,.22);
+            animation: recapFadeUp .8s .54s ease both;
+        }
+        .recap-intro-cta {
+            display: block;
+            color: rgba(255,255,255,.42);
+            font-size: .76rem;
+            letter-spacing: .08em;
+            animation: recapFadeUp .8s .7s ease both, recapBlink 2s 1.8s ease infinite;
+        }
+        @keyframes recapFadeUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes recapBlink {
+            0%,100% { opacity: .42; }
+            50%      { opacity: .78; }
+        }
+
+        /* Slides */
+        .recap-slide-wrap { position: absolute; inset: 0; }
+        .recap-slide-item {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            transition: opacity 1.3s ease;
+            overflow: hidden;
+        }
+        .recap-slide-item.active { opacity: 1; }
+        .recap-slide-item img {
+            width: 100%; height: 100%; object-fit: cover; display: block;
+            transform: scale(1.1);
+            transition: transform 8s ease;
+        }
+        .recap-slide-item.active img { transform: scale(1.01); }
+        .recap-slide-item video {
+            width: 100%; height: 100%; object-fit: cover; display: block;
+        }
+        .recap-slide-gradient {
+            position: absolute; inset: 0;
+            background: linear-gradient(180deg,
+                rgba(5,10,18,.16), transparent 32%,
+                rgba(5,10,18,.12) 60%, rgba(5,10,18,.74));
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        /* Barre de progression */
+        .recap-progress-wrap {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            height: 3px; background: rgba(255,255,255,.12); z-index: 15;
+        }
+        .recap-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #0b7cff, #18d7c0);
+            width: 0%;
+        }
+
+        /* Flèches de navigation */
+        .recap-nav-arrow {
+            position: absolute; top: 50%; transform: translateY(-50%);
+            z-index: 12; width: 38px; height: 38px;
+            border-radius: 50%;
+            background: rgba(255,255,255,.13); border: 1px solid rgba(255,255,255,.22);
+            color: #fff; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px; line-height: 1;
+            backdrop-filter: blur(8px);
+            opacity: 0; transition: opacity .3s, background .2s, transform .15s;
+            padding: 0;
+        }
+        .experience-recap-frame:hover .recap-nav-arrow { opacity: 1; }
+        .recap-nav-arrow:hover { background: rgba(255,255,255,.26); }
+        .recap-nav-arrow:active { transform: translateY(-50%) scale(.93); }
+        .recap-nav-prev { left: 10px; }
+        .recap-nav-next { right: 10px; }
+
+        /* Compteur */
+        .recap-counter {
+            position: absolute; top: 12px; right: 12px;
+            z-index: 12; padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(5,10,18,.55); border: 1px solid rgba(255,255,255,.1);
+            font-size: .76rem; color: rgba(255,255,255,.72);
+            backdrop-filter: blur(8px);
+        }
+
+        /* Points de navigation */
+        .recap-nav-dots {
+            position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 6px; z-index: 12;
+            max-width: 80%; flex-wrap: wrap; justify-content: center;
+        }
+        .recap-nav-dot {
+            width: 6px; height: 6px; border-radius: 3px;
+            background: rgba(255,255,255,.32);
+            transition: background .3s, width .3s;
+            cursor: pointer; flex-shrink: 0;
+        }
+        .recap-nav-dot.active { background: #fff; width: 18px; }
+
+        /* Badge auteur */
+        .recap-author-badge {
+            position: absolute; bottom: 28px; left: 14px;
+            max-width: calc(100% - 100px);
+            padding: 8px 13px;
+            background: rgba(5,10,18,.72); backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,.12); border-radius: 14px;
+            z-index: 12;
+            transform: translateY(0); transition: transform .5s ease, opacity .5s ease;
+        }
+        .recap-author-badge.hidden { transform: translateY(20px); opacity: 0; pointer-events: none; }
+        .recap-author-badge strong,
+        .recap-author-badge span { display: block; color: #f8fbff; font-size: .86rem; }
+        .recap-author-badge span { color: rgba(241,247,255,.65); margin-top: 2px; font-size: .78rem; }
+
+        /* Bouton plein écran */
+        .recap-open-btn {
+            position: absolute; top: 12px; left: 12px;
+            z-index: 12; padding: 6px 12px;
+            border-radius: 999px;
+            background: rgba(255,255,255,.13); border: 1px solid rgba(255,255,255,.2);
+            color: rgba(255,255,255,.82); font-size: .78rem;
+            text-decoration: none; backdrop-filter: blur(8px);
+            opacity: 0; transition: opacity .3s, background .2s;
+        }
+        .experience-recap-frame:hover .recap-open-btn { opacity: 1; }
+        .recap-open-btn:hover { background: rgba(255,255,255,.24); color: #fff; }
+
+        /* ── Delete button on media cards ── */
+        .experience-media-del-form {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            z-index: 10;
+            margin: 0; padding: 0; border: 0; background: none;
+        }
+        .experience-media-del {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: rgba(207,64,85,.88);
+            border: 1.5px solid rgba(255,255,255,.35);
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 17px;
+            line-height: 1;
+            padding: 0;
+            transition: background .2s, transform .15s;
+            backdrop-filter: blur(8px);
+        }
+        .experience-media-del:hover { background: #cf4055; transform: scale(1.12); }
+
+        /* ── Upload preview grid ── */
+        .upload-preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .upload-preview-grid:empty { display: none; }
+        .upload-preview-thumb {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 12px;
+            overflow: hidden;
+            background: rgba(4,12,22,.45);
+            border: 1px solid rgba(255,255,255,.15);
+        }
+        .upload-preview-thumb img {
+            width: 100%; height: 100%; object-fit: cover; display: block;
+        }
+        .upload-preview-thumb-icon {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            color: rgba(255,255,255,.85);
+        }
+        .upload-preview-thumb-name {
+            position: absolute;
+            bottom: 4px; left: 4px; right: 26px;
+            font-size: 9px;
+            color: rgba(255,255,255,.7);
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .upload-preview-del {
+            position: absolute;
+            top: 4px; right: 4px;
+            width: 22px; height: 22px;
+            border-radius: 50%;
+            background: rgba(207,64,85,.9);
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            line-height: 1;
+            padding: 0;
+        }
+        .upload-preview-del:hover { background: #cf4055; }
     </style>
 {% endblock %}
 
@@ -104,7 +643,7 @@
             </div>
         {% endif %}
 
-        <p style="margin-top:14px;">{{ sortie.description ?: 'Aucune description.' }}</p>
+        <p class="sortie-detail-lead">{{ sortie.description ?: 'Aucune description.' }}</p>
 
         {% if questions is not empty and not (canJoin or canEditPending) %}
             <div class="sortie-modal__questions" style="margin-top: 16px;">
@@ -119,6 +658,7 @@
 
         <section class="participants-board" id="participation" style="margin-top: 16px;">
             <h3 style="margin: 0 0 10px; color: #154175;">Participants confirmés</h3>
+            <div style="margin-bottom:8px; color:#2563eb; font-weight:500;">Places restantes : {{ remainingPlaces }}</div>
             <div class="participants-list">
                 {% for participant in confirmedParticipants %}
                     <article class="participant-chip {{ participant.is_organizer ? 'participant-chip--organizer' : '' }}">
@@ -153,10 +693,15 @@
             <div class="sortie-flash sortie-flash-success" style="margin: 0 0 12px;">
                 Votre participation est confirmée.
             </div>
-            <form method="post" action="{{ path('app_sorties_leave', {id: sortie.id}) }}" class="btn-row">
-                <input type="hidden" name="_token" value="{{ csrf_token('leave_sortie_' ~ sortie.id) }}">
-                <button type="submit" class="danger-btn">Annuler ma participation</button>
-            </form>
+            <div class="btn-row">
+                {% if canAccessChat %}
+                    <a href="{{ path('app_sorties_chat', {id: sortie.id}) }}" class="primary-btn">Ouvrir le groupe chat</a>
+                {% endif %}
+                <form method="post" action="{{ path('app_sorties_leave', {id: sortie.id}) }}" class="btn-inline-form">
+                    <input type="hidden" name="_token" value="{{ csrf_token('leave_sortie_' ~ sortie.id) }}">
+                    <button type="submit" class="danger-btn">Annuler ma participation</button>
+                </form>
+            </div>
         {% elseif myParticipation and myParticipation.statut == 'REFUSEE' %}
             <div class="sortie-flash sortie-flash-error" style="margin: 0 0 12px;">
                 Votre demande a été refusée.
@@ -179,6 +724,9 @@
                 <button type="button" class="outline-btn" disabled title="Vous êtes l'organisateur de cette sortie">
                     Participer (organisateur)
                 </button>
+                {% if canAccessChat %}
+                    <a href="{{ path('app_sorties_chat', {id: sortie.id}) }}" class="primary-btn">Gerer le groupe chat</a>
+                {% endif %}
             </div>
         {% elseif participationForm is not null and (canJoin or canEditPending) %}
             {{ form_start(participationForm, {
@@ -195,21 +743,7 @@
                     <div class="sortie-form-global-errors">{{ form_errors(participationForm) }}</div>
                 {% endif %}
 
-                <div class="form-group">
-                    <label for="nb_places">Places souhaitées</label>
-                    {{ form_widget(participationForm.nb_places, {
-                        attr: {
-                            id: 'nb_places',
-                            class: 'custom-input',
-                            min: 1,
-                            max: maxPlacesChoice,
-                            'data-nb-places': '',
-                            required: true
-                        }
-                    }) }}
-                    {{ form_errors(participationForm.nb_places) }}
-                    <small class="field-hint">Places restantes disponibles actuellement: {{ remainingPlaces }}</small>
-                </div>
+                {# Champ nb_places supprimé du formulaire #}
 
                 <div class="form-row two">
                     <div class="form-group">
@@ -225,20 +759,26 @@
                         {{ form_errors(participationForm.contact_prefer) }}
                     </div>
                     <div class="form-group">
-                        <label for="contact_value">Valeur de contact</label>
+                        <label for="contact_value">Coordonnee utilisee</label>
                         {{ form_widget(participationForm.contact_value, {
                             attr: {
                                 id: 'contact_value',
-                                class: 'custom-input',
                                 'data-contact-value': '',
                                 'data-default-email': defaultContactEmail|default(''),
                                 'data-default-phone': defaultContactPhone|default(''),
-                                placeholder: 'Ex: 55216548 ou email',
                                 required: true
                             }
                         }) }}
+                        <input
+                            type="text"
+                            class="custom-input"
+                            data-contact-display
+                            value="{{ defaultContactPrefer == 'TELEPHONE' ? (defaultContactPhone ?: 'Aucun numero disponible') : (defaultContactEmail ?: 'Aucun email disponible') }}"
+                            readonly
+                        >
+                        <div style="display:none;" data-contact-preview aria-hidden="true"></div>
                         {{ form_errors(participationForm.contact_value) }}
-                        <small class="field-hint" data-contact-hint></small>
+                        <small class="field-hint" data-contact-hint>Cette valeur est recuperee automatiquement depuis votre compte.</small>
                     </div>
                 </div>
 
@@ -298,6 +838,375 @@
             </div>
         {% endif %}
 
+        {% if experienceActive %}
+            <section id="experience-sharing" class="experience-shell">
+                <div class="experience-head">
+                    <div class="experience-copy">
+                        <span class="experience-eyebrow">Partage d experience post-sortie</span>
+                        <h2>Vos souvenirs prennent vie automatiquement.</h2>
+                        <p>
+                            A chaque nouvelle photo ou video, le recap est regenere et remplace aussitot la version precedente.
+                            L idee est de retrouver une sensation de souvenir vivant, sensible et moderne, comme une memory lane du groupe.
+                        </p>
+                        <div class="experience-chips">
+                            <span class="experience-chip">{{ experienceSharing.media_count|default(experienceMedia|length) }} media{{ (experienceSharing.media_count|default(experienceMedia|length)) > 1 ? 's' : '' }}</span>
+                            <span class="experience-chip">Partage ouvert sans limite</span>
+                            {% if experienceSharing.recap_mode is defined and experienceSharing.recap_mode %}
+                                <span class="experience-chip">Mode {{ experienceSharing.recap_mode }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <aside class="experience-upload-card">
+                        <h3>Ajouter un souvenir</h3>
+                        {% if canUploadExperience %}
+                            <p>Publiez un media et laissez le recap se regenerer automatiquement juste apres l upload.</p>
+                            <form id="exp-form-{{ sortie.id }}" method="post" action="{{ path('app_sorties_experience_upload', {id: sortie.id}) }}" enctype="multipart/form-data" style="display:grid; gap:14px;">
+                                <input type="hidden" name="_token" value="{{ csrf_token('experience_upload_' ~ sortie.id) }}">
+                                <div class="experience-file">
+                                    <label for="experience_media_{{ sortie.id }}">Photo ou video</label>
+                                    <input id="experience_media_{{ sortie.id }}" type="file" name="experience_media[]" accept=".jpg,.jpeg,.png,.heic,.webp,.mp4,.mov" multiple>
+                                </div>
+                                <div id="upload-preview-{{ sortie.id }}" class="upload-preview-grid"></div>
+                                <div class="experience-upload-actions">
+                                    <button type="submit" id="exp-submit-{{ sortie.id }}" class="primary-btn" disabled style="opacity:.5;cursor:not-allowed;">Publier et regenerer</button>
+                                    <span style="color: rgba(241,247,255,.72); font-size:.92rem;">jpg, png, heic, webp, mp4, mov · video max 60s / 100MB</span>
+                                </div>
+                            </form>
+                            <script>
+                            (function() {
+                                var inputEl   = document.getElementById('experience_media_{{ sortie.id }}');
+                                var previewEl = document.getElementById('upload-preview-{{ sortie.id }}');
+                                var submitBtn = document.getElementById('exp-submit-{{ sortie.id }}');
+                                if (!inputEl || !previewEl) return;
+                                var files = [];
+
+                                inputEl.addEventListener('change', function() {
+                                    Array.from(this.files).forEach(function(f) { files.push(f); });
+                                    this.value = '';
+                                    render();
+                                });
+
+                                function render() {
+                                    previewEl.innerHTML = '';
+                                    files.forEach(function(f, idx) {
+                                        var thumb = document.createElement('div');
+                                        thumb.className = 'upload-preview-thumb';
+
+                                        if (f.type.startsWith('image/')) {
+                                            var img = document.createElement('img');
+                                            var url = URL.createObjectURL(f);
+                                            img.src = url;
+                                            img.onload = function() { URL.revokeObjectURL(url); };
+                                            thumb.appendChild(img);
+                                        } else {
+                                            var icon = document.createElement('div');
+                                            icon.className = 'upload-preview-thumb-icon';
+                                            icon.textContent = '▶';
+                                            thumb.appendChild(icon);
+                                            var name = document.createElement('div');
+                                            name.className = 'upload-preview-thumb-name';
+                                            name.textContent = f.name;
+                                            thumb.appendChild(name);
+                                        }
+
+                                        var del = document.createElement('button');
+                                        del.type = 'button';
+                                        del.className = 'upload-preview-del';
+                                        del.textContent = '×';
+                                        del.addEventListener('click', (function(i) {
+                                            return function() { files.splice(i, 1); render(); };
+                                        })(idx));
+                                        thumb.appendChild(del);
+                                        previewEl.appendChild(thumb);
+                                    });
+
+                                    syncInput();
+                                    submitBtn.disabled = files.length === 0;
+                                    submitBtn.style.opacity = files.length ? '1' : '.5';
+                                    submitBtn.style.cursor  = files.length ? 'pointer' : 'not-allowed';
+                                }
+
+                                function syncInput() {
+                                    try {
+                                        var dt = new DataTransfer();
+                                        files.forEach(function(f) { dt.items.add(f); });
+                                        inputEl.files = dt.files;
+                                    } catch(e) {}
+                                }
+                            })();
+                            </script>
+                        {% else %}
+                            <p>Seuls le createur et les participants confirmes peuvent enrichir cette galerie emotionnelle.</p>
+                        {% endif %}
+                    </aside>
+                </div>
+
+                {% if experienceMedia is not empty %}
+                    {% set firstMedia = experienceMedia|first %}
+                    <div class="experience-grid">
+                        <section class="experience-recap-card">
+                            <h3>Recap vivant</h3>
+                            {% if experienceRecap %}
+                            <p>
+                                Version {{ experienceRecap.version }} · {{ experienceRecap.generated_at|date('d/m/Y H:i') }}
+                                {% if experienceRecap.version_label %} · {{ experienceRecap.version_label }}{% endif %}
+                            </p>
+                            {% endif %}
+                            <div class="experience-recap-frame" id="recap-frame-{{ sortie.id }}">
+
+                                {# ── Carte titre animée ── #}
+                                <div class="recap-intro-card" id="recap-intro-{{ sortie.id }}">
+                                    <div class="recap-intro-bg"></div>
+                                    <div class="recap-intro-content">
+                                        <span class="recap-intro-eyebrow">✦ Souvenirs · {{ experienceMedia|length }} {{ experienceMedia|length > 1 ? 'médias' : 'média' }}</span>
+                                        <h2 class="recap-intro-title">{{ sortie.titre }}</h2>
+                                        <p class="recap-intro-meta">{% if sortie.ville %}📍 {{ sortie.ville }} · {% endif %}{{ firstMedia.uploaded_at|date('Y') }}</p>
+                                        <div class="recap-intro-line"></div>
+                                        <span class="recap-intro-cta">▼ Lecture en cours…</span>
+                                    </div>
+                                </div>
+
+                                {# ── Slides ── #}
+                                <div class="recap-slide-wrap">
+                                    {% for media in experienceMedia %}
+                                        {% set mediaPath = media.file_path starts with '/' ? media.file_path : '/' ~ media.file_path|trim('/') %}
+                                        <div class="recap-slide-item{% if loop.first %} active{% endif %}"
+                                             data-author="{{ media.prenom }} {{ media.nom }}"
+                                             data-type="{{ media.media_type }}"
+                                             data-date="{{ media.uploaded_at|date('d/m/Y') }}">
+                                            {% if media.media_type == 'video' %}
+                                                <video src="{{ mediaPath }}" muted loop playsinline></video>
+                                            {% else %}
+                                                <img src="{{ mediaPath }}" alt="Souvenir {{ loop.index }}" loading="lazy">
+                                            {% endif %}
+                                            <div class="recap-slide-gradient"></div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+
+                                {# ── Barre de progression ── #}
+                                <div class="recap-progress-wrap">
+                                    <div class="recap-progress-bar" id="recap-progress-{{ sortie.id }}"></div>
+                                </div>
+
+                                {# ── Flèches nav ── #}
+                                <button class="recap-nav-arrow recap-nav-prev" id="recap-prev-{{ sortie.id }}" type="button">&#8249;</button>
+                                <button class="recap-nav-arrow recap-nav-next" id="recap-next-{{ sortie.id }}" type="button">&#8250;</button>
+
+                                {# ── Dots ── #}
+                                <div class="recap-nav-dots" id="recap-dots-{{ sortie.id }}">
+                                    {% for media in experienceMedia %}
+                                        <span class="recap-nav-dot{% if loop.first %} active{% endif %}"></span>
+                                    {% endfor %}
+                                </div>
+
+                                {# ── Badge auteur ── #}
+                                <div class="recap-author-badge hidden" id="recap-badge-{{ sortie.id }}">
+                                    <strong id="recap-author-{{ sortie.id }}"></strong>
+                                    <span id="recap-type-{{ sortie.id }}"></span>
+                                </div>
+
+                                {# ── Compteur ── #}
+                                <div class="recap-counter">
+                                    <span id="recap-curr-{{ sortie.id }}">1</span>&thinsp;/&thinsp;{{ experienceMedia|length }}
+                                </div>
+
+                                {# ── Plein écran ── #}
+                                {% if experienceRecap %}
+                                    {% set recapPath = experienceRecap.video_path starts with '/' ? experienceRecap.video_path : '/' ~ experienceRecap.video_path|trim('/') %}
+                                    <a href="{{ recapPath }}" target="_blank" class="recap-open-btn">&#9654; Plein écran</a>
+                                {% endif %}
+                            </div>
+                        </section>
+                    </div>
+                {% else %}
+                    <div class="experience-empty">
+                        <strong style="display:block; margin-bottom:8px; color:#fff;">Le recap apparaitra des le premier media.</strong>
+                        <p>Ajoutez une premiere photo ou video pour lancer automatiquement le montage souvenir.</p>
+                    </div>
+                {% endif %}
+
+                <script>
+                (function() {
+                    var sid        = '{{ sortie.id }}';
+                    var frame      = document.getElementById('recap-frame-' + sid);
+                    if (!frame) return;
+
+                    var introCard  = document.getElementById('recap-intro-' + sid);
+                    var slides     = Array.from(frame.querySelectorAll('.recap-slide-item'));
+                    var dotsWrap   = document.getElementById('recap-dots-' + sid);
+                    var dotItems   = dotsWrap ? Array.from(dotsWrap.querySelectorAll('.recap-nav-dot')) : [];
+                    var badge      = document.getElementById('recap-badge-' + sid);
+                    var authorEl   = document.getElementById('recap-author-' + sid);
+                    var typeEl     = document.getElementById('recap-type-' + sid);
+                    var progressEl = document.getElementById('recap-progress-' + sid);
+                    var currEl     = document.getElementById('recap-curr-' + sid);
+                    var prevBtn    = document.getElementById('recap-prev-' + sid);
+                    var nextBtn    = document.getElementById('recap-next-' + sid);
+                    if (!slides.length) return;
+
+                    var total     = slides.length;
+                    var current   = 0;
+                    var DURATION  = 4800;
+                    var autoTimer = null;
+
+                    /* ── Barre de progression ── */
+                    function startProgress() {
+                        if (!progressEl) return;
+                        progressEl.style.transition = 'none';
+                        progressEl.style.width = '0%';
+                        requestAnimationFrame(function() {
+                            requestAnimationFrame(function() {
+                                progressEl.style.transition = 'width ' + DURATION + 'ms linear';
+                                progressEl.style.width = '100%';
+                            });
+                        });
+                    }
+
+                    /* ── Aller à la slide idx ── */
+                    function goTo(idx) {
+                        var prev = current;
+                        current = ((idx % total) + total) % total;
+                        slides[prev].classList.remove('active');
+                        slides[current].classList.add('active');
+
+                        /* Ken Burns : réinitialise la transition sur l'image active */
+                        var img = slides[current].querySelector('img');
+                        if (img) {
+                            img.style.transition = 'none';
+                            img.style.transform  = 'scale(1.1)';
+                            requestAnimationFrame(function() {
+                                requestAnimationFrame(function() {
+                                    img.style.transition = 'transform 8s ease';
+                                    img.style.transform  = 'scale(1.01)';
+                                });
+                            });
+                        }
+
+                        /* Vidéo */
+                        slides.forEach(function(s, i) {
+                            var v = s.querySelector('video');
+                            if (v) { if (i === current) v.play().catch(function(){}); else v.pause(); }
+                        });
+
+                        /* Dots */
+                        dotItems.forEach(function(d, i) { d.classList.toggle('active', i === current); });
+
+                        /* Compteur */
+                        if (currEl) currEl.textContent = current + 1;
+
+                        /* Badge auteur (slide-in depuis le bas) */
+                        if (badge && authorEl && typeEl) {
+                            badge.classList.add('hidden');
+                            setTimeout(function() {
+                                var s = slides[current];
+                                authorEl.textContent = s ? (s.dataset.author || '') : '';
+                                typeEl.textContent   = s ? ((s.dataset.type === 'video' ? 'Vidéo' : 'Photo') + ' · ' + (s.dataset.date || '')) : '';
+                                badge.classList.remove('hidden');
+                            }, 450);
+                        }
+
+                        startProgress();
+                    }
+
+                    /* ── Timer auto ── */
+                    function startTimer() {
+                        clearInterval(autoTimer);
+                        autoTimer = setInterval(function() { goTo(current + 1); }, DURATION);
+                    }
+
+                    /* ── Initialise après la carte titre ── */
+                    function beginShow() {
+                        var s = slides[0];
+                        if (s && authorEl && typeEl && badge) {
+                            authorEl.textContent = s.dataset.author || '';
+                            typeEl.textContent   = (s.dataset.type === 'video' ? 'Vidéo' : 'Photo') + ' · ' + (s.dataset.date || '');
+                            badge.classList.remove('hidden');
+                        }
+                        var img = slides[0].querySelector('img');
+                        if (img) {
+                            img.style.transition = 'transform 8s ease';
+                            img.style.transform  = 'scale(1.01)';
+                        }
+                        var v = slides[0].querySelector('video');
+                        if (v) v.play().catch(function(){});
+                        startProgress();
+                        startTimer();
+                    }
+
+                    if (introCard) {
+                        setTimeout(function() {
+                            introCard.style.opacity = '0';
+                            introCard.style.pointerEvents = 'none';
+                            setTimeout(function() {
+                                introCard.remove();
+                                beginShow();
+                            }, 900);
+                        }, 3200);
+                    } else {
+                        beginShow();
+                    }
+
+                    /* ── Navigation ── */
+                    dotItems.forEach(function(d, i) {
+                        d.addEventListener('click', function() {
+                            if (i === current) return;
+                            clearInterval(autoTimer); goTo(i); startTimer();
+                        });
+                    });
+                    if (prevBtn) prevBtn.addEventListener('click', function() {
+                        clearInterval(autoTimer); goTo(current - 1); startTimer();
+                    });
+                    if (nextBtn) nextBtn.addEventListener('click', function() {
+                        clearInterval(autoTimer); goTo(current + 1); startTimer();
+                    });
+
+                    /* Pause au survol */
+                    frame.addEventListener('mouseenter', function() { clearInterval(autoTimer); if (progressEl) { progressEl.style.transition = 'none'; } });
+                    frame.addEventListener('mouseleave', function() { startProgress(); startTimer(); });
+                })();
+                </script>
+
+                <section class="experience-gallery">
+                    <h3>Galerie du groupe</h3>
+                    <p>Chaque contribution agrandit la fresque et nourrit la prochaine regeneration du recap.</p>
+                    {% if experienceMedia is not empty %}
+                        <div class="experience-gallery-grid">
+                            {% for media in experienceMedia %}
+                                {% set mediaPath = media.file_path starts with 'http' ? media.file_path : (media.file_path starts with '/' ? media.file_path : '/' ~ media.file_path|trim('/')) %}
+                                <article class="experience-media-card">
+                                    {% if media.media_type == 'video' %}
+                                        <video src="{{ mediaPath }}" controls muted preload="metadata"></video>
+                                    {% else %}
+                                        <img src="{{ mediaPath }}" alt="Souvenir {{ loop.index }}" loading="lazy">
+                                    {% endif %}
+                                    <div class="experience-media-overlay">
+                                        <strong>{{ media.prenom }} {{ media.nom }}</strong>
+                                        <span>{{ media.uploaded_at|date('d/m/Y H:i') }} · {{ media.media_type == 'video' ? 'Video' : 'Photo' }}</span>
+                                    </div>
+                                    {% if app.user and (app.user.id == media.user_id or isCreator) %}
+                                        <form method="post"
+                                              action="{{ path('app_sorties_experience_media_delete', {id: sortie.id, mediaId: media.id}) }}"
+                                              class="experience-media-del-form"
+                                              onsubmit="return confirm('Supprimer ce media et regenerer le recap ?')">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('experience_delete_' ~ media.id) }}">
+                                            <button type="submit" class="experience-media-del" title="Supprimer">&times;</button>
+                                        </form>
+                                    {% endif %}
+                                </article>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="experience-empty" style="margin-top:16px;">
+                            <strong style="display:block; margin-bottom:8px; color:#fff;">Aucun souvenir publie pour l instant.</strong>
+                            <p>La galerie se remplira au fil des contributions du groupe.</p>
+                        </div>
+                    {% endif %}
+                </section>
+            </section>
+        {% endif %}
+
         {% if isCreator %}
             <section id="demandes-attente" class="pending-requests-board" style="margin-top: 18px;">
                 <h3 style="margin: 0 0 10px; color: #154175;">Demandes en attente</h3>
@@ -354,4 +1263,54 @@
         {% endif %}
     </article>
 </section>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+        (function () {
+            document.querySelectorAll('[data-participation-form]').forEach(function (form) {
+                const preferField = form.querySelector('[data-contact-prefer]');
+                const valueField = form.querySelector('[data-contact-value]');
+                const preview = form.querySelector('[data-contact-preview]');
+                const displayField = form.querySelector('[data-contact-display]');
+                const hint = form.querySelector('[data-contact-hint]');
+
+                if (!preferField || !valueField) {
+                    return;
+                }
+
+                const emailValue = valueField.dataset.defaultEmail || '';
+                const phoneValue = valueField.dataset.defaultPhone || '';
+
+                const syncContact = function () {
+                    const prefer = (preferField.value || 'EMAIL').toUpperCase();
+                    const isPhone = prefer === 'TELEPHONE';
+                    const resolved = isPhone ? phoneValue : emailValue;
+                    const fallback = isPhone ? 'Aucun numero disponible' : 'Aucun email disponible';
+                    const displayValue = resolved || fallback;
+
+                    valueField.value = resolved;
+
+                    if (displayField) {
+                        displayField.value = displayValue;
+                    }
+
+                    if (preview) {
+                        preview.textContent = displayValue;
+                    }
+
+                    if (hint) {
+                        hint.textContent = isPhone
+                            ? 'Le numero est recupere automatiquement depuis votre profil.'
+                            : 'L email est recupere automatiquement depuis votre compte.';
+                    }
+                };
+
+                syncContact();
+                preferField.addEventListener('change', syncContact);
+                preferField.addEventListener('input', syncContact);
+            });
+        })();
+    </script>
 {% endblock %}

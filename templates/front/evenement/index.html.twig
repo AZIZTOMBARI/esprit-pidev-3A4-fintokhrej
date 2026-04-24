@@ -1,49 +1,49 @@
 {% extends 'front/base_front.html.twig' %}
 
-{% block title %}{{ 'nav.events'|trans }} | Fin Tokhroj{% endblock %}
+{% block title %}Événements | Fin Tokhroj{% endblock %}
 
 {% block front_content %}
 <section>
     {% set filters = filters|default({ q: '', type: '', prix: '' }) %}
     <div class="section-head">
         <div>
-            <h1 class="section-title">{{ 'front.events.upcoming'|trans }}</h1>
-            <p class="section-subtitle">{{ 'front.events.subtitle'|trans }}</p>
+            <h1 class="section-title">Événements à venir</h1>
+            <p class="section-subtitle">Découvrez et rejoignez les meilleurs événements</p>
         </div>
-        <a href="{{ path('app_home') }}" class="outline-btn">{{ 'front.search.back_home'|trans }}</a>
+        <a href="{{ path('app_home') }}" class="outline-btn">Retour accueil</a>
     </div>
 
     <div class="listing-card event-filter-card">
         <div class="section-head" style="margin-bottom: 10px;">
             <div>
-                <h2 class="section-title" style="font-size: 1.1rem;">{{ 'front.events.search_filters'|trans }}</h2>
-                <p class="section-subtitle">{{ 'front.events.search_filters_subtitle'|trans }}</p>
+                <h2 class="section-title" style="font-size: 1.1rem;">Recherche et filtres</h2>
+                <p class="section-subtitle">Affiner les événements proposés.</p>
             </div>
-            <a href="{{ path('app_evenements') }}" class="outline-btn">{{ 'settings.reset'|trans }}</a>
+            <a href="{{ path('app_evenements') }}" class="outline-btn">Réinitialiser</a>
         </div>
         <form method="get" class="event-filter-grid">
             <div class="event-filter-field">
-                <label>{{ 'front.events.search'|trans }}</label>
-                <input type="text" name="q" value="{{ filters.q }}" placeholder="{{ 'front.events.title_or_place'|trans }}">
+                <label>Recherche</label>
+                <input type="text" name="q" value="{{ filters.q }}" placeholder="Titre ou lieu">
             </div>
             <div class="event-filter-field">
-                <label>{{ 'front.events.type'|trans }}</label>
+                <label>Type</label>
                 <select name="type">
-                    <option value="">{{ 'front.events.all_types'|trans }}</option>
-                    <option value="PUBLIC" {{ filters.type == 'PUBLIC' ? 'selected' : '' }}>{{ 'front.events.public'|trans }}</option>
-                    <option value="PRIVE" {{ filters.type == 'PRIVE' ? 'selected' : '' }}>{{ 'front.events.private'|trans }}</option>
+                    <option value="">Tous les types</option>
+                    <option value="PUBLIC" {{ filters.type == 'PUBLIC' ? 'selected' : '' }}>Public</option>
+                    <option value="PRIVE" {{ filters.type == 'PRIVE' ? 'selected' : '' }}>Privé</option>
                 </select>
             </div>
             <div class="event-filter-field">
-                <label>{{ 'front.events.price'|trans }}</label>
+                <label>Prix</label>
                 <select name="prix">
-                    <option value="">{{ 'front.events.all'|trans }}</option>
-                    <option value="gratuit" {{ filters.prix == 'gratuit' ? 'selected' : '' }}>{{ 'front.events.free'|trans }}</option>
-                    <option value="payant" {{ filters.prix == 'payant' ? 'selected' : '' }}>{{ 'front.events.paid'|trans }}</option>
+                    <option value="">Tous</option>
+                    <option value="gratuit" {{ filters.prix == 'gratuit' ? 'selected' : '' }}>Gratuit</option>
+                    <option value="payant" {{ filters.prix == 'payant' ? 'selected' : '' }}>Payant</option>
                 </select>
             </div>
             <div class="event-filter-field event-filter-actions">
-                <button type="submit" class="cta-btn">{{ 'front.events.filter'|trans }}</button>
+                <button type="submit" class="cta-btn">Filtrer</button>
             </div>
         </form>
     </div>
@@ -75,30 +75,30 @@
                 <div class="listing-card__top event-card__body">
                     <div>
                         <h3>{{ event.titre }}</h3>
-                        <p>{{ eventDateDebut ? eventDateDebut|date('d/m/Y') : ('front.events.date_to_confirm'|trans) }} • 
+                        <p>{{ eventDateDebut ? eventDateDebut|date('d/m/Y') : 'Date à confirmer' }} • 
                             {% if event.lieu is defined %}
-                                {{ event.lieu ? event.lieu.nom : (event.lieu_nom ?? ('front.events.place_to_confirm'|trans)) }}
+                                {{ event.lieu ? event.lieu.nom : (event.lieu_nom ?? 'Lieu à confirmer') }}
                             {% else %}
-                                {{ event.lieu_nom ?? ('front.events.place_to_confirm'|trans) }}
+                                {{ event.lieu_nom ?? 'Lieu à confirmer' }}
                             {% endif %}
                         </p>
                     </div>
-                    <span class="price-pill">{% if event.prix > 0 %}{{ event.prix }} TND{% else %}{{ 'front.events.free'|trans }}{% endif %}</span>
+                    <span class="price-pill">{% if event.prix > 0 %}{{ event.prix }} TND{% else %}Gratuit{% endif %}</span>
                 </div>
 
                 <div class="meta-row event-card__meta">
-                    <span>🗓 {{ eventDateDebut ? eventDateDebut|date('d/m/Y H:i') : ('front.events.date_to_confirm'|trans) }}{% if eventDateFin %} • {{ eventDateFin|date('H:i') }}{% endif %}</span>
-                    <span>👥 {{ 'front.events.remaining_places'|trans({'%count%': (event.placesRestantes is defined ? event.placesRestantes : (eventCapacite ?? '?'))}) }}</span>
+                    <span>🗓 {{ eventDateDebut ? eventDateDebut|date('d/m/Y H:i') : 'Date à confirmer' }}{% if eventDateFin %} • {{ eventDateFin|date('H:i') }}{% endif %}</span>
+                    <span>👥 {% if event.placesRestantes is defined %}{{ event.placesRestantes }}{% else %}{{ eventCapacite ?? '?' }}{% endif %} places restantes</span>
                     <span class="badge-soft">{{ event.type|default('PUBLIC') }}</span>
                     <span class="badge-soft">{{ event.statut|default('OUVERT') }}</span>
                 </div>
 
                 <a href="{{ path('app_evenement_show', {id: event.id}) }}" class="cta-btn event-card__cta" style="margin-top: 15px; display: inline-flex; justify-content: center;">
-                    {{ 'front.events.join'|trans }}
+                    Participer
                 </a>
             </article>
         {% else %}
-            <div class="empty-state">{{ 'front.events.none_available'|trans }}</div>
+            <div class="empty-state">Aucun événement disponible pour le moment.</div>
         {% endfor %}
     </div>
 </section>

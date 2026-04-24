@@ -1,6 +1,6 @@
 {% extends 'front/base_front.html.twig' %}
 
-{% block title %}{{ 'front.home.title'|trans }} | Fin Tokhroj{% endblock %}
+{% block title %}Accueil | Fin Tokhroj{% endblock %}
 
 {% block stylesheets %}
     {{ parent() }}
@@ -157,15 +157,16 @@
     <section class="hero app-card">
         <div class="hero__grid">
             <div>
-                <div class="badge-soft badge-gold">✨ {{ 'front.home.hero_badge'|trans }}</div>
+                <div class="badge-soft badge-gold">✨ Votre guide social intelligent</div>
                 <h1>وين تحب تخرج؟</h1>
                 <p>
-                    {{ 'front.home.hero_text'|trans }}
+                    Trouve des lieux, sorties, événements et réductions en gardant exactement l'identité
+                    visuelle de ton application Java : bleu nuit, cyan doux, blanc lumineux et accent doré.
                 </p>
                 <div class="hero-search">
                     <span>📍</span>
-                    <input type="text" value="sidi bou said" placeholder="{{ 'front.home.hero_search_placeholder'|trans }}">
-                    <a class="cta-btn" href="{{ path('app_lieux') }}">{{ 'front.home.explore'|trans }}</a>
+                    <input type="text" value="sidi bou said" placeholder="Ville, activité, restaurant...">
+                    <a class="cta-btn" href="{{ path('app_lieux') }}">Explorer</a>
                 </div>
                 <div class="hero-tags">
                     <span class="hero-tag">Cafés</span>
@@ -177,16 +178,16 @@
             </div>
             <div class="hero-side">
                 <div class="hero-mini-card">
-                    <h3>{{ 'front.home.kpi_places'|trans({'%count%': stats.lieux}) }}</h3>
-                    <p>{{ 'front.home.kpi_places_desc'|trans }}</p>
+                    <h3>{{ stats.lieux }} lieux référencés</h3>
+                    <p>Base enrichie avec cafés, restaurants, lieux publics, musées, plages et centres commerciaux.</p>
                 </div>
                 <div class="hero-mini-card">
-                    <h3>{{ 'front.home.kpi_outings'|trans({'%count%': stats.sorties}) }}</h3>
-                    <p>{{ 'front.home.kpi_outings_desc'|trans }}</p>
+                    <h3>{{ stats.sorties }} sorties sociales</h3>
+                    <p>Des sorties ouvertes, confirmées ou terminées, prêtes à être affichées côté front.</p>
                 </div>
                 <div class="hero-mini-card">
-                    <h3>{{ 'front.home.kpi_events_offers'|trans({'%events%': stats.events, '%offers%': stats.offres}) }}</h3>
-                    <p>{{ 'front.home.kpi_events_offers_desc'|trans }}</p>
+                    <h3>{{ stats.events }} événements & {{ stats.offres }} offres</h3>
+                    <p>Parfait pour montrer le potentiel de la plateforme dans Symfony.</p>
                 </div>
             </div>
         </div>
@@ -195,10 +196,10 @@
     <section>
         <div class="section-head">
             <div>
-                    <h2 class="section-title">{{ 'front.home.trending_cities'|trans }}</h2>
-                    <p class="section-subtitle">{{ 'front.home.trending_cities_subtitle'|trans }}</p>
+                <h2 class="section-title">Villes tendance</h2>
+                <p class="section-subtitle">Clique sur une ville pour explorer ses lieux.</p>
             </div>
-            <a href="{{ path('app_lieux') }}" class="text-link">{{ 'common.view_all'|trans }}</a>
+            <a href="{{ path('app_lieux') }}" class="text-link">Voir tout</a>
         </div>
         <div class="grid-cards">
             {% set cityClasses = ['bg-tunis', 'bg-marsa', 'bg-sidibou', 'bg-hammamet', 'bg-nabeul', 'bg-monastir'] %}
@@ -210,7 +211,7 @@
                     </div>
                 </article>
             {% else %}
-                <div class="empty-state card-span-12">{{ 'front.home.no_city'|trans }}</div>
+                <div class="empty-state card-span-12">Aucune ville disponible pour le moment.</div>
             {% endfor %}
         </div>
     </section>
@@ -219,8 +220,8 @@
         <div class="card-span-6">
             <div class="section-head">
                 <div>
-                    <h2 class="section-title">{{ 'front.home.places_to_discover'|trans }}</h2>
-                    <p class="section-subtitle">{{ 'front.home.places_to_discover_subtitle'|trans }}</p>
+                    <h2 class="section-title">Lieux à découvrir</h2>
+                    <p class="section-subtitle">Sélection alimentée par la base existante.</p>
                 </div>
             </div>
             <div class="listing-grid">
@@ -239,7 +240,7 @@
                         </div>
                     </article>
                 {% else %}
-                    <div class="empty-state">{{ 'front.home.no_place'|trans }}</div>
+                    <div class="empty-state">Aucun lieu disponible.</div>
                 {% endfor %}
             </div>
         </div>
@@ -247,8 +248,8 @@
         <div class="card-span-6">
             <div class="section-head">
                 <div>
-                    <h2 class="section-title">{{ 'front.home.outings_offers'|trans }}</h2>
-                    <p class="section-subtitle">{{ 'front.home.outings_offers_subtitle'|trans }}</p>
+                    <h2 class="section-title">Sorties & offres</h2>
+                    <p class="section-subtitle">Contenu dynamique prêt pour Symfony.</p>
                 </div>
             </div>
             <div class="home-sorties-grid" style="margin-bottom:14px;">
@@ -270,7 +271,7 @@
                                 <h3 class="home-sortie-title">{{ sortie.titre }}</h3>
                                 <p class="home-sortie-meta">{{ sortie.ville }} · {{ sortie.date_sortie|date('d/m/Y H:i') }}</p>
                                 <div class="home-sortie-pills">
-                                    <span class="home-sortie-pill">{{ sortie.type_activite ?: ('front.home.default_outing'|trans) }}</span>
+                                    <span class="home-sortie-pill">{{ sortie.type_activite ?: 'Sortie' }}</span>
                                     <span class="{{ statusClass }}">{{ sortie.statut }}</span>
                                     <span class="home-sortie-pill">{{ sortie.budget_max }} TND</span>
                                 </div>
@@ -278,7 +279,7 @@
                         </a>
                     </article>
                 {% else %}
-                    <div class="empty-state" style="grid-column:1/-1;">{{ 'front.home.no_outing'|trans }}</div>
+                    <div class="empty-state" style="grid-column:1/-1;">Aucune sortie disponible.</div>
                 {% endfor %}
             </div>
 
@@ -305,7 +306,7 @@
                         {% endif %}
                     </article>
                 {% else %}
-                    <div class="empty-state">{{ 'front.home.no_offer'|trans }}</div>
+                    <div class="empty-state">Aucune offre disponible.</div>
                 {% endfor %}
             </div>
         </div>
@@ -314,10 +315,10 @@
     <section>
         <div class="section-head">
             <div>
-                <h2 class="section-title">{{ 'front.home.upcoming_events'|trans }}</h2>
-                <p class="section-subtitle">{{ 'front.home.upcoming_events_subtitle'|trans }}</p>
+                <h2 class="section-title">Événements à venir</h2>
+                <p class="section-subtitle">Idéal pour enrichir le front office.</p>
             </div>
-            <a href="{{ path('app_evenements') }}" class="text-link">{{ 'front.home.all_events'|trans }}</a>
+            <a href="{{ path('app_evenements') }}" class="text-link">Tous les événements</a>
         </div>
         <div class="listing-grid">
             {% for event in events %}
@@ -326,7 +327,7 @@
                         <div>
                             <span class="badge-soft">{{ event.type }}</span>
                             <h3>{{ event.titre }}</h3>
-                            <p>{{ event.lieu_nom ?: ('front.home.place_to_define'|trans) }} · {{ event.ville ?: 'Tunisie' }}</p>
+                            <p>{{ event.lieu_nom ?: 'Lieu à définir' }} · {{ event.ville ?: 'Tunisie' }}</p>
                         </div>
                         <span class="price-pill">{{ event.prix }} TND</span>
                     </div>
@@ -335,7 +336,7 @@
                     </div>
                 </article>
             {% else %}
-                <div class="empty-state">{{ 'front.home.no_event'|trans }}</div>
+                <div class="empty-state">Aucun événement disponible.</div>
             {% endfor %}
         </div>
     </section>

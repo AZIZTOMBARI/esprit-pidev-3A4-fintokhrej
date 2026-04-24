@@ -353,6 +353,21 @@ class AnnonceSortie
         return $this;
     }
 
+    #[ORM\OneToOne(targetEntity: ExperienceSharing::class, mappedBy: 'annonceSortie')]
+    private ?ExperienceSharing $experienceSharing = null;
+
+    public function getExperienceSharing(): ?ExperienceSharing
+    {
+        return $this->experienceSharing;
+    }
+
+    public function setExperienceSharing(?ExperienceSharing $experienceSharing): self
+    {
+        $this->experienceSharing = $experienceSharing;
+
+        return $this;
+    }
+
     #[ORM\OneToMany(targetEntity: SortieTask::class, mappedBy: 'annonceSortie')]
     private Collection $sortieTasks;
 
@@ -522,5 +537,4 @@ class AnnonceSortie
 
         return $this;
     }
-
 }

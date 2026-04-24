@@ -33,17 +33,8 @@
             </div>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
-            {% if app.user %}
-                <form method="post" action="{{ path('app_lieu_favorite_toggle', {id: lieu.id}) }}" style="margin:0;">
-                    <input type="hidden" name="_token" value="{{ csrf_token('front_fav_toggle_' ~ lieu.id) }}">
-                    <button type="submit" class="btn-fav {{ isFavorite ? 'is-active' : '' }}">
-                        {{ isFavorite ? '♥ Retirer des favoris' : '♥ Ajouter aux favoris' }}
-                    </button>
-                </form>
-            {% else %}
-                <a href="{{ path('app_login') }}" class="btn-fav" style="text-decoration:none;display:inline-flex;align-items:center;">♥ Ajouter aux favoris</a>
-            {% endif %}
-            <button type="button" class="btn-secondary" onclick="openShareModal()">↗ Partager</button>
+            <button type="button" class="btn-fav" id="favBtn">♥ Ajouter aux favoris</button>
+            <button type="button" class="btn-secondary" onclick="copyShareLink()">↗ Partager</button>
             {% if lieu.latitude is not null and lieu.longitude is not null %}
                 <a href="https://www.google.com/maps?q={{ lieu.latitude }},{{ lieu.longitude }}" target="_blank" rel="noopener" class="btn-maps" style="text-decoration:none;">🗺 Maps</a>
             {% endif %}
@@ -127,21 +118,20 @@
             <!-- Météo Widget -->
             <div class="app-card weather-card">
                 <div class="weather-header">
-                    <div id="weatherTemp" class="weather-temp">--°C</div>
-                    <div id="weatherIcon" class="weather-icons">⛅</div>
+                    <div class="weather-temp">26°C</div>
+                    <div class="weather-icons">☁️📱</div>
                 </div>
                 <div class="weather-location">{{ lieu.ville }}</div>
                 <div class="weather-stats">
                     <div class="weather-stat">
                         <span class="stat-label">💧 Humidité</span>
-                        <span id="weatherHumidity" class="stat-value">--%</span>
+                        <span class="stat-value">47%</span>
                     </div>
                     <div class="weather-stat">
                         <span class="stat-label">💨 Vent</span>
-                        <span id="weatherWind" class="stat-value">-- km/h</span>
+                        <span class="stat-value">2.6 m/s</span>
                     </div>
                 </div>
-                <div id="weatherStatus" class="field-hint" style="margin-top:8px;">Chargement météo en cours...</div>
             </div>
 
             <!-- Budget -->
@@ -278,7 +268,7 @@
                             <span class="star" onclick="setRating({{ i }})" data-value="{{ i }}">★</span>
                         {% endfor %}
                     </div>
-                    <div class="rating-display"><span id="ratingText">0</span>/5</div>
+                    <div class="rating-display"><span id="ratingText">5</span>/5</div>
                 </div>
 
                 <!-- Commentaire -->
@@ -286,13 +276,16 @@
                     <label for="commentaire">Écrire un commentaire (min. 10 caractères)...</label>
                     <textarea id="commentaire" name="commentaire" class="modal-textarea" maxlength="500" placeholder="Votre expérience..."></textarea>
                     <div class="char-count"><span id="charCount">0</span> / 500 caractères</div>
-                    <div id="moderationFeedback" class="moderation-feedback" style="display:none;"></div>
                 </div>
 
                 <!-- Suggestions -->
                 <div class="suggestions">
                     <p class="suggestions-title">💡 Suggestions — cliquez pour remplir :</p>
-                    <div class="suggestion-tags" id="suggestionTags"></div>
+                    <div class="suggestion-tags">
+                        <button type="button" class="suggestion-tag" onclick="addSuggestion('Experience absolument parfaite, un lieu exceptionnel...')">Experience absolument parfaite, un lieu exceptiona...</button>
+                        <button type="button" class="suggestion-tag" onclick="addSuggestion('Coup de coeur total, tout était parfait du début à...')">Coup de coeur total, tout était parfait du début à...</button>
+                        <button type="button" class="suggestion-tag" onclick="addSuggestion('Le meilleur endroit que j\'ai visité, chaque détai...')">Le meilleur endroit que j\'ai visité, chaque détai...</button>
+                    </div>
                 </div>
 
                 <!-- Boutons -->
@@ -301,40 +294,6 @@
                     <button type="button" class="btn-cancel" onclick="closeAvisModal()">Annuler</button>
                 </div>
             </form>
-        </div>
-    </div>
-
-    <!-- Modal Partage -->
-    <div id="shareModal" class="modal-overlay" style="display:none;">
-        <div class="modal-content share-modal-content">
-            <div class="modal-header">
-                <h2>Partager</h2>
-                <button type="button" class="modal-close" onclick="closeShareModal()">✕</button>
-            </div>
-
-            <div class="share-actions-grid">
-                <button type="button" class="share-action-btn" onclick="shareOnWhatsapp()">
-                    <span class="share-action-icon">🟢</span>
-                    <span>WhatsApp</span>
-                </button>
-                <button type="button" class="share-action-btn" onclick="shareOnFacebook()">
-                    <span class="share-action-icon">📘</span>
-                    <span>Facebook</span>
-                </button>
-                <button type="button" class="share-action-btn" onclick="shareOnInstagram()">
-                    <span class="share-action-icon">📸</span>
-                    <span>Instagram</span>
-                </button>
-            </div>
-
-            <div class="share-link-block">
-                <label for="shareLinkInput">Lien du lieu</label>
-                <div class="share-link-row">
-                    <input id="shareLinkInput" type="text" readonly>
-                    <button type="button" class="btn-submit" style="max-width:130px;" onclick="copyShareLink()">Copier</button>
-                </div>
-                <small id="shareHint" class="field-hint">Copiez le lien puis partagez-le où vous voulez.</small>
-            </div>
         </div>
     </div>
 
@@ -419,11 +378,6 @@
         background: #fef2f2;
         border-color: #fecaca;
         color: #dc2626;
-    }
-    .btn-fav.is-active {
-        background: #fee2e2;
-        border-color: #fca5a5;
-        color: #b91c1c;
     }
     .btn-secondary:hover, .btn-maps:hover {
         background: #f1f5f9;
@@ -836,9 +790,6 @@
         overflow-y: auto;
         box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
     }
-    .share-modal-content {
-        max-width: 640px;
-    }
     .modal-header {
         display: flex;
         justify-content: space-between;
@@ -859,57 +810,6 @@
     }
     .modal-close:hover {
         color: #0f172a;
-    }
-
-    .share-actions-grid {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 12px;
-        margin-bottom: 18px;
-    }
-    .share-action-btn {
-        border: 1px solid #dbe4f0;
-        background: #f8fafc;
-        border-radius: 12px;
-        padding: 14px;
-        display: grid;
-        gap: 6px;
-        justify-items: center;
-        cursor: pointer;
-        color: #1e293b;
-        font-weight: 600;
-    }
-    .share-action-btn:hover {
-        background: #eef2ff;
-        border-color: #bfdbfe;
-    }
-    .share-action-icon {
-        font-size: 24px;
-        line-height: 1;
-    }
-    .share-link-block {
-        border-top: 1px solid #e2e8f0;
-        padding-top: 14px;
-        display: grid;
-        gap: 8px;
-    }
-    .share-link-block label {
-        font-weight: 600;
-        color: #334155;
-        font-size: 14px;
-    }
-    .share-link-row {
-        display: flex;
-        gap: 10px;
-    }
-    .share-link-row input {
-        flex: 1;
-        border: 1px solid #cbd5e1;
-        border-radius: 10px;
-        padding: 10px 12px;
-        font-size: 14px;
-        color: #0f172a;
-        background: #f8fafc;
     }
 
     /* Star Rating */
@@ -969,23 +869,6 @@
     .char-count {
         font-size: 12px;
         color: #94a3b8;
-    }
-    .moderation-feedback {
-        border-radius: 10px;
-        padding: 10px 12px;
-        font-size: 12px;
-        font-weight: 600;
-        line-height: 1.5;
-    }
-    .moderation-feedback--moderate {
-        background: #fff7ed;
-        border: 1px solid #fed7aa;
-        color: #9a3412;
-    }
-    .moderation-feedback--severe {
-        background: #fef2f2;
-        border: 1px solid #fecaca;
-        color: #991b1b;
     }
 
     /* Suggestions */
@@ -1129,25 +1012,12 @@
         .hero-img {
             height: 250px;
         }
-        .share-actions-grid {
-            grid-template-columns: 1fr;
-        }
-        .share-link-row {
-            flex-direction: column;
-        }
     }
 </style>
 
 <script>
     const lieuId = {{ lieu.id }};
     const currentUserId = {{ app.user ? app.user.id : 'null' }};
-    const serverWeather = {
-        temperature: {{ weather.temperature is not null ? weather.temperature : 'null' }},
-        humidity: {{ weather.humidity is not null ? weather.humidity : 'null' }},
-        windKmH: {{ weather.windKmH is not null ? weather.windKmH : 'null' }},
-        icon: `{{ weather.icon|default('🌍')|escape('js') }}`,
-        message: `{{ weather.message|default('Meteo indisponible.')|escape('js') }}`,
-    };
     {% if currentUserEvaluation %}
         const currentEvaluationId = {{ currentUserEvaluation.id }};
         const currentEvaluationNote = {{ currentUserEvaluation.note }};
@@ -1163,134 +1033,6 @@
     {% endif %}
     const createAvisUrl = '{{ path('app_lieu_evaluation_create', {id: lieu.id}) }}';
     const createAvisToken = '{{ csrf_token('front_eval_create_' ~ lieu.id) }}';
-    const moderationPreviewUrl = '{{ path('app_review_moderation_preview') }}';
-    const sharePageUrl = window.location.href;
-    const shareTitle = `Découvrez ${`{{ lieu.nom|escape('js') }}`} sur Fin Tokhroj`;
-    const shareText = `Jetez un œil à ce lieu: ${`{{ lieu.nom|escape('js') }}`}`;
-    let moderationState = { hasViolation: false, severity: 'none', score: 0, matches: [] };
-    let moderationTimer = null;
-
-    function escapeHtml(value) {
-        return String(value)
-            .replaceAll('&', '&amp;')
-            .replaceAll('<', '&lt;')
-            .replaceAll('>', '&gt;')
-            .replaceAll('"', '&quot;')
-            .replaceAll("'", '&#039;');
-    }
-
-    function renderModerationFeedback() {
-        const box = document.getElementById('moderationFeedback');
-        if (!box) return;
-
-        if (!moderationState.hasViolation) {
-            box.style.display = 'none';
-            box.className = 'moderation-feedback';
-            box.innerHTML = '';
-            return;
-        }
-
-        const severity = moderationState.severity === 'severe' ? 'severe' : 'moderate';
-        const terms = Array.isArray(moderationState.matches)
-            ? moderationState.matches.map((m) => escapeHtml(m.term)).filter(Boolean)
-            : [];
-
-        const headline = severity === 'severe'
-            ? 'Contenu potentiellement toxique (niveau sévère).'
-            : 'Contenu inapproprié détecté (niveau modéré).';
-
-        const details = terms.length > 0
-            ? `Termes détectés: ${terms.join(', ')}.`
-            : 'Veuillez reformuler votre commentaire.';
-
-        box.className = `moderation-feedback moderation-feedback--${severity}`;
-        box.style.display = 'block';
-        box.innerHTML = `${headline} Score: ${Number(moderationState.score || 0)}. ${details}`;
-    }
-
-    async function runModerationPreview(text) {
-        const value = String(text || '').trim();
-        if (value.length < 3) {
-            moderationState = { hasViolation: false, severity: 'none', score: 0, matches: [] };
-            renderModerationFeedback();
-            return;
-        }
-
-        try {
-            const res = await fetch(moderationPreviewUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
-                body: new URLSearchParams({ text: value }),
-                credentials: 'same-origin',
-            });
-
-            if (!res.ok) {
-                return;
-            }
-
-            const data = await res.json();
-            moderationState = {
-                hasViolation: Boolean(data?.hasViolation),
-                severity: String(data?.severity || 'none'),
-                score: Number(data?.score || 0),
-                matches: Array.isArray(data?.matches) ? data.matches : [],
-            };
-            renderModerationFeedback();
-        } catch (_) {
-            // En cas d'erreur réseau, on ne bloque pas la saisie UX.
-        }
-    }
-
-    const suggestionByRating = {
-        0: [
-            'Je n\'ai pas encore choisi ma note, mais voici mon ressenti global...',
-            'Mon expérience est mitigée, je détaille les points importants...',
-            'Je vais résumer les points positifs et négatifs de ce lieu...'
-        ],
-        1: [
-            'Très mauvaise expérience: service décevant et ambiance désagréable.',
-            'Je ne recommande pas ce lieu: hygiène et qualité insuffisantes.',
-            'Déçu du début à la fin, il y a plusieurs points à améliorer rapidement.'
-        ],
-        2: [
-            'Expérience en dessous des attentes, quelques points restent corrects.',
-            'Le lieu a du potentiel, mais le service et l\'organisation sont à revoir.',
-            'Moyen-faible: certains aspects sont passables, mais globalement décevant.'
-        ],
-        3: [
-            'Expérience correcte dans l\'ensemble, sans être mémorable.',
-            'Bon compromis, mais il manque quelque chose pour se démarquer.',
-            'Lieu acceptable: points positifs et négatifs assez équilibrés.'
-        ],
-        4: [
-            'Très bonne expérience, service agréable et cadre réussi.',
-            'Lieu recommandé: qualité au rendez-vous avec quelques détails à peaufiner.',
-            'J\'ai passé un bon moment, je reviendrai probablement.'
-        ],
-        5: [
-            'Expérience excellente, tout était parfait du début à la fin.',
-            'Coup de cœur total: service, ambiance et qualité irréprochables.',
-            'Lieu exceptionnel, je recommande vivement à tout le monde.'
-        ]
-    };
-
-    function renderSuggestionTags(rating) {
-        const container = document.getElementById('suggestionTags');
-        if (!container) return;
-
-        const current = Number.isFinite(Number(rating)) ? Number(rating) : 0;
-        const suggestions = suggestionByRating[current] || suggestionByRating[0];
-
-        container.innerHTML = '';
-        suggestions.forEach((text) => {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'suggestion-tag';
-            btn.textContent = text.length > 52 ? `${text.slice(0, 52)}...` : text;
-            btn.addEventListener('click', () => addSuggestion(text));
-            container.appendChild(btn);
-        });
-    }
 
     function openAvisModal() {
         const modal = document.getElementById('avisModal');
@@ -1317,10 +1059,6 @@
         updateRatingDisplay(currentEvaluationNote);
         updateCharCount();
         highlightStars(currentEvaluationNote);
-        renderSuggestionTags(currentEvaluationNote);
-        moderationState = { hasViolation: false, severity: 'none', score: 0, matches: [] };
-        renderModerationFeedback();
-        runModerationPreview(currentEvaluationCommentaire);
         modal.style.display = 'flex';
     }
 
@@ -1332,7 +1070,6 @@
         document.getElementById('note').value = value;
         updateRatingDisplay(value);
         highlightStars(value);
-        renderSuggestionTags(value);
     }
 
     function updateRatingDisplay(value) {
@@ -1362,15 +1099,11 @@
         updateRatingDisplay(0);
         updateCharCount();
         document.querySelectorAll('.star').forEach(star => star.classList.remove('active'));
-        renderSuggestionTags(0);
-        moderationState = { hasViolation: false, severity: 'none', score: 0, matches: [] };
-        renderModerationFeedback();
     }
 
     function addSuggestion(text) {
         document.getElementById('commentaire').value = text;
         updateCharCount();
-        runModerationPreview(text);
     }
 
     function deleteAvis(evaluationId) {
@@ -1395,136 +1128,12 @@
         }
     }
 
-    function openShareModal() {
-        const modal = document.getElementById('shareModal');
-        const input = document.getElementById('shareLinkInput');
-        const hint = document.getElementById('shareHint');
-
-        if (input) {
-            input.value = sharePageUrl;
-        }
-        if (hint) {
-            hint.textContent = 'Copiez le lien puis partagez-le où vous voulez.';
-        }
-        if (modal) {
-            modal.style.display = 'flex';
-        }
-    }
-
-    function closeShareModal() {
-        const modal = document.getElementById('shareModal');
-        if (modal) {
-            modal.style.display = 'none';
-        }
-    }
-
     function copyShareLink() {
-        const hint = document.getElementById('shareHint');
-        navigator.clipboard.writeText(sharePageUrl).then(function () {
-            if (hint) {
-                hint.textContent = 'Lien copié dans le presse-papiers.';
-            }
+        navigator.clipboard.writeText(window.location.href).then(function () {
+            alert('Lien copié dans le presse-papiers.');
         }).catch(function () {
-            if (hint) {
-                hint.textContent = 'Impossible de copier automatiquement. Copiez le lien manuellement.';
-            }
+            alert('Impossible de copier le lien.');
         });
-    }
-
-    function shareOnWhatsapp() {
-        const url = `https://wa.me/?text=${encodeURIComponent(`${shareText}\n${sharePageUrl}`)}`;
-        window.open(url, '_blank', 'noopener');
-    }
-
-    function shareOnFacebook() {
-        const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(sharePageUrl)}`;
-        window.open(url, '_blank', 'noopener');
-    }
-
-    function shareOnInstagram() {
-        copyShareLink();
-        window.open('https://www.instagram.com/', '_blank', 'noopener');
-        const hint = document.getElementById('shareHint');
-        if (hint) {
-            hint.textContent = 'Instagram ne permet pas le partage direct de lien web: le lien a été copié. Collez-le dans votre bio / DM / story.';
-        }
-    }
-
-    function getWeatherIconAndLabel(weatherCode) {
-        if ([0].includes(weatherCode)) return { icon: '☀️', label: 'Ciel dégagé' };
-        if ([1, 2].includes(weatherCode)) return { icon: '🌤️', label: 'Partiellement nuageux' };
-        if ([3].includes(weatherCode)) return { icon: '☁️', label: 'Couvert' };
-        if ([45, 48].includes(weatherCode)) return { icon: '🌫️', label: 'Brouillard' };
-        if ([51, 53, 55, 56, 57].includes(weatherCode)) return { icon: '🌦️', label: 'Bruine' };
-        if ([61, 63, 65, 66, 67, 80, 81, 82].includes(weatherCode)) return { icon: '🌧️', label: 'Pluie' };
-        if ([71, 73, 75, 77, 85, 86].includes(weatherCode)) return { icon: '❄️', label: 'Neige' };
-        if ([95, 96, 99].includes(weatherCode)) return { icon: '⛈️', label: 'Orage' };
-        return { icon: '🌍', label: 'Météo actuelle' };
-    }
-
-    async function loadLiveWeather() {
-        const tempEl = document.getElementById('weatherTemp');
-        const iconEl = document.getElementById('weatherIcon');
-        const humidityEl = document.getElementById('weatherHumidity');
-        const windEl = document.getElementById('weatherWind');
-        const statusEl = document.getElementById('weatherStatus');
-
-        if (!tempEl || !iconEl || !humidityEl || !windEl || !statusEl) {
-            return;
-        }
-
-        if (!Number.isFinite(Number(lieuLatitude)) || !Number.isFinite(Number(lieuLongitude))) {
-            statusEl.textContent = 'Météo indisponible: coordonnées du lieu non renseignées.';
-            return;
-        }
-
-        try {
-            const url = `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lieuLatitude)}&longitude=${encodeURIComponent(lieuLongitude)}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code&timezone=auto`;
-            const response = await fetch(url, { headers: { Accept: 'application/json' } });
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-
-            const data = await response.json();
-            const current = data?.current;
-            if (!current) {
-                throw new Error('Réponse météo incomplète');
-            }
-
-            const temperature = Number(current.temperature_2m);
-            const humidity = Number(current.relative_humidity_2m);
-            const wind = Number(current.wind_speed_10m);
-            const weatherCode = Number(current.weather_code);
-
-            const { icon, label } = getWeatherIconAndLabel(weatherCode);
-
-            tempEl.textContent = Number.isFinite(temperature) ? `${Math.round(temperature)}°C` : '--°C';
-            humidityEl.textContent = Number.isFinite(humidity) ? `${Math.round(humidity)}%` : '--%';
-            windEl.textContent = Number.isFinite(wind) ? `${Math.round(wind * 10) / 10} km/h` : '-- km/h';
-            iconEl.textContent = icon;
-            statusEl.textContent = label;
-        } catch (_) {
-            statusEl.textContent = 'Impossible de charger la météo en temps réel.';
-        }
-    }
-
-    function loadLiveWeather() {
-        const tempEl = document.getElementById('weatherTemp');
-        const iconEl = document.getElementById('weatherIcon');
-        const humidityEl = document.getElementById('weatherHumidity');
-        const windEl = document.getElementById('weatherWind');
-        const statusEl = document.getElementById('weatherStatus');
-
-        if (!tempEl || !iconEl || !humidityEl || !windEl || !statusEl) {
-            return;
-        }
-
-        tempEl.textContent = serverWeather.temperature === null ? '--°C' : `${Math.round(serverWeather.temperature)}°C`;
-        humidityEl.textContent = serverWeather.humidity === null ? '--%' : `${Math.round(serverWeather.humidity)}%`;
-        windEl.textContent = serverWeather.windKmH === null ? '-- km/h' : `${Number(serverWeather.windKmH).toFixed(1)} km/h`;
-        iconEl.textContent = serverWeather.icon || '🌍';
-        statusEl.textContent = serverWeather.message || 'Meteo indisponible.';
     }
 
     // Search dans les avis
@@ -1542,30 +1151,14 @@
     // Update char count en temps réel
     const textarea = document.getElementById('commentaire');
     if (textarea) {
-        textarea.addEventListener('input', (e) => {
-            updateCharCount();
-            if (moderationTimer) {
-                clearTimeout(moderationTimer);
-            }
-            moderationTimer = window.setTimeout(() => {
-                runModerationPreview(e.target.value);
-            }, 220);
-        });
+        textarea.addEventListener('input', updateCharCount);
     }
-
-    renderSuggestionTags(0);
-    renderModerationFeedback();
-    loadLiveWeather();
 
     // Fermer le modal en cliquant en dehors
     window.addEventListener('click', function (event) {
         const modal = document.getElementById('avisModal');
-        const shareModal = document.getElementById('shareModal');
         if (event.target === modal) {
             closeAvisModal();
-        }
-        if (event.target === shareModal) {
-            closeShareModal();
         }
     });
 
@@ -1583,11 +1176,6 @@
         if (commentaire.length < 10 && commentaire.length > 0) {
             alert('Le commentaire doit contenir au moins 10 caractères.');
             return;
-        }
-
-        if (moderationState.hasViolation) {
-            renderModerationFeedback();
-            alert('Ce commentaire contient un contenu inapproprié. Il sera refusé côté serveur.');
         }
 
         this.submit();

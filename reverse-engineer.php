@@ -7,7 +7,7 @@ $dbHost = '127.0.0.1';
 $dbName = 'fintokhrej';
 $dbUser = 'root';
 $dbPass = '';
-$dbPort = 3307;
+$dbPort = 3306;
 
 // Entity namespace and output directory
 $namespace = 'App\\Entity';
@@ -507,3 +507,4 @@ function mapMySQLTypeToDoctrineType($mysqlType)
         return 'string';
     }
 }
+
