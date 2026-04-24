@@ -10,6 +10,18 @@
         </div>
     </div>
 
+    {% if hasModerationTable is defined and not hasModerationTable %}
+        <div class="users-feedback users-feedback--error" style="margin-bottom:14px;">
+            La table review_moderation_log est absente. Exécutez les migrations pour voir les tentatives de contenu toxique.
+        </div>
+    {% endif %}
+
+    {% if hasBanColumns is defined and not hasBanColumns %}
+        <div class="users-feedback users-feedback--error" style="margin-bottom:14px;">
+            Les colonnes user.banned_until / user.ban_reason sont absentes: la consultation fonctionne, mais le bannissement est désactivé jusqu'à migration.
+        </div>
+    {% endif %}
+
     <div class="stats-grid" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:14px;">
         <article class="app-card stat-card">
             <div class="stat-card__label">Tentatives aujourd'hui</div>
@@ -88,7 +100,11 @@
                             <td style="padding:10px 8px;">{{ row.terms_text }}</td>
                             <td style="padding:10px 8px;max-width:380px;white-space:normal;word-break:break-word;">{{ row.comment_preview|default('-') }}</td>
                             <td style="padding:10px 8px;min-width:250px;">
-                                {% if row.active_ban_until %}
+                                {% if row.user_id is empty %}
+                                    <small style="display:block;color:#60758f;">Utilisateur introuvable (compte supprimé).</small>
+                                {% elseif hasBanColumns is defined and not hasBanColumns %}
+                                    <small style="display:block;color:#60758f;">Bannissement indisponible: migration non appliquée.</small>
+                                {% elseif row.active_ban_until %}
                                     <div style="margin-bottom:8px;">
                                         <span class="status-pill status-annulee">Banni jusqu'au {{ row.active_ban_until|date('d/m/Y H:i') }}</span>
                                     </div>

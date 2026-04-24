@@ -7,9 +7,11 @@ use App\Form\ProfileUpdateFormType;
 use App\Form\RegistrationFormType;
 use App\Repository\UserRepository;
 use App\Service\FaceRecognitionService;
+use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use KnpU\OAuth2ClientBundle\Client\ClientRegistry;
 use League\OAuth2\Client\Provider\GoogleUser;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security as SecurityHelper;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
@@ -278,7 +280,7 @@ class SecurityController extends AbstractController
     }
 
     #[Route('/profile', name: 'app_profile', methods: ['GET', 'POST'])]
-    public function profile(Request $request, EntityManagerInterface $entityManager, SluggerInterface $slugger): Response
+    public function profile(Request $request, EntityManagerInterface $entityManager, SluggerInterface $slugger, Connection $connection): Response
     {
         $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
 
@@ -320,13 +322,23 @@ class SecurityController extends AbstractController
             }
         }
 
+        $favoritePlaces = $connection->fetchAllAssociative(
+            "SELECT l.id, l.nom, l.ville, l.categorie, l.type, l.image_url, l.budget_min, l.budget_max
+             FROM favori_lieu f
+             INNER JOIN lieu l ON l.id = f.lieu_id
+             WHERE f.user_id = ?
+             ORDER BY f.lieu_id DESC",
+            [$user->getId()]
+        );
+
         return $this->render('security/profile.html.twig', [
             'form' => $form,
+            'favoritePlaces' => $favoritePlaces,
         ]);
     }
 
     #[Route('/forgot-password', name: 'app_forgot_password_request', methods: ['GET', 'POST'])]
-    public function forgotPasswordRequest(Request $request, UserRepository $userRepository, MailerInterface $mailer): Response
+    public function forgotPasswordRequest(Request $request, UserRepository $userRepository, MailerInterface $mailer, LoggerInterface $logger): Response
     {
         $lastEmail = '';
 
@@ -344,15 +356,18 @@ class SecurityController extends AbstractController
                 $user = $userRepository->findOneBy(['email' => $lastEmail]);
 
                 if ($user instanceof User) {
+                    $mailerDsn = (string) ($_ENV['MAILER_DSN'] ?? $_SERVER['MAILER_DSN'] ?? '');
+                    $mailerFrom = (string) ($_ENV['MAILER_FROM_ADDRESS'] ?? $_SERVER['MAILER_FROM_ADDRESS'] ?? 'no-reply@example.com');
+
+                    if ($mailerDsn === '' || str_starts_with($mailerDsn, 'null://')) {
+                        $this->addFlash('error', 'Le service email n est pas configure pour le moment. Verifiez MAILER_DSN.');
+
+                        return $this->redirectToRoute('app_forgot_password_request');
+                    }
+
                     $otp = (string) random_int(100000, 999999);
-                    $session = $request->getSession();
-                    $session->set(self::RESET_OTP_EMAIL, $lastEmail);
-                    $session->set(self::RESET_OTP_HASH, password_hash($otp, PASSWORD_DEFAULT));
-                    $session->set(self::RESET_OTP_EXPIRES_AT, time() + 600);
-                    $session->set(self::RESET_OTP_ATTEMPTS, 0);
 
                     try {
-                        $mailerFrom = (string) ($_ENV['MAILER_FROM_ADDRESS'] ?? $_SERVER['MAILER_FROM_ADDRESS'] ?? 'no-reply@example.com');
                         $message = (new Email())
                             ->from($mailerFrom)
                             ->to($lastEmail)
@@ -361,11 +376,21 @@ class SecurityController extends AbstractController
 
                         $mailer->send($message);
 
+                        $session = $request->getSession();
+                        $session->set(self::RESET_OTP_EMAIL, $lastEmail);
+                        $session->set(self::RESET_OTP_HASH, password_hash($otp, PASSWORD_DEFAULT));
+                        $session->set(self::RESET_OTP_EXPIRES_AT, time() + 600);
+                        $session->set(self::RESET_OTP_ATTEMPTS, 0);
+
                         $this->addFlash('success', 'Un code OTP a ete envoye sur votre email.');
 
                         return $this->redirectToRoute('app_forgot_password_verify');
-                    } catch (TransportExceptionInterface) {
+                    } catch (TransportExceptionInterface|\Throwable $exception) {
                         $this->clearResetSession($request);
+                        $logger->error('Envoi OTP oublie mot de passe echoue', [
+                            'email' => $lastEmail,
+                            'error' => $exception->getMessage(),
+                        ]);
                         $this->addFlash('error', 'Impossible d\'envoyer l\'email OTP pour le moment.');
                     }
                 } else {

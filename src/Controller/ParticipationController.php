@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\User;
 use App\Form\ParticipationRequestType;
 use App\Model\ParticipationRequestData;
+use App\Service\GamificationService;
 use App\Service\NotificationService;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception;
@@ -582,7 +583,7 @@ class ParticipationController extends AbstractController
     }
 
     #[Route('/sorties/{id}/demandes/{participationId}/accepter', name: 'app_sorties_demandes_accept', requirements: ['id' => '\\d+', 'participationId' => '\\d+'], methods: ['POST'])]
-    public function acceptPendingRequest(int $id, int $participationId, Request $request, Connection $connection, NotificationService $notificationService): RedirectResponse
+    public function acceptPendingRequest(int $id, int $participationId, Request $request, Connection $connection, NotificationService $notificationService, GamificationService $gamificationService): RedirectResponse
     {
         if ($this->isGranted('ROLE_ADMIN')) {
             return $this->redirectToRoute('app_admin_participations');
@@ -640,6 +641,8 @@ class ParticipationController extends AbstractController
                 $id,
                 ['statut' => 'CONFIRMEE', 'anchor' => 'participation']
             );
+
+            $this->flashGamificationBadges($gamificationService->awardActionPoints((int) $participation['user_id'], 'SORTIE_JOINTE'));
 
             $this->refreshSortieStatusByCapacity($connection, $notificationService, $id, (int) $currentUser->getId());
             $this->addFlash('success', 'Demande acceptée.');
@@ -784,5 +787,20 @@ class ParticipationController extends AbstractController
         }
 
         return strlen($digits) === 8 ? $digits : '';
+    }
+
+    /**
+     * @param list<array<string, mixed>> $badges
+     */
+    private function flashGamificationBadges(array $badges): void
+    {
+        foreach ($badges as $badge) {
+            $this->addFlash('gamification_badges', [
+                'emoji' => (string) ($badge['emoji'] ?? '🏅'),
+                'nom' => (string) ($badge['nom'] ?? 'Badge'),
+                'description' => (string) ($badge['description'] ?? ''),
+                'points_bonus' => (int) ($badge['points_bonus'] ?? 0),
+            ]);
+        }
     }
 }

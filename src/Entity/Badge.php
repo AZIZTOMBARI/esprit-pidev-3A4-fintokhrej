@@ -127,34 +127,6 @@ class Badge
         return $this;
     }
 
-    #[ORM\OneToOne(targetEntity: BadgeRecompense::class, mappedBy: 'badge')]
-    private ?BadgeRecompense $badgeRecompense = null;
-
-    public function getBadgeRecompense(): ?BadgeRecompense
-    {
-        return $this->badgeRecompense;
-    }
-
-    public function setBadgeRecompense(?BadgeRecompense $badgeRecompense): self
-    {
-        $this->badgeRecompense = $badgeRecompense;
-        return $this;
-    }
-
-    #[ORM\OneToOne(targetEntity: OffreBadgeUser::class, mappedBy: 'badge')]
-    private ?OffreBadgeUser $offreBadgeUser = null;
-
-    public function getOffreBadgeUser(): ?OffreBadgeUser
-    {
-        return $this->offreBadgeUser;
-    }
-
-    public function setOffreBadgeUser(?OffreBadgeUser $offreBadgeUser): self
-    {
-        $this->offreBadgeUser = $offreBadgeUser;
-        return $this;
-    }
-
     #[ORM\ManyToMany(targetEntity: User::class, inversedBy: 'badges')]
     #[ORM\JoinTable(
         name: 'user_badge',

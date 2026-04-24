@@ -1,0 +1,48 @@
+{% set badgeToasts = app.flashes('gamification_badges') %}
+{% if badgeToasts is not empty %}
+    <div id="gamification-toast-stack" style="position:fixed;right:18px;bottom:18px;z-index:3500;display:grid;gap:12px;">
+        {% for badge in badgeToasts %}
+            <article class="gamification-toast" style="display:flex;gap:14px;align-items:flex-start;padding:14px 18px;border-radius:14px;background:linear-gradient(to right,#0d2137,#1a3a5c);border:1.5px solid #4fc3f7;box-shadow:0 10px 26px rgba(0,0,0,.35);min-width:300px;max-width:360px;color:#fff;opacity:0;transform:translateY(30px);">
+                <div style="font-size:2rem;line-height:1;">{{ badge.emoji|default('🏅') }}</div>
+                <div style="display:grid;gap:4px;">
+                    <div style="color:#4fc3f7;font-size:.72rem;font-weight:800;">🎉 Nouveau badge obtenu !</div>
+                    <div style="font-size:.95rem;font-weight:800;">{{ badge.nom|default('Badge') }}</div>
+                    {% if badge.description is not empty %}
+                        <div style="font-size:.78rem;color:#b0bec5;">{{ badge.description }}</div>
+                    {% endif %}
+                    {% if badge.points_bonus|default(0) > 0 %}
+                        <div style="font-size:.78rem;font-weight:800;color:#ffd700;">+{{ badge.points_bonus }} pts bonus !</div>
+                    {% endif %}
+                </div>
+            </article>
+        {% endfor %}
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.gamification-toast').forEach((toast, index) => {
+                const delay = index * 600;
+                window.setTimeout(() => {
+                    toast.animate(
+                        [
+                            { opacity: 0, transform: 'translateY(30px)' },
+                            { opacity: 1, transform: 'translateY(0)' }
+                        ],
+                        { duration: 300, easing: 'ease-out', fill: 'forwards' }
+                    );
+
+                    window.setTimeout(() => {
+                        const outro = toast.animate(
+                            [
+                                { opacity: 1, transform: 'translateY(0)' },
+                                { opacity: 0, transform: 'translateY(10px)' }
+                            ],
+                            { duration: 400, easing: 'ease-in', fill: 'forwards' }
+                        );
+                        outro.onfinish = () => toast.remove();
+                    }, 4300);
+                }, delay);
+            });
+        });
+    </script>
+{% endif %}

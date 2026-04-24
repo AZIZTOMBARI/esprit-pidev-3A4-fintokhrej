@@ -5,10 +5,13 @@ namespace App\Controller;
 use App\Entity\User;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Mailer\MailerInterface;
+use Symfony\Component\Mime\Email;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -28,6 +31,228 @@ class AdminController extends AbstractController
                 'visiteurs' => $this->fetchValue($connection, "SELECT COUNT(*) FROM user WHERE role = 'visiteur'"),
             ],
         ]);
+    }
+
+    #[Route('/moderation', name: 'app_admin_moderation')]
+    public function moderation(Request $request, Connection $connection): Response
+    {
+        $page = max(1, (int) $request->query->get('page', 1));
+        $pageSize = 12;
+        $dateFrom = trim((string) $request->query->get('date_from', ''));
+        $severity = trim((string) $request->query->get('severity', ''));
+        $lieuId = trim((string) $request->query->get('lieu_id', ''));
+
+        $filters = [
+            'date_from' => $dateFrom,
+            'severity' => $severity,
+            'lieu_id' => $lieuId,
+        ];
+
+        $hasModerationTable = $this->hasReviewModerationTable($connection);
+        $hasBanColumns = $this->hasUserBanColumns($connection);
+
+        if (!$hasModerationTable) {
+            return $this->render('admin/moderation/index.html.twig', [
+                'active' => 'moderation',
+                'stats' => [
+                    'today' => 0,
+                    'severe' => 0,
+                    'moderate' => 0,
+                ],
+                'filters' => $filters,
+                'lieux' => $this->fetchAll($connection, 'SELECT id, nom, ville FROM lieu ORDER BY nom ASC'),
+                'rows' => [],
+                'total' => 0,
+                'page' => 1,
+                'totalPages' => 1,
+                'hasModerationTable' => false,
+                'hasBanColumns' => $hasBanColumns,
+            ]);
+        }
+
+        $whereParts = [];
+        $params = [];
+
+        if ($dateFrom !== '') {
+            $whereParts[] = 'DATE(m.created_at) >= ?';
+            $params[] = $dateFrom;
+        }
+
+        if ($severity === 'severe') {
+            $whereParts[] = "m.severity = 'severe'";
+        } elseif ($severity === 'moderate') {
+            $whereParts[] = "m.severity = 'moderate'";
+        }
+
+        if ($lieuId !== '' && ctype_digit($lieuId)) {
+            $whereParts[] = 'm.lieu_id = ?';
+            $params[] = (int) $lieuId;
+        }
+
+        $whereSql = $whereParts !== [] ? ' WHERE '.implode(' AND ', $whereParts) : '';
+
+        $total = (int) $connection->fetchOne('SELECT COUNT(*) FROM review_moderation_log m'.$whereSql, $params);
+        $totalPages = max(1, (int) ceil($total / $pageSize));
+        $page = min($page, $totalPages);
+        $offset = ($page - 1) * $pageSize;
+
+        if ($hasBanColumns) {
+            $rowsSql = "SELECT m.id,
+                        m.user_id,
+                        u.prenom,
+                        u.nom,
+                        u.email,
+                        u.banned_until AS active_ban_until,
+                        u.ban_reason AS active_ban_reason,
+                        m.created_at,
+                        l.nom AS lieu_nom,
+                        l.ville AS lieu_ville,
+                        m.severity,
+                        m.score,
+                        COALESCE(m.terms_text, '') AS terms_text,
+                        COALESCE(m.comment_preview, '') AS comment_preview
+                 FROM review_moderation_log m
+                 LEFT JOIN user u ON u.id = m.user_id
+                 LEFT JOIN lieu l ON l.id = m.lieu_id";
+        } else {
+            $rowsSql = "SELECT m.id,
+                        m.user_id,
+                        u.prenom,
+                        u.nom,
+                        u.email,
+                        NULL AS active_ban_until,
+                        NULL AS active_ban_reason,
+                        m.created_at,
+                        l.nom AS lieu_nom,
+                        l.ville AS lieu_ville,
+                        m.severity,
+                        m.score,
+                        COALESCE(m.terms_text, '') AS terms_text,
+                        COALESCE(m.comment_preview, '') AS comment_preview
+                 FROM review_moderation_log m
+                 LEFT JOIN user u ON u.id = m.user_id
+                 LEFT JOIN lieu l ON l.id = m.lieu_id";
+        }
+
+        $rows = $this->fetchAll(
+            $connection,
+            $rowsSql.$whereSql.' ORDER BY m.created_at DESC, m.id DESC LIMIT '.$pageSize.' OFFSET '.$offset,
+            $params
+        );
+
+        $activeBanCount = 0;
+        foreach ($rows as $row) {
+            if (!empty($row['active_ban_until'])) {
+                $activeBanCount++;
+            }
+        }
+
+        return $this->render('admin/moderation/index.html.twig', [
+            'active' => 'moderation',
+            'stats' => [
+                'today' => $total,
+                'severe' => $activeBanCount,
+                'moderate' => max(0, $total - $activeBanCount),
+            ],
+            'filters' => $filters,
+            'lieux' => $this->fetchAll($connection, 'SELECT id, nom, ville FROM lieu ORDER BY nom ASC'),
+            'rows' => $rows,
+            'total' => $total,
+            'page' => $page,
+            'totalPages' => $totalPages,
+            'hasModerationTable' => true,
+            'hasBanColumns' => $hasBanColumns,
+        ]);
+    }
+
+    #[Route('/moderation/ban-user', name: 'app_admin_moderation_ban_user', methods: ['POST'])]
+    public function moderationBanUser(Request $request, Connection $connection, LoggerInterface $logger, MailerInterface $mailer, HttpClientInterface $httpClient): Response
+    {
+        $userId = (int) $request->request->get('user_id', 0);
+
+        if (!$this->isCsrfTokenValid('admin_moderation_ban_'.$userId, (string) $request->request->get('_token', ''))) {
+            $this->addFlash('error', 'Jeton CSRF invalide pour le bannissement.');
+            return $this->redirectToRoute('app_admin_moderation');
+        }
+
+        if (!$this->hasUserBanColumns($connection)) {
+            $this->addFlash('error', 'La base de données ne contient pas encore les colonnes de modération.');
+            return $this->redirectToRoute('app_admin_moderation');
+        }
+
+        $durationDays = max(1, (int) $request->request->get('duration_days', 7));
+        $reason = trim((string) $request->request->get('reason', 'Contenu toxique détecté par modération'));
+        $bannedUntil = (new \DateTimeImmutable())->modify('+'.$durationDays.' days')->format('Y-m-d H:i:s');
+
+        try {
+            $connection->update('user', [
+                'banned_until' => $bannedUntil,
+                'ban_reason' => $reason,
+            ], [
+                'id' => $userId,
+            ]);
+
+            $userRow = $connection->fetchAssociative(
+                'SELECT email, prenom, nom FROM user WHERE id = ? LIMIT 1',
+                [$userId]
+            );
+
+            if (is_array($userRow)) {
+                $sourceLogId = (int) $request->request->get('source_log_id', 0);
+                $mailSent = $this->sendBanAlertEmail(
+                    $mailer,
+                    $httpClient,
+                    $logger,
+                    (string) ($userRow['email'] ?? ''),
+                    (string) ($userRow['prenom'] ?? ''),
+                    (string) ($userRow['nom'] ?? ''),
+                    $durationDays,
+                    $reason,
+                    $sourceLogId > 0 ? $sourceLogId : null
+                );
+
+                if (!$mailSent) {
+                    $this->addFlash('error', 'Utilisateur banni, mais l\'email de notification n\'a pas pu être envoyé. Vérifiez MAILER_DSN et les logs.');
+                }
+            }
+
+            $this->addFlash('success', 'Utilisateur banni avec succès.');
+        } catch (Exception $e) {
+            $this->addFlash('error', 'Erreur bannissement utilisateur: '.$e->getMessage());
+        }
+
+        return $this->redirectToRoute('app_admin_moderation');
+    }
+
+    #[Route('/moderation/unban-user', name: 'app_admin_moderation_unban_user', methods: ['POST'])]
+    public function moderationUnbanUser(Request $request, Connection $connection): Response
+    {
+        $userId = (int) $request->request->get('user_id', 0);
+
+        if (!$this->isCsrfTokenValid('admin_moderation_unban_'.$userId, (string) $request->request->get('_token', ''))) {
+            $this->addFlash('error', 'Jeton CSRF invalide pour le débanissement.');
+            return $this->redirectToRoute('app_admin_moderation');
+        }
+
+        if (!$this->hasUserBanColumns($connection)) {
+            $this->addFlash('error', 'La base de données ne contient pas encore les colonnes de modération.');
+            return $this->redirectToRoute('app_admin_moderation');
+        }
+
+        try {
+            $connection->update('user', [
+                'banned_until' => null,
+                'ban_reason' => null,
+            ], [
+                'id' => $userId,
+            ]);
+
+            $this->addFlash('success', 'Ban levé avec succès.');
+        } catch (Exception $e) {
+            $this->addFlash('error', 'Erreur lors du débanissement: '.$e->getMessage());
+        }
+
+        return $this->redirectToRoute('app_admin_moderation');
     }
 
     #[Route('/dashboard-offres', name: 'app_admin_dashboard_offres')]
@@ -1297,6 +1522,131 @@ class AdminController extends AbstractController
         };
 
         return $column.' '.strtoupper($direction);
+    }
+
+    private function hasUserBanColumns(Connection $connection): bool
+    {
+        $requiredColumns = ['banned_until', 'ban_reason'];
+        $placeholders = implode(', ', array_fill(0, count($requiredColumns), '?'));
+
+        $foundColumns = $connection->fetchFirstColumn(
+                        "SELECT COLUMN_NAME
+                         FROM INFORMATION_SCHEMA.COLUMNS
+                         WHERE TABLE_SCHEMA = DATABASE()
+                             AND TABLE_NAME = 'user'
+                             AND COLUMN_NAME IN (".$placeholders.")",
+            $requiredColumns
+        );
+
+        return count(array_unique($foundColumns)) === count($requiredColumns);
+    }
+
+    private function hasReviewModerationTable(Connection $connection): bool
+    {
+        $exists = $connection->fetchOne(
+            "SELECT COUNT(*)
+             FROM INFORMATION_SCHEMA.TABLES
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = 'review_moderation_log'"
+        );
+
+        return (int) $exists > 0;
+    }
+
+    private function sendBanAlertEmail(
+        MailerInterface $mailer,
+        HttpClientInterface $httpClient,
+        LoggerInterface $logger,
+        string $to,
+        string $prenom,
+        string $nom,
+        int $durationDays,
+        string $reason,
+        ?int $sourceLogId
+    ): bool {
+        $recipient = strtolower(trim($to));
+        if ($recipient === '' || !filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
+            return false;
+        }
+
+        $overrideRecipient = strtolower(trim((string) ($_ENV['BAN_ALERT_RECIPIENT_OVERRIDE'] ?? $_SERVER['BAN_ALERT_RECIPIENT_OVERRIDE'] ?? '')));
+        if ($overrideRecipient !== '' && filter_var($overrideRecipient, FILTER_VALIDATE_EMAIL)) {
+            $recipient = $overrideRecipient;
+        }
+
+        $displayName = trim($prenom.' '.$nom);
+        if ($displayName === '') {
+            $displayName = 'Utilisateur';
+        }
+
+        $subject = 'Alerte moderation - Votre compte est temporairement banni';
+        $body = implode("\n", [
+            'Bonjour '.$displayName.',',
+            '',
+            'Suite a une tentative de publication non conforme, votre compte a ete banni temporairement.',
+            'Duree du ban: '.$durationDays.' jour(s).',
+            'Motif: '.$reason,
+            '',
+            $sourceLogId ? 'Reference de moderation: #'.$sourceLogId : 'Reference de moderation: non specifiee',
+            '',
+            'Vous pourrez vous reconnecter a la fin de cette periode.',
+            'Si vous pensez qu\'il s\'agit d\'une erreur, contactez l\'administrateur.',
+            '',
+            'Equipe Fintokhrej',
+        ]);
+
+        $from = (string) (
+            $_ENV['MAILING_FROM_ADDRESS']
+            ?? $_SERVER['MAILING_FROM_ADDRESS']
+            ?? $_ENV['MAILER_FROM_ADDRESS']
+            ?? $_SERVER['MAILER_FROM_ADDRESS']
+            ?? 'no-reply@fintokhrej.local'
+        );
+
+        $mailtrapApiKey = trim((string) ($_ENV['MAILTRAP_API_KEY'] ?? $_SERVER['MAILTRAP_API_KEY'] ?? ''));
+
+        try {
+            if ($mailtrapApiKey !== '') {
+                $httpClient->request('POST', 'https://send.api.mailtrap.io/api/send', [
+                    'headers' => [
+                        'Authorization' => 'Bearer '.$mailtrapApiKey,
+                        'Content-Type' => 'application/json',
+                        'Accept' => 'application/json',
+                    ],
+                    'json' => [
+                        'from' => [
+                            'email' => $from,
+                            'name' => 'Fintokhrej',
+                        ],
+                        'to' => [
+                            ['email' => $recipient],
+                        ],
+                        'subject' => $subject,
+                        'text' => $body,
+                        'category' => 'ban_alert',
+                    ],
+                ]);
+
+                return true;
+            }
+
+            $email = (new Email())
+                ->from($from)
+                ->to($recipient)
+                ->subject($subject)
+                ->text($body);
+
+            $mailer->send($email);
+
+            return true;
+        } catch (\Throwable $e) {
+            $logger->error('Envoi email bannissement échoué', [
+                'to' => $recipient,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
     }
 
     /**

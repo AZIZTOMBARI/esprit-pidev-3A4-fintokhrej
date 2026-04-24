@@ -3,6 +3,7 @@
 namespace App\Security;
 
 use App\Entity\User;
+use Doctrine\DBAL\Connection;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -22,7 +23,10 @@ class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
 {
     use TargetPathTrait;
 
-    public function __construct(private readonly UrlGeneratorInterface $urlGenerator)
+    public function __construct(
+        private readonly UrlGeneratorInterface $urlGenerator,
+        private readonly Connection $connection,
+    )
     {
     }
 
@@ -60,6 +64,20 @@ class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
             throw $exception;
         } catch (\Throwable) {
             throw new CustomUserMessageAuthenticationException('Verification reCAPTCHA indisponible. Veuillez reessayer.');
+        }
+
+        $activeBanUntil = $this->connection->fetchOne(
+            'SELECT banned_until FROM user WHERE LOWER(email) = LOWER(?) LIMIT 1',
+            [$email]
+        );
+
+        if ($activeBanUntil !== false && $activeBanUntil !== null && (string) $activeBanUntil !== '') {
+            $banUntil = new \DateTimeImmutable((string) $activeBanUntil);
+            if ($banUntil >= new \DateTimeImmutable()) {
+                throw new CustomUserMessageAuthenticationException(
+                    'Votre compte est temporairement banni jusqu\'au '.$banUntil->format('d/m/Y H:i').'.'
+                );
+            }
         }
 
         return new Passport(

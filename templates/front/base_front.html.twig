@@ -4,6 +4,7 @@
     <div class="page-shell">
         <div class="front-shell content-stack">
             {% include 'front/partials/navbar.html.twig' %}
+            {% include 'front/partials/gamification_toasts.html.twig' %}
             {% block front_content %}{% endblock %}
             <div class="footer-note">{{ 'front.footer_note'|trans }}</div>
         </div>

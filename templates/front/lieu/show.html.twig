@@ -1140,9 +1140,14 @@
 
 <script>
     const lieuId = {{ lieu.id }};
-    const lieuLatitude = {{ lieu.latitude is not null ? lieu.latitude : 'null' }};
-    const lieuLongitude = {{ lieu.longitude is not null ? lieu.longitude : 'null' }};
     const currentUserId = {{ app.user ? app.user.id : 'null' }};
+    const serverWeather = {
+        temperature: {{ weather.temperature is not null ? weather.temperature : 'null' }},
+        humidity: {{ weather.humidity is not null ? weather.humidity : 'null' }},
+        windKmH: {{ weather.windKmH is not null ? weather.windKmH : 'null' }},
+        icon: `{{ weather.icon|default('🌍')|escape('js') }}`,
+        message: `{{ weather.message|default('Meteo indisponible.')|escape('js') }}`,
+    };
     {% if currentUserEvaluation %}
         const currentEvaluationId = {{ currentUserEvaluation.id }};
         const currentEvaluationNote = {{ currentUserEvaluation.note }};
@@ -1504,6 +1509,24 @@
         }
     }
 
+    function loadLiveWeather() {
+        const tempEl = document.getElementById('weatherTemp');
+        const iconEl = document.getElementById('weatherIcon');
+        const humidityEl = document.getElementById('weatherHumidity');
+        const windEl = document.getElementById('weatherWind');
+        const statusEl = document.getElementById('weatherStatus');
+
+        if (!tempEl || !iconEl || !humidityEl || !windEl || !statusEl) {
+            return;
+        }
+
+        tempEl.textContent = serverWeather.temperature === null ? '--°C' : `${Math.round(serverWeather.temperature)}°C`;
+        humidityEl.textContent = serverWeather.humidity === null ? '--%' : `${Math.round(serverWeather.humidity)}%`;
+        windEl.textContent = serverWeather.windKmH === null ? '-- km/h' : `${Number(serverWeather.windKmH).toFixed(1)} km/h`;
+        iconEl.textContent = serverWeather.icon || '🌍';
+        statusEl.textContent = serverWeather.message || 'Meteo indisponible.';
+    }
+
     // Search dans les avis
     const avisSearchField = document.getElementById('avisSearchField');
     if (avisSearchField) {
@@ -1564,7 +1587,7 @@
 
         if (moderationState.hasViolation) {
             renderModerationFeedback();
-            alert('Avertissement: ce commentaire semble inapproprié. Il sera vérifié côté serveur.');
+            alert('Ce commentaire contient un contenu inapproprié. Il sera refusé côté serveur.');
         }
 
         this.submit();

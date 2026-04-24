@@ -4,164 +4,152 @@ declare(strict_types=1);
 
 namespace App\Service;
 
-use Doctrine\DBAL\Connection;
+use App\Repository\LieuRepository;
+use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
-class FrontChatbotService
+/**
+ * Service du chatbot front-end : interroge l'API Groq avec un contexte
+ * enrichi des lieux disponibles en base de donnees.
+ */
+final class FrontChatbotService
 {
-    private const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
+    private const API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
     public function __construct(
         private readonly HttpClientInterface $httpClient,
-        private readonly Connection $connection,
+        private readonly LieuRepository $lieuRepository,
+        private readonly LoggerInterface $logger,
         private readonly string $groqApiKey,
         private readonly string $groqModel,
-    ) {
-    }
+    ) {}
 
     /**
-     * @param array<int, array<string, mixed>> $history
+     * @param array<int, array{role: string, content: string}> $history
      */
-    public function ask(string $question, array $history = []): string
+    public function ask(string $message, array $history = []): string
     {
-        $question = trim($question);
-        if ($question == '') {
-            return 'Je n\'ai pas recu de question. Tu peux me redonner plus de details ?';
+        if (trim($this->groqApiKey) === '') {
+            $this->logger->warning('Chatbot key is missing: GROQ_API_KEY is empty.');
+
+            return "Le chatbot n'est pas configure pour le moment. Ajoute GROQ_API_KEY dans .env.local.";
         }
 
-        if ($this->groqApiKey === '') {
-            return $this->buildLocalFallbackAnswer($question);
-        }
+        $lieux = $this->lieuRepository->findAllForChatbot();
+        $lieuxContext = $this->buildLieuxContext($lieux);
+
+        $systemPrompt = <<<PROMPT
+Tu es un assistant de voyage pour la plateforme "Fin Tokhroj" dediee a la decouverte de lieux et sorties en Tunisie.
+Reponds toujours en francais, de facon concise, chaleureuse et utile.
+Si l'utilisateur ecrit en arabe, reponds en arabe.
+
+Voici les lieux disponibles sur la plateforme :
+{$lieuxContext}
+
+Regles :
+- Propose des lieux pertinents selon la demande de l'utilisateur (ville, categorie, budget, ambiance).
+- Si aucun lieu ne correspond, dis-le honnetement.
+- Ne donne pas d'informations inventees.
+PROMPT;
 
         $messages = [
             [
                 'role' => 'system',
-                'content' => $this->buildSystemPrompt(),
+                'content' => $systemPrompt,
             ],
         ];
 
-        foreach ($this->sanitizeHistory($history) as $message) {
-            $messages[] = $message;
-        }
-
-        $messages[] = [
-            'role' => 'user',
-            'content' => $question,
-        ];
-
-        try {
-            $response = $this->httpClient->request('POST', self::GROQ_ENDPOINT, [
-                'headers' => [
-                    'Authorization' => 'Bearer ' . $this->groqApiKey,
-                    'Content-Type' => 'application/json',
-                ],
-                'json' => [
-                    'model' => $this->groqModel,
-                    'temperature' => 0.25,
-                    'max_tokens' => 700,
-                    'messages' => $messages,
-                ],
-                'timeout' => 25,
-            ]);
-
-            $payload = $response->toArray(false);
-            $groqError = $payload['error']['message'] ?? null;
-            if (is_string($groqError) && trim($groqError) !== '') {
-                return 'Le service IA a retourne une erreur: ' . trim($groqError);
-            }
-
-            $content = $payload['choices'][0]['message']['content'] ?? null;
-            if (is_string($content) && trim($content) !== '') {
-                return trim($content);
-            }
-        } catch (ExceptionInterface) {
-            return 'Je rencontre un souci de connexion au service IA pour le moment. Reessaie dans quelques secondes.';
-        }
-
-        return 'Je n\'ai pas pu generer une reponse pour cette question. Tu peux reformuler ?';
-    }
-
-    /**
-     * @param array<int, array<string, mixed>> $history
-     * @return array<int, array{role:string, content:string}>
-     */
-    private function sanitizeHistory(array $history): array
-    {
-        $clean = [];
-        foreach (array_slice($history, -8) as $message) {
-            $role = (string) ($message['role'] ?? '');
-            $content = trim((string) ($message['content'] ?? ''));
-            if ($content === '') {
+        foreach ($history as $entry) {
+            if (!isset($entry['role'], $entry['content'])) {
                 continue;
             }
 
+            $role = (string) $entry['role'];
             if (!in_array($role, ['user', 'assistant'], true)) {
                 continue;
             }
 
-            $clean[] = [
+            $content = trim((string) $entry['content']);
+            if ($content === '') {
+                continue;
+            }
+
+            $messages[] = [
                 'role' => $role,
-                'content' => mb_substr($content, 0, 1200),
+                'content' => $content,
             ];
         }
 
-        return $clean;
+        $messages[] = [
+            'role' => 'user',
+            'content' => $message,
+        ];
+
+        try {
+            $response = $this->httpClient->request('POST', self::API_URL, [
+                'headers' => [
+                    'Authorization' => 'Bearer '.$this->groqApiKey,
+                    'Content-Type' => 'application/json',
+                ],
+                'json' => [
+                    'model' => $this->groqModel,
+                    'messages' => $messages,
+                    'temperature' => 0.4,
+                ],
+                'timeout' => 30,
+            ]);
+
+            $data = $response->toArray();
+        } catch (ExceptionInterface|\Throwable $exception) {
+            $this->logger->error('Chatbot provider call failed', [
+                'exception' => $exception,
+            ]);
+
+            return "Je n'arrive pas a contacter le service chatbot pour le moment. Reessaie dans un instant.";
+        }
+
+        $answer = trim((string) ($data['choices'][0]['message']['content'] ?? ''));
+
+        if ($answer === '') {
+            $this->logger->warning('Chatbot provider returned an empty answer.', [
+                'response' => $data,
+            ]);
+
+            return "Je n'ai pas trouve de reponse exploitable pour le moment. Reessaie avec plus de details.";
+        }
+
+        return $answer;
     }
 
-    private function buildSystemPrompt(): string
+    /**
+     * @param \App\Entity\Lieu[] $lieux
+     */
+    private function buildLieuxContext(array $lieux): string
     {
-        return implode("\n", [
-            'Tu es Assistant Fin Tokhroj, un guide utile et concis pour une plateforme de sorties et lieux en Tunisie.',
-            'Reponds en francais simple, ton chaleureux, et reste oriente action.',
-            'Quand l\'utilisateur demande des infos pratiques (lieux, ville, horaires, prix), base-toi en priorite sur le contexte ci-dessous.',
-            'Si une information manque, dis-le clairement et propose une etape suivante.',
-            'N\'invente pas de promotions ni de disponibilites non presentes dans le contexte.',
-            '',
-            'Contexte applicatif:',
-            $this->buildKnowledgeSnapshot(),
-        ]);
-    }
-
-    private function buildKnowledgeSnapshot(): string
-    {
-        $rows = $this->connection->fetchAllAssociative(
-            'SELECT id, nom, ville, adresse, budget_min, budget_max, type, categorie FROM lieu ORDER BY id DESC LIMIT 40'
-        );
-
-        if ($rows === []) {
-            return 'Aucun lieu disponible dans la base pour le moment.';
+        if ($lieux === []) {
+            return 'Aucun lieu disponible pour le moment.';
         }
 
         $lines = [];
-        foreach ($rows as $row) {
-            $lines[] = sprintf(
-                '- %s | ville: %s | adresse: %s | budget: %s-%s TND | type: %s | categorie: %s',
-                (string) ($row['nom'] ?? 'Lieu sans nom'),
-                (string) ($row['ville'] ?? 'N/A'),
-                (string) ($row['adresse'] ?? 'N/A'),
-                (string) ($row['budget_min'] ?? 'N/A'),
-                (string) ($row['budget_max'] ?? 'N/A'),
-                (string) ($row['type'] ?? 'N/A'),
-                (string) ($row['categorie'] ?? 'N/A'),
+        foreach ($lieux as $lieu) {
+            $line = sprintf(
+                '- %s | Ville: %s | Categorie: %s | Type: %s | Budget: %s-%s TND',
+                $lieu->getNom(),
+                $lieu->getVille(),
+                $lieu->getCategorie()?->label() ?? 'N/A',
+                $lieu->getType()?->label() ?? 'N/A',
+                $lieu->getBudgetMin() ?? '?',
+                $lieu->getBudgetMax() ?? '?',
             );
+
+            if ($lieu->getAdresse()) {
+                $line .= ' | '.$lieu->getAdresse();
+            }
+
+            $lines[] = $line;
         }
 
         return implode("\n", $lines);
-    }
-
-    private function buildLocalFallbackAnswer(string $question): string
-    {
-        $lower = mb_strtolower($question);
-
-        if (str_contains($lower, 'horaire') || str_contains($lower, 'ouvert')) {
-            return 'Je peux t\'aider sur les horaires des lieux, mais la cle API Groq n\'est pas configuree. Ajoute GROQ_API_KEY dans .env.local pour activer les reponses intelligentes.';
-        }
-
-        if (str_contains($lower, 'prix') || str_contains($lower, 'budget')) {
-            return 'Pour les prix et budgets, active d\'abord GROQ_API_KEY dans .env.local, puis je pourrai te proposer des suggestions precises.';
-        }
-
-        return 'Assistant actif en mode local. Configure GROQ_API_KEY dans .env.local pour des reponses completees par IA.';
     }
 }

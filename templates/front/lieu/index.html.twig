@@ -3,6 +3,13 @@
 {% block title %}Lieux | Fin Tokhroj{% endblock %}
 
 {% block front_content %}
+{% set filters = filters|default({
+    categorie: '',
+    ville: '',
+    type: '',
+    budget: ''
+}) %}
+{% set totalPlaces = totalPlaces|default(places|length) %}
 <section class="places-page">
     <div class="section-head">
         <div>

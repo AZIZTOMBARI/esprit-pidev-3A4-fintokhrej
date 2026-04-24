@@ -8,6 +8,7 @@ use App\Entity\Paiement;
 use App\Repository\EvenementRepository;
 use App\Repository\InscriptionRepository;
 use App\Service\EvenementService;
+use App\Service\GamificationService;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -21,7 +22,8 @@ class EvenementController extends AbstractController
 {
     public function __construct(
         private EvenementService $evenementService,
-        private InscriptionRepository $inscriptionRepository
+        private InscriptionRepository $inscriptionRepository,
+        private GamificationService $gamificationService
     ) {}
 
     #[Route('', name: 'app_evenements', methods: ['GET'])]
@@ -127,6 +129,10 @@ class EvenementController extends AbstractController
                 $nbTickets
             ));
             
+            if ($user instanceof \App\Entity\User) {
+                $this->flashGamificationBadges($this->gamificationService->awardActionPoints($user->getId(), 'INSCRIPTION_EVENT'));
+            }
+
             return $this->redirectToRoute('app_mon_profil_inscriptions');
         } catch (\Exception $e) {
             $this->addFlash('error', '❌ ' . $e->getMessage());
@@ -336,5 +342,20 @@ class EvenementController extends AbstractController
         }
 
         return $this->redirectToRoute('app_mon_profil_inscriptions');
+    }
+
+    /**
+     * @param list<array<string, mixed>> $badges
+     */
+    private function flashGamificationBadges(array $badges): void
+    {
+        foreach ($badges as $badge) {
+            $this->addFlash('gamification_badges', [
+                'emoji' => (string) ($badge['emoji'] ?? '🏅'),
+                'nom' => (string) ($badge['nom'] ?? 'Badge'),
+                'description' => (string) ($badge['description'] ?? ''),
+                'points_bonus' => (int) ($badge['points_bonus'] ?? 0),
+            ]);
+        }
     }
 }
