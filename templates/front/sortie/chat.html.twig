@@ -1,0 +1,963 @@
+{% extends 'front/base_front.html.twig' %}
+
+{% block title %}Groupe chat | {{ sortie.titre }}{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        {% if isAdminViewer %}
+        .front-header,
+        .footer-note {
+            display: none !important;
+        }
+
+        .front-shell.content-stack {
+            gap: 0 !important;
+        }
+        {% endif %}
+
+        .chat-page {
+            width: min(1320px, 100%);
+            margin: 0 auto;
+            padding: 24px 16px 36px;
+        }
+
+        .chat-topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 18px;
+            padding: 18px 22px;
+            border-radius: 26px;
+            background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(243,248,255,.95));
+            border: 1px solid rgba(20, 61, 113, .1);
+            box-shadow: 0 18px 40px rgba(14, 45, 94, .08);
+        }
+
+        .chat-topbar h1 {
+            margin: 0;
+            color: #14314d;
+            font-size: clamp(1.8rem, 3vw, 2.7rem);
+        }
+
+        .chat-topbar p {
+            margin: 6px 0 0;
+            color: #5c7692;
+        }
+
+        .chat-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1.65fr) minmax(300px, .95fr);
+            gap: 18px;
+        }
+
+        .chat-panel {
+            border-radius: 28px;
+            border: 1px solid rgba(20, 61, 113, .1);
+            background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(245,249,255,.95));
+            box-shadow: 0 20px 44px rgba(14, 45, 94, .08);
+        }
+
+        .chat-main {
+            display: grid;
+            gap: 16px;
+        }
+
+        .chat-room-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 14px;
+            padding: 20px 22px 14px;
+            border-bottom: 1px solid rgba(20, 61, 113, .08);
+        }
+
+        .chat-room-head h2,
+        .chat-side-card h3 {
+            margin: 0;
+            color: #173452;
+        }
+
+        .chat-room-head p,
+        .chat-side-card p,
+        .chat-help {
+            margin: 4px 0 0;
+            color: #6983a0;
+        }
+
+        .chat-feed {
+            display: grid;
+            gap: 12px;
+            max-height: 68vh;
+            overflow: auto;
+            padding: 18px 20px;
+            background:
+                radial-gradient(circle at top left, rgba(34,130,255,.08), rgba(34,130,255,0) 28%),
+                linear-gradient(180deg, #f7fbff, #eef4fb);
+        }
+
+        .chat-day {
+            display: flex;
+            justify-content: center;
+        }
+
+        .chat-day span {
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: rgba(255,255,255,.92);
+            border: 1px solid rgba(20, 61, 113, .08);
+            color: #597391;
+            font-size: .78rem;
+            font-weight: 700;
+        }
+
+        .chat-row {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+            max-width: min(78%, 620px);
+        }
+
+        .chat-row--me {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .chat-row--system {
+            max-width: 100%;
+            justify-content: center;
+        }
+
+        .chat-avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 14px;
+            object-fit: cover;
+            background: linear-gradient(135deg, #dce7f7, #eef4ff);
+            border: 1px solid rgba(18, 66, 113, .08);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #1455a2;
+            font-weight: 800;
+        }
+
+        .chat-author {
+            margin-bottom: 4px;
+            padding-inline: 4px;
+            font-size: .76rem;
+            font-weight: 700;
+            color: #5c7896;
+        }
+
+        .chat-row--me .chat-author {
+            text-align: right;
+        }
+
+        .chat-bubble {
+            width: fit-content;
+            max-width: 100%;
+            padding: 10px 13px 8px;
+            border-radius: 18px;
+            background: #fff;
+            border: 1px solid rgba(20, 61, 113, .08);
+            box-shadow: 0 8px 18px rgba(15, 49, 93, .06);
+            color: #18324e;
+            word-break: break-word;
+        }
+
+        .chat-row--me .chat-bubble {
+            background: linear-gradient(135deg, #0b7cff, #1297ff);
+            color: #fff;
+            border-color: rgba(8,100,216,.2);
+        }
+
+        .chat-bubble--system {
+            padding: 9px 14px;
+            border-radius: 999px;
+            background: #edf6ff;
+            border: 1px solid rgba(17,114,238,.1);
+            color: #18487f;
+            font-weight: 700;
+        }
+
+        .chat-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            padding: 5px 10px;
+            border-radius: 999px;
+            background: rgba(15,127,255,.1);
+            color: #0b66d8;
+            font-size: .76rem;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .chat-row--me .chat-tag {
+            background: rgba(255,255,255,.18);
+            color: rgba(255,255,255,.94);
+        }
+
+        .chat-message {
+            margin: 0;
+            white-space: pre-wrap;
+            line-height: 1.45;
+        }
+
+        .chat-meta {
+            margin-top: 7px;
+            font-size: .72rem;
+            color: rgba(59,93,130,.82);
+        }
+
+        .chat-row--me .chat-meta {
+            color: rgba(255,255,255,.82);
+            text-align: right;
+        }
+
+        .chat-card {
+            margin-top: 10px;
+            padding: 10px 11px;
+            border-radius: 14px;
+            border: 1px solid rgba(20, 67, 118, 0.1);
+            background: rgba(255, 255, 255, 0.92);
+            color: #18324e;
+        }
+
+        .chat-row--me .chat-card {
+            background: rgba(255,255,255,.14);
+            border-color: rgba(255,255,255,.2);
+            color: #fff;
+        }
+
+        .chat-cardtitle {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .chat-cardmeta {
+            color: #6983a0;
+            font-size: .74rem;
+        }
+
+        .chat-row--me .chat-cardmeta {
+            color: rgba(255,255,255,.82);
+        }
+
+        .chat-cardoptions,
+        .chat-cardtasks {
+            display: grid;
+            gap: 7px;
+        }
+
+        .chat-cardoption,
+        .chat-cardtask {
+            padding: 8px 10px;
+            border-radius: 12px;
+            background: rgba(255,255,255,.94);
+            border: 1px solid rgba(20, 67, 118, 0.08);
+            color: #173452;
+            font-weight: 700;
+        }
+
+        .chat-cardoption strong,
+        .chat-cardtask strong,
+        .chat-cardoption span,
+        .chat-cardtask span {
+            color: #173452;
+        }
+
+        .chat-row--me .chat-cardoption,
+        .chat-row--me .chat-cardtask,
+        .chat-row--me .chat-cardoption strong,
+        .chat-row--me .chat-cardtask strong,
+        .chat-row--me .chat-cardoption span,
+        .chat-row--me .chat-cardtask span {
+            color: #173452;
+        }
+
+        .chat-cardvote {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            align-items: center;
+            margin-top: 8px;
+        }
+
+        .chat-attachment {
+            margin-top: 10px;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid rgba(21, 67, 118, 0.1);
+            background: rgba(255, 255, 255, 0.76);
+        }
+
+        .chat-attachment img {
+            display: block;
+            width: 100%;
+            max-height: 260px;
+            object-fit: cover;
+        }
+
+        .chat-filelink {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 14px;
+            color: inherit;
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        .chat-composer {
+            padding: 16px 18px 18px;
+            border-top: 1px solid rgba(20, 61, 113, .08);
+        }
+
+        .chat-composebox {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 12px;
+            align-items: end;
+            padding: 12px;
+            border-radius: 24px;
+            background: #fff;
+            border: 1px solid rgba(20, 61, 113, .1);
+        }
+
+        .chat-textarea,
+        .chat-input,
+        .chat-select {
+            width: 100%;
+            border: none;
+            outline: none;
+            background: transparent;
+            color: #18324e;
+            font: inherit;
+        }
+
+        .chat-textarea {
+            resize: vertical;
+            min-height: 56px;
+            padding: 6px 8px;
+        }
+
+        .chat-send,
+        .chat-btn,
+        .chat-btn-lite {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 42px;
+            padding: 0 16px;
+            border-radius: 14px;
+            font-weight: 800;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .chat-send,
+        .chat-btn {
+            border: none;
+            color: #fff;
+            background: linear-gradient(135deg, #0d7dff, #0560dc);
+            box-shadow: 0 16px 26px rgba(6, 96, 220, 0.2);
+        }
+
+        .chat-btn-lite {
+            border: 1px solid rgba(17, 73, 132, 0.12);
+            color: #1d4a7c;
+            background: rgba(255, 255, 255, 0.88);
+        }
+
+        .chat-side {
+            display: grid;
+            gap: 16px;
+        }
+
+        .chat-side-card {
+            padding: 18px;
+        }
+
+        .chat-side-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .chat-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 34px;
+            height: 34px;
+            padding: 0 10px;
+            border-radius: 999px;
+            background: rgba(11,124,255,.09);
+            color: #0d6fe6;
+            font-weight: 800;
+        }
+
+        .chat-memberlist,
+        .chat-polls,
+        .chat-task-list-side,
+        .chat-formstack {
+            display: grid;
+            gap: 12px;
+        }
+
+        .chat-member,
+        .chat-poll,
+        .chat-task,
+        .chat-task-mini {
+            display: grid;
+            gap: 10px;
+            padding: 13px 14px;
+            border-radius: 18px;
+            background: rgba(255,255,255,.84);
+            border: 1px solid rgba(20,61,113,.08);
+        }
+
+        .chat-member {
+            grid-template-columns: auto 1fr auto;
+            align-items: center;
+        }
+
+        .chat-role {
+            display: inline-flex;
+            align-items: center;
+            min-height: 36px;
+            padding: 0 12px;
+            border-radius: 999px;
+            font-weight: 700;
+            background: rgba(11,124,255,.11);
+            color: #0d6fe6;
+        }
+
+        .chat-role--member {
+            background: rgba(26,53,85,.07);
+            color: #567290;
+        }
+
+        .chat-field,
+        .chat-selectwrap {
+            padding: 12px 14px;
+            border-radius: 16px;
+            background: #fff;
+            border: 1px solid rgba(20, 61, 113, .1);
+        }
+
+        .chat-polloption {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 12px;
+            align-items: center;
+            padding: 10px 12px;
+            border-radius: 14px;
+            background: #fff;
+            border: 1px solid rgba(18, 66, 113, 0.08);
+        }
+
+        .chat-polloption label {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .chat-votes {
+            color: #0d6fe6;
+            font-size: .82rem;
+            font-weight: 800;
+        }
+
+        .chat-task {
+            grid-template-columns: 1fr auto;
+            align-items: center;
+        }
+
+        .chat-task--done,
+        .chat-task-mini.chat-task--done {
+            background: rgba(238,247,242,.9);
+        }
+
+        .chat-task--done strong,
+        .chat-task-mini.chat-task--done strong {
+            text-decoration: line-through;
+        }
+
+        .chat-task-board {
+            display: grid;
+            gap: 14px;
+            margin-top: 16px;
+            padding: 0 18px 18px;
+        }
+
+        .chat-task-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .chat-task-column {
+            padding: 14px;
+            border-radius: 18px;
+            background: rgba(255,255,255,.76);
+            border: 1px solid rgba(18,66,113,.08);
+        }
+
+        .chat-task-column h4 {
+            margin: 0 0 10px;
+            color: #173452;
+        }
+
+        .chat-empty {
+            padding: 16px;
+            border-radius: 18px;
+            background: rgba(255,255,255,.72);
+            border: 1px dashed rgba(17,76,138,.16);
+            color: #6983a0;
+        }
+
+        @media (max-width: 980px) {
+            .chat-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 760px) {
+            .chat-topbar,
+            .chat-room-head,
+            .chat-side-head,
+            .chat-task {
+                grid-template-columns: 1fr;
+                display: grid;
+            }
+
+            .chat-task-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .chat-row {
+                max-width: 100%;
+            }
+        }
+    </style>
+{% endblock %}
+
+{% block front_content %}
+<section class="chat-page">
+    <section
+        class="chat-panel"
+        id="chat-app"
+        data-current-user-id="{{ currentUserId }}"
+        data-can-manage-tasks="{{ canManageTasks ? '1' : '0' }}"
+    >
+        <div class="chat-topbar">
+            <div>
+                <h1>Groupe sortie</h1>
+                <p>{{ sortie.titre }} • {{ sortie.ville }} • {{ sortie.type_activite }}</p>
+            </div>
+            {% if isAdminViewer %}
+                <a href="{{ path('app_admin_sorties') }}" class="chat-btn-lite">Retour</a>
+            {% else %}
+                <a href="{{ path('app_sorties_show', {id: sortie.id}) }}" class="chat-btn-lite">Retour a la sortie</a>
+            {% endif %}
+        </div>
+
+        {% for label in ['success', 'error', 'warning', 'info'] %}
+            {% for message in app.flashes(label) %}
+                <div class="sortie-flash sortie-flash-{{ label }}" style="margin: 0 18px 14px;">{{ message }}</div>
+            {% endfor %}
+        {% endfor %}
+
+        {% set pendingTasks = tasks|filter(task => task.status != 'DONE') %}
+        {% set doneTasks = tasks|filter(task => task.status == 'DONE') %}
+
+        <div class="chat-layout" style="padding: 0 18px 18px;">
+            <div class="chat-main">
+                <section class="chat-panel">
+                    <header class="chat-room-head">
+                        <div>
+                            <h2>{{ members|length }} membres</h2>
+                            <p>Conversation du groupe et organisation de la sortie.</p>
+                        </div>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                            <span class="chat-role">{{ polls|length }} sondage{{ polls|length > 1 ? 's' : '' }}</span>
+                            <span class="chat-role">{{ tasks|length }} tache{{ tasks|length > 1 ? 's' : '' }}</span>
+                        </div>
+                    </header>
+
+                    <div class="chat-feed" id="chat-feed">
+                        {% if initialMessages is empty %}
+                            <div class="chat-empty">Aucun message pour le moment. Ouvrez la conversation avec un premier message.</div>
+                        {% else %}
+                            {% set currentDay = null %}
+                            {% for message in initialMessages %}
+                                {% set sentAt = message.sentAt|default('now') %}
+                                {% set dayKey = sentAt|date('Y-m-d') %}
+                                {% if dayKey != currentDay %}
+                                    {% set currentDay = dayKey %}
+                                    <div class="chat-day"><span>{{ sentAt|date('d/m/Y') }}</span></div>
+                                {% endif %}
+
+                                {% set isSystem = message.messageType|default('TEXT') == 'SYSTEM' %}
+                                {% set isMine = message.isMine|default(false) %}
+                                {% set senderName = isMine ? 'Vous' : (message.senderName|default('Membre')) %}
+                                {% set senderParts = senderName|split(' ') %}
+                                {% set initials = ((senderParts[0]|default('M')|slice(0, 1)) ~ (senderParts[1]|default('')|slice(0, 1)))|upper %}
+                                {% set avatarPath = message.senderAvatar|default(null) %}
+                                {% if avatarPath and not (avatarPath starts with 'http://' or avatarPath starts with 'https://' or avatarPath starts with '/') %}
+                                    {% if avatarPath starts with 'theme/' or avatarPath starts with 'uploads/' %}
+                                        {% set avatarPath = '/' ~ avatarPath %}
+                                    {% elseif 'uploads/' in avatarPath %}
+                                        {% set avatarPath = '/uploads/' ~ avatarPath|split('uploads/')|last|trim('/') %}
+                                    {% else %}
+                                        {% set avatarPath = '/uploads/users/' ~ avatarPath|trim('/') %}
+                                    {% endif %}
+                                {% endif %}
+                                {% set attachmentPath = message.attachmentPath|default(null) %}
+                                {% if attachmentPath and not (attachmentPath starts with 'http://' or attachmentPath starts with 'https://' or attachmentPath starts with '/') %}
+                                    {% if attachmentPath starts with 'theme/' or attachmentPath starts with 'uploads/' %}
+                                        {% set attachmentPath = '/' ~ attachmentPath %}
+                                    {% elseif 'uploads/' in attachmentPath %}
+                                        {% set attachmentPath = '/uploads/' ~ attachmentPath|split('uploads/')|last|trim('/') %}
+                                    {% else %}
+                                        {% set attachmentPath = '/' ~ attachmentPath|trim('/') %}
+                                    {% endif %}
+                                {% endif %}
+                                {% set isImageAttachment = attachmentPath and ((message.attachmentType|default('')) starts with 'image/' or attachmentPath matches '/\\.(png|jpe?g|gif|webp|bmp|svg)$/i') %}
+                                {% set matchedPoll = null %}
+                                {% if message.pollId|default(null) %}
+                                    {% for poll in polls %}
+                                        {% if poll.id == message.pollId %}
+                                            {% set matchedPoll = poll %}
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endif %}
+                                {% set matchedTask = null %}
+                                {% if message.taskId|default(null) %}
+                                    {% for task in tasks %}
+                                        {% if task.id == message.taskId %}
+                                            {% set matchedTask = task %}
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endif %}
+
+                                {% if isSystem %}
+                                    <article class="chat-row chat-row--system" data-message-id="{{ message.id }}">
+                                        <div class="chat-bubble--system">Systeme • {{ message.content|default('') }}</div>
+                                    </article>
+                                {% else %}
+                                    <article class="chat-row{{ isMine ? ' chat-row--me' : '' }}" data-message-id="{{ message.id }}">
+                                        {% if avatarPath %}
+                                            <img src="{{ avatarPath }}" alt="{{ senderName }}" class="chat-avatar">
+                                        {% else %}
+                                            <span class="chat-avatar">{{ initials ?: 'M' }}</span>
+                                        {% endif %}
+
+                                        <div style="min-width:0;">
+                                            <div class="chat-author">{{ senderName }}</div>
+                                            <div class="chat-bubble">
+                                                {% if message.messageType|default('TEXT') == 'POLL' %}
+                                                    <div class="chat-tag">Sondage</div>
+                                                {% elseif message.messageType|default('TEXT') == 'TASK' %}
+                                                    <div class="chat-tag">Tache</div>
+                                                {% elseif attachmentPath %}
+                                                    <div class="chat-tag">Piece jointe</div>
+                                                {% endif %}
+
+                                                {% if not matchedPoll and not matchedTask %}
+                                                    <p class="chat-message">{{ message.deletedAt|default(null) ? 'Ce message a ete supprime.' : message.content|default('') }}</p>
+                                                {% endif %}
+
+                                                {% if matchedPoll and not message.deletedAt|default(null) %}
+                                                    <form class="chat-card" method="post" action="{{ path('app_sorties_chat_poll_vote', {id: sortie.id, pollId: matchedPoll.id}) }}">
+                                                        <input type="hidden" name="_token" value="{{ csrf_token('chat_poll_vote_' ~ matchedPoll.id) }}">
+                                                        <div class="chat-cardtitle">
+                                                            <div>
+                                                                <strong>{{ matchedPoll.question }}</strong>
+                                                                <div class="chat-cardmeta">Cree par {{ (matchedPoll.prenom|default('') ~ ' ' ~ matchedPoll.nom|default(''))|trim ?: 'Membre' }}</div>
+                                                            </div>
+                                                            <div class="chat-cardmeta">{{ matchedPoll.created_at|date('H:i') }}</div>
+                                                        </div>
+                                                        <div class="chat-cardoptions">
+                                                            {% for option in matchedPoll.options %}
+                                                                <label class="chat-cardoption">
+                                                                    <span>
+                                                                        <input type="radio" name="option_id" value="{{ option.id }}" {{ option.selected_by_me ? 'checked' : '' }}>
+                                                                        {{ option.text }}
+                                                                    </span>
+                                                                    <strong>{{ option.votes }} vote{{ option.votes > 1 ? 's' : '' }}</strong>
+                                                                </label>
+                                                            {% endfor %}
+                                                        </div>
+                                                        <div class="chat-cardvote">
+                                                            <span class="chat-cardmeta">Votez ici dans la discussion</span>
+                                                            <button type="submit" class="chat-btn-lite">Voter</button>
+                                                        </div>
+                                                    </form>
+                                                {% endif %}
+
+                                                {% if matchedTask and not message.deletedAt|default(null) %}
+                                                    {% set taskCanToggle = matchedTask.assigned_to is not null ? (matchedTask.assigned_to == currentUserId or canManageTasks) : canManageTasks %}
+                                                    <div class="chat-card">
+                                                        <div class="chat-cardtitle">
+                                                            <div>
+                                                                <strong>{{ matchedTask.title }}</strong>
+                                                                <div class="chat-cardmeta">{{ matchedTask.description ?: 'Sans description' }}</div>
+                                                            </div>
+                                                            <div class="chat-tag">{{ matchedTask.status == 'DONE' ? 'Terminee' : 'En cours' }}</div>
+                                                        </div>
+                                                        <div class="chat-cardtasks">
+                                                            <div class="chat-cardtask">
+                                                                Assignee a {{ (matchedTask.assigned_prenom|default('') ~ ' ' ~ matchedTask.assigned_nom|default(''))|trim ?: 'non attribuee' }}
+                                                            </div>
+                                                        </div>
+                                                        <div class="chat-cardvote">
+                                                            {% if taskCanToggle %}
+                                                                <form method="post" action="{{ path('app_sorties_chat_task_toggle', {id: sortie.id, taskId: matchedTask.id}) }}">
+                                                                    <input type="hidden" name="_token" value="{{ csrf_token('chat_task_toggle_' ~ matchedTask.id) }}">
+                                                                    <button type="submit" class="{{ matchedTask.status == 'DONE' ? 'chat-btn-lite' : 'chat-btn' }}">
+                                                                        {{ matchedTask.status == 'DONE' ? 'Reouvrir' : 'Terminer' }}
+                                                                    </button>
+                                                                </form>
+                                                            {% else %}
+                                                                <span class="chat-cardmeta">Reserve a l admin et a la personne assignee</span>
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+                                                {% endif %}
+
+                                                {% if not message.deletedAt|default(null) and attachmentPath %}
+                                                    <div class="chat-attachment">
+                                                        {% if isImageAttachment %}
+                                                            <a href="{{ attachmentPath }}" target="_blank" rel="noopener">
+                                                                <img src="{{ attachmentPath }}" alt="Piece jointe">
+                                                            </a>
+                                                        {% else %}
+                                                            <a class="chat-filelink" href="{{ attachmentPath }}" target="_blank" rel="noopener">Ouvrir la piece jointe</a>
+                                                        {% endif %}
+                                                    </div>
+                                                {% endif %}
+
+                                                <div class="chat-meta">{{ sentAt|date('H:i') }}</div>
+                                            </div>
+                                        </div>
+                                    </article>
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+                    <div class="chat-composer">
+                        <form method="post" action="{{ messageSendUrl }}" enctype="multipart/form-data">
+                            <input type="hidden" name="_token" value="{{ messageFormToken }}">
+                            <div class="chat-composebox">
+                                <textarea name="content" class="chat-textarea" placeholder="Ecrire un message au groupe..."></textarea>
+                                <button type="submit" class="chat-send">Envoyer</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="chat-task-board">
+                        {% if canManageTasks %}
+                            <form method="post" action="{{ path('app_sorties_chat_task_create', {id: sortie.id}) }}" class="chat-formstack" novalidate>
+                                <input type="hidden" name="_token" value="{{ csrf_token('chat_task_' ~ sortie.id) }}">
+                                <div class="chat-field">
+                                    <input type="text" name="title" class="chat-input" placeholder="Nouvelle tache">
+                                </div>
+                                <div class="chat-field">
+                                    <textarea name="description" class="chat-textarea" placeholder="Details de la tache"></textarea>
+                                </div>
+                                <div class="chat-selectwrap">
+                                    <select name="assigned_to" class="chat-select">
+                                        <option value="">Assigner plus tard</option>
+                                        {% for member in assignableMembers %}
+                                            <option value="{{ member.id }}">{{ member.prenom }} {{ member.nom }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <button type="submit" class="chat-btn-lite">Ajouter la tache</button>
+                            </form>
+                        {% else %}
+                            <div class="chat-empty">Seuls les admins du groupe peuvent creer et assigner des taches.</div>
+                        {% endif %}
+
+                        <div class="chat-task-grid">
+                            <section class="chat-task-column">
+                                <h4>Taches pas encore realisees · {{ pendingTasks|length }}</h4>
+                                <div class="chat-task-list-side">
+                                    {% for task in pendingTasks %}
+                                        {% set canToggle = task.assigned_to is not null ? (task.assigned_to == currentUserId or canManageTasks) : canManageTasks %}
+                                        <article class="chat-task-mini">
+                                            <strong>{{ task.title }}</strong>
+                                            {% if task.description %}
+                                                <div class="chat-help">{{ task.description }}</div>
+                                            {% endif %}
+                                            <small class="chat-cardmeta">Assignee a {{ (task.assigned_prenom|default('') ~ ' ' ~ task.assigned_nom|default(''))|trim ?: 'non attribuee' }}</small>
+                                            {% if canToggle %}
+                                                <form method="post" action="{{ path('app_sorties_chat_task_toggle', {id: sortie.id, taskId: task.id}) }}">
+                                                    <input type="hidden" name="_token" value="{{ csrf_token('chat_task_toggle_' ~ task.id) }}">
+                                                    <button type="submit" class="chat-btn">Terminer</button>
+                                                </form>
+                                            {% endif %}
+                                        </article>
+                                    {% else %}
+                                        <div class="chat-empty">Aucune tache en cours.</div>
+                                    {% endfor %}
+                                </div>
+                            </section>
+
+                            <section class="chat-task-column">
+                                <h4>Taches realisees · {{ doneTasks|length }}</h4>
+                                <div class="chat-task-list-side">
+                                    {% for task in doneTasks %}
+                                        {% set canToggle = task.assigned_to is not null ? (task.assigned_to == currentUserId or canManageTasks) : canManageTasks %}
+                                        <article class="chat-task-mini chat-task--done">
+                                            <strong>{{ task.title }}</strong>
+                                            {% if task.description %}
+                                                <div class="chat-help">{{ task.description }}</div>
+                                            {% endif %}
+                                            <small class="chat-cardmeta">Assignee a {{ (task.assigned_prenom|default('') ~ ' ' ~ task.assigned_nom|default(''))|trim ?: 'non attribuee' }}</small>
+                                            {% if canToggle %}
+                                                <form method="post" action="{{ path('app_sorties_chat_task_toggle', {id: sortie.id, taskId: task.id}) }}">
+                                                    <input type="hidden" name="_token" value="{{ csrf_token('chat_task_toggle_' ~ task.id) }}">
+                                                    <button type="submit" class="chat-btn-lite">Reouvrir</button>
+                                                </form>
+                                            {% endif %}
+                                        </article>
+                                    {% else %}
+                                        <div class="chat-empty">Aucune tache terminee.</div>
+                                    {% endfor %}
+                                </div>
+                            </section>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <aside class="chat-side">
+                <section class="chat-panel chat-side-card">
+                    <div class="chat-side-head">
+                        <div>
+                            <h3>Membres</h3>
+                            <p>Participants confirmes du groupe</p>
+                        </div>
+                        <span class="chat-count">{{ members|length }}</span>
+                    </div>
+                    <div class="chat-memberlist">
+                        {% for member in members %}
+                            {% set initials = ((member.prenom|default('')|slice(0,1)) ~ (member.nom|default('')|slice(0,1)))|upper %}
+                            {% set rawImage = member.image_url|default('') %}
+                            {% if rawImage and (rawImage starts with 'http://' or rawImage starts with 'https://') %}
+                                {% set memberImageSrc = rawImage %}
+                            {% elseif rawImage and (rawImage starts with '/theme/' or rawImage starts with '/uploads/') %}
+                                {% set memberImageSrc = asset(rawImage|trim('/')) %}
+                            {% elseif rawImage and (rawImage starts with 'theme/' or rawImage starts with 'uploads/') %}
+                                {% set memberImageSrc = asset(rawImage|trim('/')) %}
+                            {% elseif rawImage and (rawImage starts with '/public/' or rawImage starts with 'public/') %}
+                                {% set memberImageSrc = asset(rawImage|replace({'/public/': '', 'public/': ''})|trim('/')) %}
+                            {% elseif rawImage and ('uploads/' in rawImage) %}
+                                {% set memberImageSrc = asset('uploads/' ~ rawImage|split('uploads/')|last|trim('/')) %}
+                            {% elseif rawImage and rawImage != 'default.png' %}
+                                {% set memberImageSrc = asset('uploads/users/' ~ rawImage|trim('/')) %}
+                            {% else %}
+                                {% set memberImageSrc = null %}
+                            {% endif %}
+                            <article class="chat-member">
+                                {% if memberImageSrc %}
+                                    <img src="{{ memberImageSrc }}" alt="{{ member.prenom }} {{ member.nom }}" class="chat-avatar">
+                                {% else %}
+                                    <span class="chat-avatar">{{ initials ?: 'M' }}</span>
+                                {% endif %}
+                                <div>
+                                    <strong>{{ member.prenom }} {{ member.nom }}</strong>
+                                    <small class="chat-cardmeta">
+                                        {% if member.is_creator %}
+                                            Admin createur de l annonce
+                                        {% elseif member.is_group_admin|default(false) %}
+                                            Admin du groupe chat
+                                        {% else %}
+                                            Participant confirme
+                                        {% endif %}
+                                    </small>
+                                </div>
+                                <span class="chat-role {{ member.is_group_admin|default(false) ? '' : 'chat-role--member' }}">
+                                    {% if member.is_creator %}
+                                        Admin createur
+                                    {% elseif member.is_group_admin|default(false) %}
+                                        Admin
+                                    {% else %}
+                                        Membre
+                                    {% endif %}
+                                </span>
+                            </article>
+                        {% else %}
+                            <div class="chat-empty">Le groupe n'a pas encore de membres.</div>
+                        {% endfor %}
+                    </div>
+                </section>
+
+                <section class="chat-panel chat-side-card">
+                    <div class="chat-side-head">
+                        <div>
+                            <h3>Sondages</h3>
+                            <p>Vote rapide dans le groupe</p>
+                        </div>
+                        <span class="chat-count">{{ polls|length }}</span>
+                    </div>
+
+                    <form method="post" action="{{ path('app_sorties_chat_poll_create', {id: sortie.id}) }}" class="chat-formstack" novalidate>
+                        <input type="hidden" name="_token" value="{{ csrf_token('chat_poll_' ~ sortie.id) }}">
+                        <div class="chat-field">
+                            <input type="text" name="question" class="chat-input" placeholder="Question du sondage">
+                        </div>
+                        <div class="chat-field">
+                            <input type="text" name="options[]" class="chat-input" placeholder="Option 1">
+                        </div>
+                        <div class="chat-field">
+                            <input type="text" name="options[]" class="chat-input" placeholder="Option 2">
+                        </div>
+                        <button type="submit" class="chat-btn-lite">Publier le sondage</button>
+                    </form>
+
+                    <div class="chat-polls" style="margin-top: 14px;">
+                        {% for poll in polls %}
+                            <article class="chat-poll">
+                                <div>
+                                    <strong>{{ poll.question }}</strong>
+                                    <div class="chat-cardmeta">Cree par {{ (poll.prenom|default('') ~ ' ' ~ poll.nom|default(''))|trim ?: 'Membre' }}</div>
+                                </div>
+                                <form method="post" action="{{ path('app_sorties_chat_poll_vote', {id: sortie.id, pollId: poll.id}) }}" class="chat-formstack">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('chat_poll_vote_' ~ poll.id) }}">
+                                    {% for option in poll.options %}
+                                        <div class="chat-polloption">
+                                            <label>
+                                                <input type="radio" name="option_id" value="{{ option.id }}" {{ option.selected_by_me ? 'checked' : '' }}>
+                                                <span>{{ option.text }}</span>
+                                            </label>
+                                            <span class="chat-votes">{{ option.votes }} vote{{ option.votes > 1 ? 's' : '' }}</span>
+                                        </div>
+                                    {% endfor %}
+                                    <button type="submit" class="chat-btn">Voter</button>
+                                </form>
+                            </article>
+                        {% else %}
+                            <div class="chat-empty">Aucun sondage pour le moment.</div>
+                        {% endfor %}
+                    </div>
+                </section>
+            </aside>
+        </div>
+    </section>
+</section>
+{% endblock %}

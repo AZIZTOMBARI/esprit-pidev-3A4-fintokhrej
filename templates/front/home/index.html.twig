@@ -5,87 +5,367 @@
 {% block stylesheets %}
     {{ parent() }}
     <style>
-        .home-offer-card {
-            position: relative;
-            overflow: hidden;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .home-offer-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
-        }
-
-        .home-offer-card--urgent {
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            background: linear-gradient(135deg, rgba(254, 242, 242, 0.92), #fff);
-        }
-
-        .home-offer-ribbon {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            margin-top: 10px;
-            border-radius: 999px;
-            padding: 6px 10px;
-            background: #fee2e2;
-            color: #991b1b;
-            font-size: 12px;
-            font-weight: 800;
-        }
-
-        .home-offer-countdown {
-            margin-top: 8px;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            border-radius: 999px;
-            padding: 6px 10px;
-            background: rgba(255, 255, 255, 0.85);
-            color: #991b1b;
-            border: 1px dashed rgba(239, 68, 68, 0.35);
-            font-size: 12px;
-            font-weight: 800;
-        }
-
-        .home-sorties-grid {
+        .home-page {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 14px;
+            gap: 24px;
         }
 
-        .home-sortie-card {
+        .home-hero {
             position: relative;
             overflow: hidden;
-            border-radius: 20px;
-            border: 1px solid rgba(20, 61, 113, 0.14);
-            background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(244,249,255,0.92));
-            box-shadow: 0 14px 34px rgba(14, 45, 94, 0.12);
-            transition: transform .34s cubic-bezier(.16,1,.3,1), box-shadow .34s ease, border-color .34s ease;
-            animation: homeSortieIn .65s cubic-bezier(.16,1,.3,1) both;
+            padding: clamp(28px, 4vw, 42px);
+            border-radius: 34px;
+            background:
+                radial-gradient(circle at 82% 18%, rgba(99, 179, 237, .22), transparent 24%),
+                radial-gradient(circle at 12% 100%, rgba(212, 170, 35, .18), transparent 22%),
+                linear-gradient(125deg, rgba(7, 22, 46, .92) 0%, rgba(12, 40, 82, .84) 52%, rgba(19, 73, 132, .72) 100%),
+                url('{{ asset('theme/images/medina.jpg') }}') center center / cover no-repeat;
+            color: #f7fbff;
+            box-shadow: 0 26px 64px rgba(8, 28, 58, .22);
         }
 
-        .home-sortie-card:nth-child(2) { animation-delay: .08s; }
-        .home-sortie-card:nth-child(3) { animation-delay: .16s; }
-
-        .home-sortie-card:hover {
-            transform: translateY(-6px);
-            box-shadow: 0 24px 48px rgba(14, 45, 94, 0.18);
-            border-color: rgba(63, 168, 224, 0.4);
-        }
-
-        .home-sortie-media {
-            height: 140px;
-            position: relative;
-            overflow: hidden;
-            background: linear-gradient(125deg, #0b2a58, #1d4d96 58%, #4ca6e8);
-        }
-
-        .home-sortie-media::after {
+        .home-hero::before {
             content: '';
             position: absolute;
             inset: 0;
-            background: linear-gradient(180deg, transparent 45%, rgba(7, 22, 46, 0.56));
+            background: linear-gradient(90deg, rgba(7, 20, 42, .68) 0%, rgba(7, 20, 42, .35) 42%, rgba(7, 20, 42, .12) 100%);
+            pointer-events: none;
+        }
+
+        .home-hero__grid {
+            position: relative;
+            display: grid;
+            grid-template-columns: minmax(0, 1.25fr) minmax(320px, .75fr);
+            gap: 22px;
+            align-items: stretch;
+        }
+
+        .home-hero__main,
+        .home-hero__side {
+            display: grid;
+            gap: 18px;
+        }
+
+        .home-kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            width: fit-content;
+            padding: 8px 14px;
+            border-radius: 999px;
+            background: rgba(255,255,255,.12);
+            border: 1px solid rgba(255,255,255,.18);
+            color: rgba(248,251,255,.9);
+            font-size: .82rem;
+            font-weight: 800;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+
+        .home-hero h1 {
+            margin: 0;
+            max-width: 11ch;
+            font-size: clamp(2.6rem, 5vw, 4.6rem);
+            line-height: .95;
+            letter-spacing: -.06em;
+        }
+
+        .home-hero p {
+            margin: 0;
+            max-width: 62ch;
+            color: rgba(239, 246, 255, .82);
+            font-size: 1.02rem;
+            line-height: 1.7;
+        }
+
+        .home-search-card,
+        .home-panel-card,
+        .home-stat-card,
+        .home-city-card,
+        .home-place-card,
+        .home-sortie-card,
+        .home-offer-card,
+        .home-event-card,
+        .home-action-card {
+            border-radius: 24px;
+            border: 1px solid rgba(18, 63, 116, .1);
+            background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(244,248,255,.94));
+            box-shadow: 0 18px 42px rgba(14, 45, 94, .1);
+        }
+
+        .home-search-card {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 12px;
+            align-items: center;
+            padding: 14px;
+            background: rgba(255,255,255,.12);
+            border: 1px solid rgba(255,255,255,.18);
+            box-shadow: none;
+        }
+
+        .home-search-card span {
+            font-size: 1.2rem;
+        }
+
+        .home-search-card input {
+            border: none;
+            outline: none;
+            background: transparent;
+            color: #fff;
+            font: inherit;
+        }
+
+        .home-search-card input::placeholder {
+            color: rgba(255,255,255,.7);
+        }
+
+        .home-tag-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .home-tag {
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(255,255,255,.1);
+            border: 1px solid rgba(255,255,255,.14);
+            color: rgba(248,251,255,.92);
+            font-size: .84rem;
+            font-weight: 700;
+        }
+
+        .home-hero__side {
+            align-content: start;
+        }
+
+        .home-panel-card {
+            padding: 18px;
+            background: rgba(255,255,255,.12);
+            border-color: rgba(255,255,255,.14);
+            box-shadow: none;
+            color: #fff;
+        }
+
+        .home-panel-card h3,
+        .home-panel-card p {
+            margin: 0;
+        }
+
+        .home-panel-card p {
+            margin-top: 8px;
+            color: rgba(239,246,255,.76);
+            line-height: 1.55;
+        }
+
+        .home-highlights {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .home-stat-card {
+            padding: 20px;
+        }
+
+        .home-stat-label {
+            display: block;
+            color: #6882a0;
+            font-size: .84rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+        }
+
+        .home-stat-value {
+            display: block;
+            margin-top: 10px;
+            color: #173f73;
+            font-size: clamp(1.7rem, 3vw, 2.4rem);
+            font-weight: 900;
+            letter-spacing: -.05em;
+        }
+
+        .home-stat-note {
+            display: block;
+            margin-top: 8px;
+            color: #607994;
+            line-height: 1.5;
+        }
+
+        .home-section {
+            display: grid;
+            gap: 16px;
+        }
+
+        .home-section-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: end;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .home-section-head h2 {
+            margin: 0;
+        }
+
+        .home-section-head p {
+            margin: 6px 0 0;
+            color: #66809e;
+        }
+
+        .home-two-col {
+            display: grid;
+            grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
+            gap: 18px;
+        }
+
+        .home-grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .home-grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .home-city-card,
+        .home-place-card,
+        .home-sortie-card,
+        .home-offer-card,
+        .home-event-card,
+        .home-action-card {
+            overflow: hidden;
+        }
+
+        .home-city-card {
+            position: relative;
+            min-height: 170px;
+            padding: 20px;
+            display: flex;
+            align-items: end;
+            background:
+                linear-gradient(180deg, rgba(9,31,70,.12), rgba(9,31,70,.58)),
+                linear-gradient(130deg, #1d4d96, #53a7e9);
+            color: #fff;
+        }
+
+        .home-city-card:nth-child(2n) {
+            background:
+                linear-gradient(180deg, rgba(9,31,70,.12), rgba(9,31,70,.58)),
+                linear-gradient(130deg, #0f766e, #38bdf8);
+        }
+
+        .home-city-card:nth-child(3n) {
+            background:
+                linear-gradient(180deg, rgba(9,31,70,.12), rgba(9,31,70,.58)),
+                linear-gradient(130deg, #9a3412, #f59e0b);
+        }
+
+        .home-city-card strong,
+        .home-city-card span {
+            display: block;
+        }
+
+        .home-city-card strong {
+            font-size: 1.4rem;
+        }
+
+        .home-city-card span {
+            margin-top: 6px;
+            color: rgba(255,255,255,.82);
+        }
+
+        .home-place-card,
+        .home-sortie-card,
+        .home-offer-card,
+        .home-event-card,
+        .home-action-card {
+            padding: 18px;
+            display: grid;
+            gap: 12px;
+        }
+
+        .home-place-card h3,
+        .home-sortie-card h3,
+        .home-offer-card h3,
+        .home-event-card h3,
+        .home-action-card h3 {
+            margin: 0;
+            color: #173f73;
+        }
+
+        .home-place-card p,
+        .home-sortie-card p,
+        .home-offer-card p,
+        .home-event-card p,
+        .home-action-card p {
+            margin: 0;
+            color: #617c99;
+            line-height: 1.55;
+        }
+
+        .home-place-card__head,
+        .home-sortie-card__head,
+        .home-event-card__head {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: start;
+        }
+
+        .home-cover-badge,
+        .home-pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: fit-content;
+            padding: 6px 11px;
+            border-radius: 999px;
+            background: rgba(20, 61, 113, .08);
+            color: #154175;
+            font-size: .78rem;
+            font-weight: 800;
+        }
+
+        .home-meta-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .home-pill--open { background: rgba(16, 185, 129, .16); color: #065f46; }
+        .home-pill--closed { background: rgba(245, 158, 11, .18); color: #92400e; }
+        .home-pill--cancel { background: rgba(239, 68, 68, .14); color: #991b1b; }
+        .home-pill--done { background: rgba(51, 65, 85, .16); color: #1e293b; }
+        .home-pill--urgent { background: rgba(239, 68, 68, .12); color: #b91c1c; }
+
+        .home-sortie-card {
+            grid-template-columns: 124px minmax(0, 1fr);
+            align-items: stretch;
+            transition: transform .28s ease, box-shadow .28s ease;
+        }
+
+        .home-sortie-card:hover,
+        .home-offer-card:hover,
+        .home-place-card:hover,
+        .home-event-card:hover,
+        .home-action-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 24px 48px rgba(14, 45, 94, .14);
+        }
+
+        .home-sortie-media {
+            height: 100%;
+            min-height: 138px;
+            border-radius: 18px;
+            overflow: hidden;
+            background: linear-gradient(135deg, #0b2a58, #1d4d96 58%, #4ca6e8);
         }
 
         .home-sortie-media img {
@@ -93,250 +373,336 @@
             height: 100%;
             object-fit: cover;
             display: block;
-            transition: transform .45s ease;
         }
 
-        .home-sortie-card:hover .home-sortie-media img {
-            transform: scale(1.05);
+        .home-offer-card--urgent {
+            border-color: rgba(239, 68, 68, .26);
+            background: linear-gradient(180deg, rgba(255,248,248,.98), rgba(255,255,255,.96));
         }
 
-        .home-sortie-content {
-            padding: 14px;
-            display: grid;
-            gap: 10px;
-        }
-
-        .home-sortie-title {
-            margin: 0;
-            color: #103468;
-            font-weight: 800;
-            line-height: 1.25;
-        }
-
-        .home-sortie-meta {
-            margin: 0;
-            color: #5c7392;
-            font-size: 13px;
-        }
-
-        .home-sortie-pills {
-            display: flex;
-            flex-wrap: wrap;
+        .home-offer-ribbon,
+        .home-offer-countdown {
+            display: inline-flex;
+            align-items: center;
             gap: 8px;
-        }
-
-        .home-sortie-pill {
+            width: fit-content;
+            padding: 6px 10px;
             border-radius: 999px;
-            padding: 5px 10px;
-            font-size: 12px;
+            font-size: .77rem;
             font-weight: 800;
-            background: rgba(20, 61, 113, 0.08);
-            color: #154175;
         }
 
-        .home-sortie-pill--open { background: rgba(16, 185, 129, 0.18); color: #065f46; }
-        .home-sortie-pill--closed { background: rgba(245, 158, 11, 0.2); color: #92400e; }
-        .home-sortie-pill--cancel { background: rgba(239, 68, 68, 0.16); color: #991b1b; }
-        .home-sortie-pill--done { background: rgba(51, 65, 85, 0.2); color: #1e293b; }
-
-        .hero.app-card {
-            background:
-                radial-gradient(ellipse 85% 120% at 80% 50%, rgba(63, 168, 224, 0.18) 0%, transparent 55%),
-                linear-gradient(120deg, rgba(6, 22, 48, 0.82) 0%, rgba(8, 30, 64, 0.72) 44%, rgba(8, 32, 70, 0.56) 100%),
-                url('{{ asset('theme/images/medina.jpg') }}') center center / cover no-repeat;
+        .home-offer-ribbon {
+            background: #fee2e2;
+            color: #991b1b;
         }
 
-        @keyframes homeSortieIn {
-            from { opacity: 0; transform: translateY(14px) scale(0.985); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
+        .home-offer-countdown {
+            background: rgba(255,255,255,.92);
+            border: 1px dashed rgba(239, 68, 68, .34);
+            color: #991b1b;
+        }
+
+        .home-action-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .home-action-card a {
+            width: fit-content;
+        }
+
+        @media (max-width: 1100px) {
+            .home-hero__grid,
+            .home-two-col,
+            .home-grid-2,
+            .home-action-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .home-highlights,
+            .home-grid-3 {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 760px) {
+            .home-highlights,
+            .home-grid-3,
+            .home-grid-2,
+            .home-action-grid,
+            .home-sortie-card {
+                grid-template-columns: 1fr;
+            }
+
+            .home-search-card {
+                grid-template-columns: 1fr;
+            }
+
+            .home-hero {
+                padding: 24px 18px;
+            }
+
+            .home-section-head {
+                align-items: start;
+            }
         }
     </style>
 {% endblock %}
 
 {% block front_content %}
-    <section class="hero app-card">
-        <div class="hero__grid">
-            <div>
-                <div class="badge-soft badge-gold">✨ {{ 'front.home.hero_badge'|trans }}</div>
-                <h1>وين تحب تخرج؟</h1>
-                <p>
-                    {{ 'front.home.hero_text'|trans }}
-                </p>
-                <div class="hero-search">
-                    <span>📍</span>
-                    <input type="text" value="sidi bou said" placeholder="{{ 'front.home.hero_search_placeholder'|trans }}">
-                    <a class="cta-btn" href="{{ path('app_lieux') }}">{{ 'front.home.explore'|trans }}</a>
-                </div>
-                <div class="hero-tags">
-                    <span class="hero-tag">Cafés</span>
-                    <span class="hero-tag">Restaurants</span>
-                    <span class="hero-tag">Musées</span>
-                    <span class="hero-tag">Plages</span>
-                    <span class="hero-tag">Sorties</span>
-                </div>
-            </div>
-            <div class="hero-side">
-                <div class="hero-mini-card">
-                    <h3>{{ 'front.home.kpi_places'|trans({'%count%': stats.lieux}) }}</h3>
-                    <p>{{ 'front.home.kpi_places_desc'|trans }}</p>
-                </div>
-                <div class="hero-mini-card">
-                    <h3>{{ 'front.home.kpi_outings'|trans({'%count%': stats.sorties}) }}</h3>
-                    <p>{{ 'front.home.kpi_outings_desc'|trans }}</p>
-                </div>
-                <div class="hero-mini-card">
-                    <h3>{{ 'front.home.kpi_events_offers'|trans({'%events%': stats.events, '%offers%': stats.offres}) }}</h3>
-                    <p>{{ 'front.home.kpi_events_offers_desc'|trans }}</p>
-                </div>
-            </div>
-        </div>
-    </section>
+    <div class="home-page">
+        <section class="home-hero">
+            <div class="home-hero__grid">
+                <div class="home-hero__main">
+                    <div class="home-kicker">{{ 'front.home.hero_badge'|trans }}</div>
+                    <h1>{{ 'front.home.title'|trans }}</h1>
+                    <p>{{ 'front.home.hero_text'|trans }}</p>
 
-    <section>
-        <div class="section-head">
-            <div>
-                    <h2 class="section-title">{{ 'front.home.trending_cities'|trans }}</h2>
-                    <p class="section-subtitle">{{ 'front.home.trending_cities_subtitle'|trans }}</p>
-            </div>
-            <a href="{{ path('app_lieux') }}" class="text-link">{{ 'common.view_all'|trans }}</a>
-        </div>
-        <div class="grid-cards">
-            {% set cityClasses = ['bg-tunis', 'bg-marsa', 'bg-sidibou', 'bg-hammamet', 'bg-nabeul', 'bg-monastir'] %}
-            {% for city in cities %}
-                <article class="city-card card-span-4 {{ cityClasses[loop.index0 % cityClasses|length] }}">
-                    <div class="city-card__content">
-                        <div class="city-card__title">{{ city.ville }}</div>
-                        <div class="city-card__meta">{{ city.total }} lieux · {{ city.categorie|replace({'_':' '})|title }}</div>
+                    <div class="home-search-card">
+                        <span>📍</span>
+                        <input type="text" value="" placeholder="{{ 'front.home.hero_search_placeholder'|trans }}">
+                        <a class="cta-btn" href="{{ path('app_lieux') }}">{{ 'front.home.explore'|trans }}</a>
                     </div>
-                </article>
-            {% else %}
-                <div class="empty-state card-span-12">{{ 'front.home.no_city'|trans }}</div>
-            {% endfor %}
-        </div>
-    </section>
 
-    <section class="grid-cards">
-        <div class="card-span-6">
-            <div class="section-head">
-                <div>
-                    <h2 class="section-title">{{ 'front.home.places_to_discover'|trans }}</h2>
-                    <p class="section-subtitle">{{ 'front.home.places_to_discover_subtitle'|trans }}</p>
+                    <div class="home-tag-row">
+                        <span class="home-tag">Cafes</span>
+                        <span class="home-tag">Restaurants</span>
+                        <span class="home-tag">Musees</span>
+                        <span class="home-tag">Plages</span>
+                        <span class="home-tag">Sorties</span>
+                    </div>
+                </div>
+
+                <div class="home-hero__side">
+                    <article class="home-panel-card">
+                        <h3>{{ 'front.home.kpi_places'|trans({'%count%': stats.lieux}) }}</h3>
+                        <p>{{ 'front.home.kpi_places_desc'|trans }}</p>
+                    </article>
+                    <article class="home-panel-card">
+                        <h3>{{ 'front.home.kpi_outings'|trans({'%count%': stats.sorties}) }}</h3>
+                        <p>{{ 'front.home.kpi_outings_desc'|trans }}</p>
+                    </article>
+                    <article class="home-panel-card">
+                        <h3>{{ 'front.home.kpi_events_offers'|trans({'%events%': stats.events, '%offers%': stats.offres}) }}</h3>
+                        <p>{{ 'front.home.kpi_events_offers_desc'|trans }}</p>
+                    </article>
                 </div>
             </div>
-            <div class="listing-grid">
-                {% for place in places|slice(0, 4) %}
-                    <article class="listing-card">
-                        <div class="cover-thumb"><span>{{ place.nom }}</span></div>
-                        <div class="listing-card__top">
-                            <div>
-                                <h3>{{ place.nom }}</h3>
-                                <p>{{ place.ville }} · {{ place.categorie|replace({'_':' '})|title }}</p>
-                            </div>
-                            <span class="badge-soft">{{ place.type }}</span>
-                        </div>
-                        <div class="meta-row">
-                            <span>💸 {{ place.budget_min ?? 0 }} - {{ place.budget_max ?? 0 }} TND</span>
+        </section>
+
+        <section class="home-highlights">
+            <article class="home-stat-card">
+                <span class="home-stat-label">Lieux references</span>
+                <strong class="home-stat-value">{{ stats.lieux }}</strong>
+                <span class="home-stat-note">Une base pour explorer facilement les meilleures adresses.</span>
+            </article>
+            <article class="home-stat-card">
+                <span class="home-stat-label">Sorties publiees</span>
+                <strong class="home-stat-value">{{ stats.sorties }}</strong>
+                <span class="home-stat-note">Des activites partagees par la communaute partout en Tunisie.</span>
+            </article>
+            <article class="home-stat-card">
+                <span class="home-stat-label">Evenements et offres</span>
+                <strong class="home-stat-value">{{ stats.events + stats.offres }}</strong>
+                <span class="home-stat-note">Des plans a venir et des promotions actives a suivre.</span>
+            </article>
+        </section>
+
+        <section class="home-section">
+            <div class="home-section-head">
+                <div>
+                    <h2 class="section-title">{{ 'front.home.trending_cities'|trans }}</h2>
+                    <p>{{ 'front.home.trending_cities_subtitle'|trans }}</p>
+                </div>
+                <a href="{{ path('app_lieux') }}" class="text-link">{{ 'common.view_all'|trans }}</a>
+            </div>
+
+            <div class="home-grid-3">
+                {% for city in cities %}
+                    <article class="home-city-card">
+                        <div>
+                            <strong>{{ city.ville }}</strong>
+                            <span>{{ city.total }} lieux · {{ city.categorie|replace({'_': ' '})|title }}</span>
                         </div>
                     </article>
                 {% else %}
-                    <div class="empty-state">{{ 'front.home.no_place'|trans }}</div>
+                    <div class="empty-state">{{ 'front.home.no_city'|trans }}</div>
                 {% endfor %}
             </div>
-        </div>
+        </section>
 
-        <div class="card-span-6">
-            <div class="section-head">
-                <div>
-                    <h2 class="section-title">{{ 'front.home.outings_offers'|trans }}</h2>
-                    <p class="section-subtitle">{{ 'front.home.outings_offers_subtitle'|trans }}</p>
+        <section class="home-two-col">
+            <div class="home-section">
+                <div class="home-section-head">
+                    <div>
+                        <h2 class="section-title">{{ 'front.home.places_to_discover'|trans }}</h2>
+                        <p>{{ 'front.home.places_to_discover_subtitle'|trans }}</p>
+                    </div>
+                    <a href="{{ path('app_lieux') }}" class="text-link">{{ 'common.view_all'|trans }}</a>
+                </div>
+
+                <div class="home-grid-2">
+                    {% for place in places|slice(0, 4) %}
+                        <article class="home-place-card">
+                            <div class="home-place-card__head">
+                                <div>
+                                    <h3>{{ place.nom }}</h3>
+                                    <p>{{ place.ville }} · {{ place.categorie|replace({'_': ' '})|title }}</p>
+                                </div>
+                                <span class="home-cover-badge">{{ place.type }}</span>
+                            </div>
+                            <div class="home-meta-row">
+                                <span class="home-pill">Budget {{ place.budget_min ?? 0 }} - {{ place.budget_max ?? 0 }} TND</span>
+                            </div>
+                        </article>
+                    {% else %}
+                        <div class="empty-state">{{ 'front.home.no_place'|trans }}</div>
+                    {% endfor %}
                 </div>
             </div>
-            <div class="home-sorties-grid" style="margin-bottom:14px;">
-                {% for sortie in sorties|slice(0, 3) %}
-                    {% set sortieImage = sortie.image_url ? (sortie.image_url starts with 'http' ? sortie.image_url : '/' ~ sortie.image_url|trim('/')) : null %}
-                    {% set statusClass = 'home-sortie-pill' %}
-                    {% if sortie.statut == 'OUVERTE' %}{% set statusClass = statusClass ~ ' home-sortie-pill--open' %}{% endif %}
-                    {% if sortie.statut == 'CLOTUREE' %}{% set statusClass = statusClass ~ ' home-sortie-pill--closed' %}{% endif %}
-                    {% if sortie.statut == 'ANNULEE' %}{% set statusClass = statusClass ~ ' home-sortie-pill--cancel' %}{% endif %}
-                    {% if sortie.statut == 'TERMINEE' %}{% set statusClass = statusClass ~ ' home-sortie-pill--done' %}{% endif %}
-                    <article class="home-sortie-card">
-                        <a href="{{ path('app_sorties_show', {id: sortie.id}) }}" style="text-decoration:none; color:inherit; display:block;">
+
+            <div class="home-section">
+                <div class="home-section-head">
+                    <div>
+                        <h2 class="section-title">Actions rapides</h2>
+                        <p>Entrez vite dans les espaces les plus utiles du front.</p>
+                    </div>
+                </div>
+
+                <div class="home-action-grid">
+                    <article class="home-action-card">
+                        <h3>Explorer les lieux</h3>
+                        <p>Parcourez les villes, categories et adresses a visiter.</p>
+                        <a href="{{ path('app_lieux') }}" class="outline-btn">Voir les lieux</a>
+                    </article>
+                    <article class="home-action-card">
+                        <h3>Consulter les sorties</h3>
+                        <p>Retrouvez les sorties ouvertes et les annonces recentes.</p>
+                        <a href="{{ path('app_sorties') }}" class="outline-btn">Voir les sorties</a>
+                    </article>
+                    <article class="home-action-card">
+                        <h3>Voir les evenements</h3>
+                        <p>Suivez les prochains rendez-vous et plans a venir.</p>
+                        <a href="{{ path('app_evenements') }}" class="outline-btn">Voir les evenements</a>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section class="home-two-col">
+            <div class="home-section">
+                <div class="home-section-head">
+                    <div>
+                        <h2 class="section-title">Sorties recentes</h2>
+                        <p>Les prochaines sorties publiees par la communaute.</p>
+                    </div>
+                    <a href="{{ path('app_sorties') }}" class="text-link">{{ 'common.view_all'|trans }}</a>
+                </div>
+
+                <div class="home-section" style="gap: 14px;">
+                    {% for sortie in sorties|slice(0, 3) %}
+                        {% set sortieImage = sortie.image_url ? (sortie.image_url starts with 'http' ? sortie.image_url : '/' ~ sortie.image_url|trim('/')) : null %}
+                        {% set statusClass = 'home-pill' %}
+                        {% if sortie.statut == 'OUVERTE' %}{% set statusClass = statusClass ~ ' home-pill--open' %}{% endif %}
+                        {% if sortie.statut == 'CLOTUREE' %}{% set statusClass = statusClass ~ ' home-pill--closed' %}{% endif %}
+                        {% if sortie.statut == 'ANNULEE' %}{% set statusClass = statusClass ~ ' home-pill--cancel' %}{% endif %}
+                        {% if sortie.statut == 'TERMINEE' %}{% set statusClass = statusClass ~ ' home-pill--done' %}{% endif %}
+                        <article class="home-sortie-card">
                             <div class="home-sortie-media">
                                 {% if sortieImage %}
                                     <img src="{{ sortieImage }}" alt="Image {{ sortie.titre }}" loading="lazy" onerror="this.onerror=null;this.style.display='none';">
                                 {% endif %}
                             </div>
-                            <div class="home-sortie-content">
-                                <h3 class="home-sortie-title">{{ sortie.titre }}</h3>
-                                <p class="home-sortie-meta">{{ sortie.ville }} · {{ sortie.date_sortie|date('d/m/Y H:i') }}</p>
-                                <div class="home-sortie-pills">
-                                    <span class="home-sortie-pill">{{ sortie.type_activite ?: ('front.home.default_outing'|trans) }}</span>
+                            <div class="home-section" style="gap: 10px;">
+                                <div class="home-sortie-card__head">
+                                    <div>
+                                        <h3>{{ sortie.titre }}</h3>
+                                        <p>{{ sortie.ville }} · {{ sortie.date_sortie|date('d/m/Y H:i') }}</p>
+                                    </div>
+                                </div>
+                                <div class="home-meta-row">
+                                    <span class="home-pill">{{ sortie.type_activite ?: ('front.home.default_outing'|trans) }}</span>
                                     <span class="{{ statusClass }}">{{ sortie.statut }}</span>
-                                    <span class="home-sortie-pill">{{ sortie.budget_max }} TND</span>
+                                    <span class="home-pill">{{ sortie.budget_max }} TND</span>
+                                </div>
+                                <div>
+                                    <a href="{{ path('app_sorties_show', {id: sortie.id}) }}" class="text-link">Voir la sortie</a>
                                 </div>
                             </div>
-                        </a>
-                    </article>
-                {% else %}
-                    <div class="empty-state" style="grid-column:1/-1;">{{ 'front.home.no_outing'|trans }}</div>
-                {% endfor %}
+                        </article>
+                    {% else %}
+                        <div class="empty-state">{{ 'front.home.no_outing'|trans }}</div>
+                    {% endfor %}
+                </div>
             </div>
 
-            <div class="listing-grid">
-                {% for offre in offres|slice(0, 2) %}
-                    {% set displayPercentage = offre.expiring_soon is defined and offre.expiring_soon ? offre.pourcentage * 2 : offre.pourcentage %}
-                    <article class="info-card home-offer-card {{ offre.expiring_soon is defined and offre.expiring_soon ? 'home-offer-card--urgent' : '' }}">
-                        <span class="badge-soft badge-gold">{{ offre.type }}</span>
-                        <h3>{{ offre.titre }}</h3>
-                        <p>{{ offre.lieu_nom ?: 'Lieu non défini' }} · {{ offre.ville ?: 'Tunisie' }}</p>
-                        <div class="meta-row">
-                            <span>
-                                🏷
-                                {% if offre.expiring_soon is defined and offre.expiring_soon %}
-                                    <span style="text-decoration:line-through; color:#94a3b8; margin-right:6px; font-weight:700;">{{ offre.pourcentage }}%</span>
-                                {% endif %}
-                                <span style="font-weight:800; color:{{ offre.expiring_soon is defined and offre.expiring_soon ? '#b91c1c' : 'inherit' }};">{{ displayPercentage }}%</span>
-                            </span>
-                            <span>⏳ Jusqu'au {{ offre.date_fin|date('d/m/Y') }}</span>
+            <div class="home-section">
+                <div class="home-section-head">
+                    <div>
+                        <h2 class="section-title">Offres a ne pas rater</h2>
+                        <p>Les promotions encore actives et les plus urgentes.</p>
+                    </div>
+                    <a href="{{ path('app_offres') }}" class="text-link">{{ 'common.view_all'|trans }}</a>
+                </div>
+
+                <div class="home-section" style="gap: 14px;">
+                    {% for offre in offres|slice(0, 3) %}
+                        {% set displayPercentage = offre.expiring_soon is defined and offre.expiring_soon ? offre.pourcentage * 2 : offre.pourcentage %}
+                        <article class="home-offer-card {{ offre.expiring_soon is defined and offre.expiring_soon ? 'home-offer-card--urgent' : '' }}">
+                            <div class="home-place-card__head">
+                                <div>
+                                    <span class="home-cover-badge">{{ offre.type }}</span>
+                                    <h3 style="margin-top:10px;">{{ offre.titre }}</h3>
+                                    <p>{{ offre.lieu_nom ?: 'Lieu non defini' }} · {{ offre.ville ?: 'Tunisie' }}</p>
+                                </div>
+                                <span class="home-pill {{ offre.expiring_soon is defined and offre.expiring_soon ? 'home-pill--urgent' : '' }}">{{ displayPercentage }}%</span>
+                            </div>
+                            <p>Disponible jusqu'au {{ offre.date_fin|date('d/m/Y') }}.</p>
+                            {% if offre.expiring_soon is defined and offre.expiring_soon %}
+                                <div class="home-offer-ribbon">Expire bientot · remise doublee</div>
+                                <div class="home-offer-countdown" data-offer-countdown="{{ offre.countdown_target ?? (offre.date_fin|date('Y-m-d') ~ 'T23:59:59') }}">{{ offre.countdown_label ?? 'Expire dans ...' }}</div>
+                            {% endif %}
+                            <div>
+                                <a href="{{ path('app_offres') }}" class="text-link">Voir les offres</a>
+                            </div>
+                        </article>
+                    {% else %}
+                        <div class="empty-state">{{ 'front.home.no_offer'|trans }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        <section class="home-section">
+            <div class="home-section-head">
+                <div>
+                    <h2 class="section-title">{{ 'front.home.upcoming_events'|trans }}</h2>
+                    <p>{{ 'front.home.upcoming_events_subtitle'|trans }}</p>
+                </div>
+                <a href="{{ path('app_evenements') }}" class="text-link">{{ 'front.home.all_events'|trans }}</a>
+            </div>
+
+            <div class="home-grid-3">
+                {% for event in events|slice(0, 6) %}
+                    <article class="home-event-card">
+                        <div class="home-event-card__head">
+                            <div>
+                                <span class="home-cover-badge">{{ event.type }}</span>
+                                <h3 style="margin-top:10px;">{{ event.titre }}</h3>
+                                <p>{{ event.lieu_nom ?: ('front.home.place_to_define'|trans) }} · {{ event.ville ?: 'Tunisie' }}</p>
+                            </div>
+                            <span class="home-pill">{{ event.prix }} TND</span>
                         </div>
-                        {% if offre.expiring_soon is defined and offre.expiring_soon %}
-                            <div class="home-offer-ribbon">Expire bientôt · remise doublée</div>
-                            <div class="home-offer-countdown" data-offer-countdown="{{ offre.countdown_target ?? (offre.date_fin|date('Y-m-d') ~ 'T23:59:59') }}">{{ offre.countdown_label ?? 'Expire dans ...' }}</div>
-                        {% endif %}
+                        <div class="home-meta-row">
+                            <span class="home-pill">{{ event.date_debut|date('d/m/Y H:i') }}</span>
+                        </div>
                     </article>
                 {% else %}
-                    <div class="empty-state">{{ 'front.home.no_offer'|trans }}</div>
+                    <div class="empty-state">{{ 'front.home.no_event'|trans }}</div>
                 {% endfor %}
             </div>
-        </div>
-    </section>
-
-    <section>
-        <div class="section-head">
-            <div>
-                <h2 class="section-title">{{ 'front.home.upcoming_events'|trans }}</h2>
-                <p class="section-subtitle">{{ 'front.home.upcoming_events_subtitle'|trans }}</p>
-            </div>
-            <a href="{{ path('app_evenements') }}" class="text-link">{{ 'front.home.all_events'|trans }}</a>
-        </div>
-        <div class="listing-grid">
-            {% for event in events %}
-                <article class="listing-card">
-                    <div class="listing-card__top">
-                        <div>
-                            <span class="badge-soft">{{ event.type }}</span>
-                            <h3>{{ event.titre }}</h3>
-                            <p>{{ event.lieu_nom ?: ('front.home.place_to_define'|trans) }} · {{ event.ville ?: 'Tunisie' }}</p>
-                        </div>
-                        <span class="price-pill">{{ event.prix }} TND</span>
-                    </div>
-                    <div class="meta-row">
-                        <span>🗓 {{ event.date_debut|date('d/m/Y H:i') }}</span>
-                    </div>
-                </article>
-            {% else %}
-                <div class="empty-state">{{ 'front.home.no_event'|trans }}</div>
-            {% endfor %}
-        </div>
-    </section>
+        </section>
+    </div>
 {% endblock %}

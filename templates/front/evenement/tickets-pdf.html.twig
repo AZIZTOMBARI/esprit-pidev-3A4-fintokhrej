@@ -9,9 +9,13 @@
         .title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
         .muted { color: #64748b; }
         .card { border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
-        .row { display: flex; justify-content: space-between; gap: 12px; }
+        .row { width: 100%; }
+        .left { width: 68%; display: inline-block; vertical-align: top; }
+        .right { width: 28%; display: inline-block; vertical-align: top; text-align: right; }
         .badge { display: inline-block; padding: 4px 8px; border-radius: 999px; background: #e2e8f0; font-weight: 700; font-size: 11px; }
         .tickets { margin-top: 12px; }
+        .qr { width: 110px; height: 110px; border: 1px solid #dbe4f0; padding: 6px; background: #fff; overflow: hidden; }
+        .qr svg { width: 100%; height: 100%; }
     </style>
 </head>
 <body>
@@ -20,7 +24,7 @@
         <div class="muted">Date: {{ inscription.evenement.dateDebut|date('d/m/Y H:i') }}</div>
         <div class="muted">Lieu: {{ inscription.evenement.lieu ? inscription.evenement.lieu.nom : 'Lieu a confirmer' }}</div>
         <div class="muted">Participant: {{ inscription.user.prenom }} {{ inscription.user.nom }}</div>
-        <div class="muted">Référence: {{ inscription.getPaiementPrincipal() ? inscription.getPaiementPrincipal().referenceCode : 'N/A' }}</div>
+        <div class="muted">Reference: {{ inscription.getPaiementPrincipal() ? inscription.getPaiementPrincipal().referenceCode : 'N/A' }}</div>
         <div class="muted">Nombre de tickets: {{ inscription.nbTickets }}</div>
     </div>
 
@@ -28,13 +32,19 @@
         {% for ticket in tickets %}
             <div class="card">
                 <div class="row">
-                    <div>
+                    <div class="left">
                         <div><strong>{{ ticket.getNumeroTicketFinal() }}</strong></div>
                         <div class="muted">Emis le {{ ticket.date|date('d/m/Y') }}</div>
+                        <div class="muted">Statut: {{ ticket.statutLabel }}</div>
                     </div>
-                    <div style="text-align: right;">
+                    <div class="right">
                         <div class="muted">Code validation</div>
                         <div class="badge">{{ ticket.codeValidation }}</div>
+                        {% if ticket_qr_codes[ticket.id] is defined %}
+                            <div style="margin-top: 8px;" class="qr">
+                                {{ ticket_qr_codes[ticket.id]|raw }}
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>

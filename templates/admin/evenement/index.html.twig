@@ -3,6 +3,11 @@
 {% block title %}Gestion des Événements - Admin{% endblock %}
 {% block admin_page_title %}Événements{% endblock %}
 
+{% block stylesheets %}
+    {{ parent() }}
+    <link rel="stylesheet" href="{{ asset('theme/css/evenement-enhance.css') }}?v=v2">
+{% endblock %}
+
 {% block admin_content %}
 {% set filters = filters|default({
     q: '',
@@ -13,10 +18,18 @@
     order: ''
 }) %}
 {% set evenements = evenements|default(events|default([])) %}
+{% set total_results = total_results|default(evenements|length) %}
+
 <div class="admin-container">
     <div class="section-head">
-        <h1 class="section-title">Gestion des Événements</h1>
-        <a href="{{ path('app_admin_evenements_new') }}" class="cta-btn">+ Nouvel Événement</a>
+        <div>
+            <h1 class="section-title">Gestion des Evenements</h1>
+            <p class="section-subtitle">Vue liste des evenements.</p>
+        </div>
+        <div class="event-head-actions">
+            <a href="{{ path('app_admin_evenements_new') }}" class="cta-btn">+ Nouvel Evenement</a>
+            <a href="{{ path('app_admin_evenements_calendar') }}" class="outline-btn">Calendrier (sync)</a>
+        </div>
     </div>
 
     <div class="admin-table-card" style="margin-bottom: 18px;">
@@ -79,55 +92,196 @@
         </form>
     </div>
 
-    <div class="listing-grid">
-        {% for evenement in evenements %}
-            {% set rawImage = (evenement.imageUrl|default(''))|trim %}
-            {% if rawImage and (rawImage starts with 'http://' or rawImage starts with 'https://' or rawImage starts with 'data:image/') %}
-                {% set imageSrc = rawImage %}
-            {% elseif rawImage and (rawImage starts with '/') %}
-                {% set imageSrc = rawImage %}
-            {% elseif rawImage and (rawImage starts with 'theme/' or rawImage starts with 'uploads/') %}
-                {% set imageSrc = '/' ~ rawImage|trim('/') %}
-            {% elseif rawImage %}
-                {% set imageSrc = '/uploads/evenements/' ~ rawImage|trim('/') %}
-            {% else %}
-                {% set imageSrc = asset('theme/images/logo.png') %}
-            {% endif %}
+    <div class="event-split">
+        <div class="event-list-panel">
+            <div class="event-list-nav">
+                <button id="nav-prev" class="event-nav-arrow" aria-label="Événement précédent" disabled>&#8249;</button>
+                <span id="nav-counter" class="event-nav-counter">
+                    {% if evenements|length > 0 %}1 / {{ evenements|length }}{% else %}0 événement{% endif %}
+                </span>
+                <button id="nav-next" class="event-nav-arrow" aria-label="Événement suivant" {% if evenements|length <= 1 %}disabled{% endif %}>&#8250;</button>
+            </div>
+            <div class="event-list">
+                {% for evenement in evenements %}
+                    {% set rawImage = (evenement.imageUrl|default(''))|trim %}
+                    {% if rawImage and (rawImage starts with 'http://' or rawImage starts with 'https://' or rawImage starts with 'data:image/') %}
+                        {% set imageSrc = rawImage %}
+                    {% elseif rawImage and (rawImage starts with '/') %}
+                        {% set imageSrc = rawImage %}
+                    {% elseif rawImage and (rawImage starts with 'theme/' or rawImage starts with 'uploads/') %}
+                        {% set imageSrc = '/' ~ rawImage|trim('/') %}
+                    {% elseif rawImage %}
+                        {% set imageSrc = '/uploads/evenements/' ~ rawImage|trim('/') %}
+                    {% else %}
+                        {% set imageSrc = asset('theme/images/logo.png') %}
+                    {% endif %}
 
-            <article class="listing-card admin-event-card" data-href="{{ path('app_admin_evenement_show', {id: evenement.id}) }}">
-                <div class="cover-thumb">
-                    <img src="{{ imageSrc }}" alt="{{ evenement.titre }}" onerror="this.onerror=null;this.src='{{ asset('theme/images/logo.png') }}';">
-                </div>
-                
-                <div class="listing-card__top">
-                    <h3>{{ evenement.titre }}</h3>
-                    <p>{{ evenement.dateDebut|date('d/m/Y H:i') }} - {{ evenement.dateFin|date('d/m/Y H:i') }}</p>
-                </div>
+                    <article
+                        class="event-row"
+                        style="--row-index: {{ loop.index0 }}"
+                        tabindex="0"
+                        role="button"
+                        aria-label="Sélectionner l'événement {{ evenement.titre|e('html_attr') }}"
+                        data-id="{{ evenement.id }}"
+                        data-weather-url="{{ path('app_admin_evenement_weather_summary', {id: evenement.id}) }}"
+                        data-weather-cards-url="{{ path('app_admin_evenement_weather_cards', {id: evenement.id}) }}"
+                        data-href="{{ path('app_admin_evenement_show', {id: evenement.id}) }}"
+                        data-title="{{ evenement.titre|e('html_attr') }}"
+                        data-date-start="{{ evenement.dateDebut|date('d/m/Y H:i') }}"
+                        data-date-end="{{ evenement.dateFin|date('d/m/Y H:i') }}"
+                        data-capacity="{{ evenement.capaciteMax }}"
+                        data-price="{{ evenement.prix }}"
+                        data-status="{{ evenement.statut }}"
+                        data-type="{{ evenement.type|default('') }}"
+                        data-lieu="{{ evenement.lieu ? evenement.lieu.nom : 'Lieu non defini' }}"
+                        data-image="{{ imageSrc }}"
+                        data-description="{{ evenement.description|default('')|striptags|trim|e('html_attr') }}"
+                    >
+                        <div class="event-row__media">
+                            <img src="{{ imageSrc }}" alt="{{ evenement.titre }}" onerror="this.onerror=null;this.src='{{ asset('theme/images/logo.png') }}';">
+                        </div>
+                        <div class="event-row__body">
+                            <div class="event-row__title">{{ evenement.titre }}</div>
+                            <div class="event-row__meta">
+                                <span>{{ evenement.dateDebut|date('d/m/Y H:i') }}</span>
+                                <span>·</span>
+                                <span>{{ evenement.dateFin|date('d/m/Y H:i') }}</span>
+                                <span>·</span>
+                                <span>{{ evenement.lieu ? evenement.lieu.nom : 'Lieu non defini' }}</span>
+                            </div>
+                            <div class="event-row__badges">
+                                <span class="event-chip">👥 {{ evenement.capaciteMax }} places</span>
+                                <span class="event-chip">💰 {{ evenement.prix }} TND</span>
+                                <span class="event-chip event-chip--status {{ evenement.statut == 'OUVERT' ? 'success' : 'warning' }}">
+                                    {{ evenement.statut }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="event-row__actions">
+                            <a href="{{ path('app_admin_inscriptions', {id: evenement.id}) }}" class="outline-btn event-action-btn"><span>Inscriptions</span></a>
+                            <a href="{{ path('app_admin_evenements_edit', {id: evenement.id}) }}" class="outline-btn event-action-btn"><span>Modifier</span></a>
+                            <form method="post" action="{{ path('app_admin_evenements_delete', {id: evenement.id}) }}" class="btn-inline-form" style="display:inline; margin:0;">
+                                <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ evenement.id) }}">
+                                <button type="submit" class="outline-btn event-action-btn event-action-btn--danger" onclick="return confirm('Supprimer cet événement ?')"><span>Supprimer</span></button>
+                            </form>
+                        </div>
+                    </article>
+                {% else %}
+                    <div class="empty-state">Aucun événement trouvé.</div>
+                {% endfor %}
+            </div>
 
-                <div class="meta-row">
-                    <span>👥 {{ evenement.capaciteMax }} places</span>
-                    <span>💰 {{ evenement.prix }} TND</span>
-                    <span class="badge-soft {{ evenement.statut == 'OUVERT' ? 'success' : 'warning' }}">
-                        {{ evenement.statut }}
-                    </span>
-                </div>
+        </div>
 
-                <div class="admin-actions admin-event-actions">
-                    <a href="{{ path('app_admin_inscriptions', {id: evenement.id}) }}" class="outline-btn event-action-btn"><span>Inscriptions</span></a>
-                    <a href="{{ path('app_admin_evenements_edit', {id: evenement.id}) }}" class="outline-btn event-action-btn"><span>Modifier</span></a>
-                    <form method="post" action="{{ path('app_admin_evenements_delete', {id: evenement.id}) }}" class="btn-inline-form" style="display:inline; margin:0;">
-                        <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ evenement.id) }}">
-                        <button type="submit" class="outline-btn event-action-btn event-action-btn--danger" onclick="return confirm('Supprimer cet événement ?')"><span>Supprimer</span></button>
-                    </form>
+        <aside class="event-detail-panel">
+            <div class="event-detail-card" id="event-detail-card">
+                <div class="event-detail-media">
+                    <img id="event-detail-image" src="{{ asset('theme/images/logo.png') }}" alt="Apercu evenement">
+                    <div class="event-detail-media__overlay">
+                        <span class="event-detail-chip event-detail-chip--status" id="event-detail-status-chip">--</span>
+                        <span class="event-detail-chip event-detail-chip--type" id="event-detail-type-chip">--</span>
+                    </div>
                 </div>
-            </article>
-        {% else %}
-            <div class="empty-state">Aucun événement trouvé.</div>
-        {% endfor %}
+                <div class="event-detail-body">
+                    <div class="event-detail-kicker">Apercu evenement</div>
+                    <div class="event-detail-heading">
+                        <h2 id="event-detail-title">Selectionnez un evenement</h2>
+                        <div id="event-detail-dates" class="event-detail-dates">--</div>
+                    </div>
+                    <p id="event-detail-description">Cliquez sur une ligne pour afficher les details dans ce panneau.</p>
+
+                    <div class="event-detail-grid">
+                        <div>
+                            <span class="event-detail-label">Lieu</span>
+                            <span id="event-detail-lieu" class="event-detail-value">--</span>
+                        </div>
+                        <div>
+                            <span class="event-detail-label">Capacite</span>
+                            <span id="event-detail-capacity" class="event-detail-value">--</span>
+                        </div>
+                        <div>
+                            <span class="event-detail-label">Prix</span>
+                            <span id="event-detail-price" class="event-detail-value">--</span>
+                        </div>
+                            <button type="button" class="wx-carousel__arrow" id="weather-card-next" aria-label="Jour suivant">›</button>
+                        </div>
+                        <div class="wx-carousel__counter" id="weather-card-counter">-- / --</div>
+                    </div>
+
+                    <div class="event-detail-weather">
+                        <div class="event-detail-weather__head">
+                            <span>Météo sur site</span>
+                            <strong id="event-detail-weather-status">--</strong>
+                        </div>
+
+                        {# ───── Mini-stats résumées ───── #}
+                        <div class="event-detail-weather__grid">
+                            <div>
+                                <span>Pluie</span>
+                                <strong id="event-detail-weather-precip">--</strong>
+                            </div>
+                            <div>
+                                <span>Vent</span>
+                                <strong id="event-detail-weather-wind">--</strong>
+                            </div>
+                            <div>
+                                <span>Participation</span>
+                                <strong id="event-detail-weather-participation">--</strong>
+                            </div>
+                        </div>
+                        <div class="event-detail-weather__temp" id="event-detail-weather-temp">--</div>
+                        <div class="wx-carousel">
+                            <button type="button" class="wx-carousel__arrow" id="weather-card-prev" aria-label="Jour precedent">‹</button>
+                            <div class="wx-carousel__viewport">
+
+                        {# ───── Cartes météo quotidiennes (style image ref) ───── #}
+                        <div id="event-detail-weather-cards" class="wx-cards-strip" aria-label="Prévisions météo">
+                            <!-- Injecté par JS -->
+                        </div>
+                    </div>
+
+                            <button type="button" class="wx-carousel__arrow" id="weather-card-next" aria-label="Jour suivant">›</button>
+                        </div>
+                        <div class="wx-carousel__counter" id="weather-card-counter">-- / --</div>
+                    </div>
+                    <div class="event-detail-actions">
+                        <a id="event-detail-link" href="#" class="cta-btn">Voir la fiche</a>
+                        <span class="event-detail-hint">Les actions CRUD restent disponibles dans la liste.</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
     </div>
  </div>
 
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap');
+
+    :root {
+        --event-ink: #0f1f2e;
+        --event-muted: #56657a;
+        --event-accent: #0b5c78;
+        --event-accent-soft: rgba(11, 92, 120, 0.12);
+        --event-card: #ffffff;
+        --event-stroke: rgba(15, 31, 46, 0.12);
+        --event-shadow: 0 24px 48px rgba(15, 31, 46, 0.12);
+    }
+
+    .admin-container {
+        font-family: 'Manrope', 'Trebuchet MS', sans-serif;
+        color: var(--event-ink);
+    }
+
+    .admin-container .section-title {
+        font-family: 'Fraunces', 'Times New Roman', serif;
+        letter-spacing: 0.02em;
+    }
+    .event-head-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
     .event-filter-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -162,23 +316,234 @@
         display: flex;
         align-items: end;
     }
-    .admin-event-card {
-        cursor: pointer;
+    .event-split {
+        display: grid;
+        grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr);
+        gap: 22px;
+        align-items: start;
     }
-    .admin-event-card .cover-thumb img {
+    .event-list-panel {
+        background: linear-gradient(135deg, rgba(11, 92, 120, 0.06), rgba(19, 96, 140, 0.03));
+        border-radius: 20px;
+        padding: 18px;
+        border: 1px solid rgba(11, 92, 120, 0.12);
+    }
+    .event-list {
+        display: grid;
+        gap: 14px;
+    }
+    .event-row {
+        display: grid;
+        grid-template-columns: 92px minmax(0, 1fr) minmax(220px, 0.7fr);
+        gap: 16px;
+        align-items: center;
+        padding: 14px 16px;
+        background: var(--event-card);
+        border-radius: 18px;
+        border: 1px solid var(--event-stroke);
+        box-shadow: 0 16px 28px rgba(15, 31, 46, 0.08);
+        cursor: pointer;
+        transform: translateY(10px);
+        opacity: 0;
+        animation: eventRowIn 0.6s ease forwards;
+        animation-delay: calc(var(--row-index) * 70ms);
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .event-row:hover {
+        transform: translateY(-2px);
+        border-color: rgba(11, 92, 120, 0.32);
+        box-shadow: 0 26px 40px rgba(15, 31, 46, 0.18);
+    }
+    .event-row.is-active {
+        border-color: rgba(11, 92, 120, 0.6);
+        box-shadow: 0 28px 56px rgba(11, 92, 120, 0.2);
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(247, 251, 255, 0.94));
+    }
+    .event-row__media {
+        width: 92px;
+        height: 92px;
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid rgba(11, 92, 120, 0.2);
+        background: #f1f5f9;
+    }
+    .event-row__media img {
         width: 100%;
         height: 100%;
         object-fit: cover;
         display: block;
     }
-    .admin-event-actions {
+    .event-row__title {
+        font-size: 17px;
+        font-weight: 700;
+        margin-bottom: 6px;
+        letter-spacing: 0.01em;
+    }
+    .event-row__meta {
+        font-size: 13px;
+        color: var(--event-muted);
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .event-row__badges {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+    }
+    .event-chip {
+        font-size: 12px;
+        font-weight: 600;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(11, 92, 120, 0.08);
+        color: var(--event-accent);
+    }
+    .event-chip--status.success {
+        background: rgba(16, 185, 129, 0.16);
+        color: #0f766e;
+    }
+    .event-chip--status.warning {
+        background: rgba(245, 158, 11, 0.18);
+        color: #92400e;
+    }
+    .event-row__actions {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 10px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
         align-items: center;
     }
-    .admin-event-actions .btn-inline-form {
+    .event-row__actions .btn-inline-form {
+        grid-column: 1 / -1;
+    }
+    .event-detail-panel {
+        position: sticky;
+        top: 20px;
+        align-self: start;
+    }
+    .event-detail-card {
+        background: linear-gradient(145deg, #ffffff, #f8fbff 60%);
+        border-radius: 24px;
+        border: 1px solid rgba(11, 92, 120, 0.18);
+        box-shadow: var(--event-shadow);
+        overflow: hidden;
+        animation: detailIn 0.5s ease both;
+        max-height: calc(100vh - 32px);
+        display: grid;
+        grid-template-rows: auto 1fr;
+    }
+    .event-detail-media {
+        height: 190px;
+        background: #e2e8f0;
+        overflow: hidden;
+        position: relative;
+    }
+    .event-detail-media img {
         width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+    .event-detail-body {
+        padding: 18px 20px 20px;
+        overflow: auto;
+        min-height: 0;
+        display: grid;
+        gap: 12px;
+    }
+    .event-detail-kicker {
+        font-size: 12px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--event-muted);
+        margin-bottom: 8px;
+    }
+    .event-detail-heading {
+        display: grid;
+        gap: 6px;
+    }
+    .event-detail-body h2 {
+        font-family: 'Fraunces', 'Times New Roman', serif;
+        font-size: 22px;
+        margin: 0 0 8px;
+    }
+    .event-detail-dates {
+        font-size: 12px;
+        color: var(--event-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+    }
+    .event-detail-body p {
+        margin: 0 0 16px;
+        color: var(--event-muted);
+        line-height: 1.5;
+    }
+    .event-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px 16px;
+    }
+    .event-detail-label {
+        display: block;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--event-muted);
+        margin-bottom: 4px;
+    }
+    .event-detail-value {
+        font-weight: 600;
+    }
+    .event-detail-media__overlay {
+        position: absolute;
+        inset: auto 12px 12px 12px;
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+    }
+    .event-detail-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        background: rgba(255, 255, 255, 0.92);
+        border: 1px solid rgba(15, 31, 46, 0.18);
+        color: var(--event-ink);
+        box-shadow: 0 8px 16px rgba(15, 31, 46, 0.18);
+    }
+    .event-detail-chip--status.is-open {
+        background: rgba(16, 185, 129, 0.2);
+        border-color: rgba(16, 185, 129, 0.35);
+        color: #0f766e;
+    }
+    .event-detail-chip--status.is-closed {
+        background: rgba(245, 158, 11, 0.2);
+        border-color: rgba(245, 158, 11, 0.4);
+        color: #92400e;
+    }
+    .event-detail-chip--status.is-cancelled {
+        background: rgba(239, 68, 68, 0.2);
+        border-color: rgba(239, 68, 68, 0.35);
+        color: #b91c1c;
+    }
+    .event-detail-chip--type {
+        background: rgba(11, 92, 120, 0.15);
+        border-color: rgba(11, 92, 120, 0.3);
+        color: var(--event-accent);
+    }
+    .event-detail-actions {
+        display: grid;
+        gap: 8px;
+        margin-top: 16px;
+    }
+    .event-detail-hint {
+        font-size: 12px;
+        color: var(--event-muted);
     }
     .event-action-btn {
         width: 100%;
@@ -198,28 +563,545 @@
         background: linear-gradient(180deg, #ffffff, #fff6f6);
     }
 
+    .event-detail-weather {
+        margin-top: 16px;
+        padding: 12px;
+        border-radius: 16px;
+        background: linear-gradient(135deg, rgba(11, 92, 120, 0.08), rgba(15, 31, 46, 0.04));
+        border: 1px solid rgba(11, 92, 120, 0.14);
+        display: grid;
+        gap: 10px;
+    }
+    .event-detail-weather__head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--event-muted);
+    }
+    .event-detail-weather__head strong {
+        color: var(--event-accent);
+        font-size: 12px;
+    }
+    .event-detail-weather__grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+    }
+    .event-detail-weather__grid div {
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid rgba(15, 31, 46, 0.08);
+        padding: 8px;
+        display: grid;
+        gap: 4px;
+    }
+    .event-detail-weather__grid span {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--event-muted);
+    }
+    .event-detail-weather__grid strong {
+        font-size: 14px;
+    }
+    .event-detail-weather__temp {
+        font-size: 12px;
+        color: var(--event-muted);
+    }
+    .wx-carousel {
+        display: grid;
+        grid-template-columns: 28px minmax(0, 1fr) 28px;
+        align-items: center;
+        gap: 8px;
+    }
+    .wx-carousel__viewport {
+        overflow: hidden;
+    }
+    .wx-carousel__arrow {
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        border: 1px solid rgba(11, 92, 120, 0.16);
+        background: rgba(255,255,255,.9);
+        color: var(--event-accent);
+        display: grid;
+        place-items: center;
+        font-size: 18px;
+        font-weight: 800;
+        cursor: pointer;
+        padding: 0;
+    }
+    .wx-carousel__arrow:disabled {
+        opacity: .35;
+        cursor: not-allowed;
+    }
+    .wx-carousel__counter {
+        text-align: center;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--event-muted);
+        letter-spacing: .08em;
+        text-transform: uppercase;
+    }
+    .wx-cards-strip {
+        width: 100%;
+    }
+    .wx-card {
+        width: 100%;
+        max-width: 160px;
+        margin: 0 auto;
+        min-height: 180px;
+        border-radius: 18px;
+        padding: 12px 10px;
+        color: #fff;
+        display: grid;
+        justify-items: center;
+        gap: 8px;
+        text-align: center;
+        box-shadow: 0 12px 24px rgba(15, 31, 46, 0.14);
+    }
+    .wx-card__date {
+        font-size: 10px;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        opacity: .92;
+    }
+    .wx-card__icon {
+        width: 42px;
+        height: 42px;
+    }
+    .wx-card__icon svg {
+        width: 100%;
+        height: 100%;
+    }
+    .wx-card__temp {
+        font-size: 24px;
+        font-weight: 800;
+        line-height: 1;
+    }
+    .wx-card__label {
+        font-size: 11px;
+        font-weight: 700;
+    }
+    .wx-card__meta {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: center;
+        font-size: 10px;
+        opacity: .95;
+    }
+    .wx-card__dots {
+        display: flex;
+        gap: 4px;
+    }
+    .wx-card__dots span {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: rgba(255,255,255,.35);
+    }
+    .wx-card__dots span.active {
+        background: rgba(255,255,255,.92);
+    }
+    .wx-card.is-skeleton {
+        background: linear-gradient(135deg, rgba(148, 163, 184, .35), rgba(203, 213, 225, .5));
+        min-height: 180px;
+    }
+    .wx-card.is-skeleton div {
+        width: 100%;
+        height: 100%;
+        border-radius: 14px;
+        background: rgba(255,255,255,.35);
+    }
+    .wx-card.grad-sunny { background: linear-gradient(180deg, #46b9f2, #1f6fd6); }
+    .wx-card.grad-partly-sunny { background: linear-gradient(180deg, #62c6ff, #5c7cfa); }
+    .wx-card.grad-cloudy { background: linear-gradient(180deg, #8fb3d9, #607d9f); }
+    .wx-card.grad-rain,
+    .wx-card.grad-showers,
+    .wx-card.grad-drizzle { background: linear-gradient(180deg, #5f86b3, #2c4f7c); }
+    .wx-card.grad-thunderstorm { background: linear-gradient(180deg, #5b6482, #272b45); }
+    .wx-card.grad-snow,
+    .wx-card.grad-fog { background: linear-gradient(180deg, #a5b9cc, #73879a); }
+    .wx-card.grad-night,
+    .wx-card.grad-unknown { background: linear-gradient(180deg, #58708e, #32475f); }
+
+    /* ── Arrow navigation ───────────────────────────────────────── */
+    .event-list-nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 14px;
+        padding: 8px 4px;
+        border-bottom: 1px solid rgba(11, 92, 120, 0.12);
+    }
+    .event-nav-arrow {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: 1.5px solid rgba(11, 92, 120, 0.22);
+        background: #fff;
+        color: var(--event-accent);
+        font-size: 24px;
+        line-height: 1;
+        cursor: pointer;
+        display: grid;
+        place-items: center;
+        transition: background 0.18s, border-color 0.18s, transform 0.15s, box-shadow 0.18s;
+        box-shadow: 0 2px 8px rgba(11, 92, 120, 0.08);
+        flex-shrink: 0;
+    }
+    .event-nav-arrow:hover:not(:disabled) {
+        background: var(--event-accent);
+        color: #fff;
+        border-color: var(--event-accent);
+        transform: scale(1.08);
+        box-shadow: 0 6px 18px rgba(11, 92, 120, 0.28);
+    }
+    .event-nav-arrow:disabled {
+        opacity: 0.32;
+        cursor: not-allowed;
+        box-shadow: none;
+    }
+    .event-nav-counter {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--event-muted);
+        letter-spacing: 0.06em;
+    }
+
+    @keyframes eventRowIn {
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+    @keyframes detailIn {
+        from {
+            transform: translateY(8px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+    @media (max-width: 1100px) {
+        .event-split {
+            grid-template-columns: 1fr;
+        }
+        .event-detail-panel {
+            position: static;
+        }
+    }
     @media (max-width: 900px) {
-        .admin-event-actions {
+        .event-row {
+            grid-template-columns: 72px minmax(0, 1fr);
+        }
+        .event-row__actions {
+            grid-column: 1 / -1;
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
-        .admin-event-actions .btn-inline-form {
-            grid-column: 1 / -1;
+        .event-detail-weather__grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
         }
     }
 </style>
 
 <script>
-    document.querySelectorAll('.admin-event-card').forEach((card) => {
-        card.addEventListener('click', (event) => {
-            const target = event.target;
-            if (target.closest('a, button, form, input, select, textarea, label')) {
+    (function () {
+        const rows = Array.from(document.querySelectorAll('.event-row'));
+        const detailImage = document.getElementById('event-detail-image');
+        const detailTitle = document.getElementById('event-detail-title');
+        const detailDescription = document.getElementById('event-detail-description');
+        const detailDates = document.getElementById('event-detail-dates');
+        const detailLieu = document.getElementById('event-detail-lieu');
+        const detailCapacity = document.getElementById('event-detail-capacity');
+        const detailPrice = document.getElementById('event-detail-price');
+        const detailStatus = document.getElementById('event-detail-status');
+        const detailType = document.getElementById('event-detail-type');
+        const detailLink = document.getElementById('event-detail-link');
+        const detailStatusChip = document.getElementById('event-detail-status-chip');
+        const detailTypeChip = document.getElementById('event-detail-type-chip');
+        const weatherStatus = document.getElementById('event-detail-weather-status');
+        const weatherPrecip = document.getElementById('event-detail-weather-precip');
+        const weatherWind = document.getElementById('event-detail-weather-wind');
+        const weatherParticipation = document.getElementById('event-detail-weather-participation');
+        const weatherTemp = document.getElementById('event-detail-weather-temp');
+        const weatherCardsEl = document.getElementById('event-detail-weather-cards');
+        const weatherCardPrev = document.getElementById('weather-card-prev');
+        const weatherCardNext = document.getElementById('weather-card-next');
+        const weatherCardCounter = document.getElementById('weather-card-counter');
+
+        const summaryCache = new Map();
+        const cardsCache = new Map();
+        let currentWeatherCards = [];
+        let currentWeatherCardIndex = 0;
+
+        /* ══════════════  Weather icons (SVG) ══════════════ */
+        const WX_ICONS = {
+            sunny: '<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="sunGrad" cx="50%" cy="45%" r="55%"><stop offset="0%" stop-color="#fff7c2"/><stop offset="100%" stop-color="#f7c137"/></radialGradient></defs><circle cx="32" cy="32" r="14" fill="url(#sunGrad)"/><g stroke="#ffeaa3" stroke-width="3" stroke-linecap="round"><line x1="32" y1="6"  x2="32" y2="12"/><line x1="32" y1="52" x2="32" y2="58"/><line x1="6"  y1="32" x2="12" y2="32"/><line x1="52" y1="32" x2="58" y2="32"/><line x1="14" y1="14" x2="18" y2="18"/><line x1="46" y1="46" x2="50" y2="50"/><line x1="14" y1="50" x2="18" y2="46"/><line x1="46" y1="18" x2="50" y2="14"/></g></svg>',
+            'partly-sunny': '<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="22" cy="22" r="11" fill="#f7c137"/><g transform="translate(20,28)"><ellipse cx="20" cy="14" rx="18" ry="10" fill="#fff"/><ellipse cx="10" cy="18" rx="14" ry="8" fill="#e9f2fb"/></g></svg>',
+            cloudy: '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><ellipse cx="36" cy="32" rx="20" ry="12" fill="#fff"/><ellipse cx="22" cy="38" rx="14" ry="8" fill="#dbe6f3"/></svg>',
+            rain: '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><ellipse cx="32" cy="24" rx="20" ry="11" fill="#fff"/><g fill="#9cc0e8"><ellipse cx="18" cy="44" rx="2" ry="4"/><ellipse cx="28" cy="48" rx="2" ry="4"/><ellipse cx="38" cy="44" rx="2" ry="4"/><ellipse cx="46" cy="48" rx="2" ry="4"/></g></svg>',
+            showers: '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><ellipse cx="32" cy="22" rx="20" ry="11" fill="#fff"/><g fill="#a9cbe8"><path d="M16 38 L14 48 L20 42 Z"/><path d="M30 40 L28 52 L34 44 Z"/><path d="M44 38 L42 48 L48 42 Z"/></g></svg>',
+            thunderstorm: '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><ellipse cx="32" cy="22" rx="20" ry="11" fill="#fff"/><path d="M30 34 L20 48 H28 L24 58 L40 42 H32 L36 34 Z" fill="#ffd54f" stroke="#f57c00" stroke-width="1"/></svg>',
+            drizzle: '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><ellipse cx="32" cy="22" rx="20" ry="11" fill="#fff"/><g stroke="#9cc0e8" stroke-width="2" stroke-linecap="round"><line x1="18" y1="40" x2="16" y2="46"/><line x1="28" y1="42" x2="26" y2="48"/><line x1="38" y1="40" x2="36" y2="46"/><line x1="46" y1="42" x2="44" y2="48"/></g></svg>',
+            snow: '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><ellipse cx="32" cy="22" rx="20" ry="11" fill="#fff"/><g fill="#fff"><circle cx="18" cy="44" r="2"/><circle cx="28" cy="50" r="2"/><circle cx="38" cy="44" r="2"/><circle cx="46" cy="50" r="2"/></g></svg>',
+            fog: '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><g stroke="#fff" stroke-width="3" stroke-linecap="round" opacity="0.85"><line x1="10" y1="20" x2="54" y2="20"/><line x1="14" y1="30" x2="50" y2="30"/><line x1="10" y1="40" x2="54" y2="40"/><line x1="14" y1="50" x2="50" y2="50"/></g></svg>',
+            night: '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="M42 8 A 22 22 0 1 0 56 36 A 18 18 0 0 1 42 8 Z" fill="#fff"/></svg>',
+            unknown: '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="32" r="18" fill="#fff" opacity="0.5"/></svg>',
+        };
+
+        function wxIcon(slug) {
+            return WX_ICONS[slug] || WX_ICONS.unknown;
+        }
+
+        /* ══════════════  Résumé météo (existant) ══════════════ */
+        function setWeatherLoading(label) {
+            if (weatherStatus) weatherStatus.textContent = label || 'Chargement…';
+            if (weatherPrecip) weatherPrecip.textContent = '--';
+            if (weatherWind) weatherWind.textContent = '--';
+            if (weatherParticipation) weatherParticipation.textContent = '--';
+            if (weatherTemp) weatherTemp.textContent = '--';
+        }
+
+        function applyWeatherSummary(data) {
+            if (!data || !data.ok) {
+                setWeatherLoading('Indisponible');
                 return;
             }
-            const href = card.getAttribute('data-href');
-            if (href) {
-                window.location.href = href;
+            if (weatherStatus) weatherStatus.textContent = 'OK';
+            if (weatherPrecip) weatherPrecip.textContent = data.precip_avg !== null ? data.precip_avg + '%' : '--';
+            if (weatherWind) weatherWind.textContent = data.wind_avg !== null ? data.wind_avg + ' km/h' : '--';
+            if (weatherParticipation) weatherParticipation.textContent = data.participation_avg !== null ? data.participation_avg + '%' : '--';
+            if (weatherTemp) {
+                const min = data.temp_min_avg !== null ? data.temp_min_avg + '°' : '--';
+                const max = data.temp_max_avg !== null ? data.temp_max_avg + '°' : '--';
+                weatherTemp.textContent = 'Temp: ' + min + ' / ' + max;
             }
+        }
+
+        async function loadWeatherSummary(id, url) {
+            if (!id || !url) { setWeatherLoading('Indisponible'); return; }
+            if (summaryCache.has(id)) { applyWeatherSummary(summaryCache.get(id)); return; }
+            setWeatherLoading('Chargement…');
+            try {
+                const res = await fetch(url);
+                const json = await res.json();
+                summaryCache.set(id, json);
+                applyWeatherSummary(json);
+            } catch (e) {
+                applyWeatherSummary({ ok: false });
+            }
+        }
+
+        /* ══════════════  Weather cards (nouveau - style image ref) ══════════════ */
+        function renderSkeletonCards() {
+            if (!weatherCardsEl) return;
+            currentWeatherCards = [];
+            currentWeatherCardIndex = 0;
+            weatherCardsEl.innerHTML = '<div class="wx-card is-skeleton"><div></div></div>';
+            updateWeatherCardNav();
+        }
+
+        function escapeHtml(s) {
+            return String(s ?? '').replace(/[&<>"']/g, c => ({
+                '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+            })[c]);
+        }
+
+        function updateWeatherCardNav() {
+            const total = currentWeatherCards.length;
+            if (weatherCardCounter) {
+                weatherCardCounter.textContent = total > 0 ? (currentWeatherCardIndex + 1) + ' / ' + total : '-- / --';
+            }
+            if (weatherCardPrev) weatherCardPrev.disabled = total <= 1 || currentWeatherCardIndex <= 0;
+            if (weatherCardNext) weatherCardNext.disabled = total <= 1 || currentWeatherCardIndex >= total - 1;
+        }
+
+        function renderCurrentWeatherCard() {
+            if (!weatherCardsEl) return;
+            if (currentWeatherCards.length === 0) {
+                weatherCardsEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--event-muted); font-size: 12px; width:100%;">MÃ©tÃ©o indisponible pour cet Ã©vÃ©nement.</div>';
+                updateWeatherCardNav();
+                return;
+            }
+
+            currentWeatherCardIndex = Math.max(0, Math.min(currentWeatherCards.length - 1, currentWeatherCardIndex));
+            const card = currentWeatherCards[currentWeatherCardIndex];
+            const tempTxt = card.temp !== null ? (card.temp + 'Â°') : '--';
+            const gradCls = 'grad-' + (card.gradient || 'unknown');
+            const html = '' +
+                '<div class="wx-card ' + gradCls + '">' +
+                  '<div class="wx-card__date">' + escapeHtml(card.date_fr || card.date || '') + '</div>' +
+                  '<div class="wx-card__icon" aria-hidden="true">' + wxIcon(card.icon_slug) + '</div>' +
+                  '<div class="wx-card__temp">' + tempTxt + '</div>' +
+                  '<div class="wx-card__label">' + escapeHtml(card.label || '') + '</div>' +
+                  '<div class="wx-card__meta">' +
+                    (card.precip_prob !== null ? '<span>💧 ' + card.precip_prob + '%</span>' : '') +
+                    (card.wind_max !== null ? '<span>💨 ' + Math.round(card.wind_max) + '</span>' : '') +
+                  '</div>' +
+                  '<div class="wx-card__dots" aria-hidden="true">' +
+                    currentWeatherCards.map((_, idx) => '<span class="' + (idx === currentWeatherCardIndex ? 'active' : '') + '"></span>').join('') +
+                  '</div>' +
+                '</div>';
+            weatherCardsEl.innerHTML = html;
+            updateWeatherCardNav();
+        }
+
+        function renderWeatherCards(data) {
+            if (!weatherCardsEl) return;
+            if (!data || !data.ok || !Array.isArray(data.cards) || data.cards.length === 0) {
+                weatherCardsEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--event-muted); font-size: 12px; width:100%;">Météo indisponible pour cet événement.</div>';
+                return;
+            }
+            const html = data.cards.map((card, idx) => {
+                const tempTxt = card.temp !== null ? (card.temp + '°') : '--';
+                const gradCls = 'grad-' + (card.gradient || 'unknown');
+                return '' +
+                    '<div class="wx-card ' + gradCls + '" style="animation-delay: ' + (idx * 60) + 'ms;">' +
+                      '<div class="wx-card__date">' + escapeHtml(card.date_fr || card.date || '') + '</div>' +
+                      '<div class="wx-card__icon" aria-hidden="true">' + wxIcon(card.icon_slug) + '</div>' +
+                      '<div class="wx-card__temp">' + tempTxt + '</div>' +
+                      '<div class="wx-card__label">' + escapeHtml(card.label || '') + '</div>' +
+                      '<div class="wx-card__meta">' +
+                        (card.precip_prob !== null ? '<span>💧 ' + card.precip_prob + '%</span>' : '') +
+                        (card.wind_max !== null ? '<span>💨 ' + Math.round(card.wind_max) + '</span>' : '') +
+                      '</div>' +
+                      '<div class="wx-card__dots" aria-hidden="true">' +
+                        '<span class="' + (idx === 0 ? 'active' : '') + '"></span>' +
+                        '<span class="' + (idx === 1 ? 'active' : '') + '"></span>' +
+                        '<span class="' + (idx === 2 ? 'active' : '') + '"></span>' +
+                      '</div>' +
+                    '</div>';
+            }).join('');
+            weatherCardsEl.innerHTML = html;
+        }
+
+        async function loadWeatherCards(id, url) {
+            if (!weatherCardsEl) return;
+            if (!id || !url) {
+                weatherCardsEl.innerHTML = '';
+                return;
+            }
+            if (cardsCache.has(id)) { renderWeatherCards(cardsCache.get(id)); return; }
+            renderSkeletonCards();
+            try {
+                const res = await fetch(url);
+                const json = await res.json();
+                cardsCache.set(id, json);
+                renderWeatherCards(json);
+            } catch (e) {
+                renderWeatherCards({ ok: false });
+            }
+        }
+
+        /* ══════════════  Remplissage du panneau détails ══════════════ */
+        function fillDetail(row) {
+            if (!row) return;
+            const data = row.dataset;
+            if (detailImage) detailImage.src = data.image || detailImage.src;
+            if (detailTitle) detailTitle.textContent = data.title || 'Événement';
+            if (detailDescription) detailDescription.textContent = data.description || 'Aucune description disponible.';
+            if (detailDates) detailDates.textContent = (data.dateStart || '--') + ' — ' + (data.dateEnd || '--');
+            if (detailLieu) detailLieu.textContent = data.lieu || '--';
+            if (detailCapacity) detailCapacity.textContent = data.capacity ? data.capacity + ' places' : '--';
+            if (detailPrice) detailPrice.textContent = data.price ? data.price + ' TND' : '--';
+            if (detailStatus) detailStatus.textContent = data.status || '--';
+            if (detailType) detailType.textContent = data.type || '--';
+            if (detailStatusChip) {
+                detailStatusChip.textContent = data.status || '--';
+                detailStatusChip.classList.remove('is-open', 'is-closed', 'is-cancelled');
+                if (data.status === 'OUVERT') detailStatusChip.classList.add('is-open');
+                else if (data.status === 'FERME') detailStatusChip.classList.add('is-closed');
+                else if (data.status === 'ANNULE') detailStatusChip.classList.add('is-cancelled');
+            }
+            if (detailTypeChip) detailTypeChip.textContent = data.type || '--';
+            if (detailLink) detailLink.href = data.href || '#';
+
+            // Charge la météo résumée + les cards
+            loadWeatherSummary(data.id, data.weatherUrl);
+            loadWeatherCards(data.id, data.weatherCardsUrl);
+
+            // UI : classe 'is-selected' (nouvelle) + compat avec 'is-active' existante
+            rows.forEach((item) => {
+                item.classList.remove('is-active');
+                item.classList.remove('is-selected');
+            });
+            row.classList.add('is-active');
+            row.classList.add('is-selected');
+        }
+
+        /* ══════════════  Navigation flèches ══════════════ */
+        const navPrev    = document.getElementById('nav-prev');
+        const navNext    = document.getElementById('nav-next');
+        const navCounter = document.getElementById('nav-counter');
+
+        let currentIndex = 0;
+
+        function updateNav() {
+            if (navCounter) navCounter.textContent = rows.length > 0
+                ? (currentIndex + 1) + ' / ' + rows.length
+                : '0 événement';
+            if (navPrev) navPrev.disabled = currentIndex <= 0;
+            if (navNext) navNext.disabled = currentIndex >= rows.length - 1;
+        }
+
+        function selectIndex(idx) {
+            if (rows.length === 0) return;
+            currentIndex = Math.max(0, Math.min(rows.length - 1, idx));
+            fillDetail(rows[currentIndex]);
+            rows[currentIndex].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            updateNav();
+        }
+
+        if (navPrev) navPrev.addEventListener('click', () => selectIndex(currentIndex - 1));
+        if (navNext) navNext.addEventListener('click', () => selectIndex(currentIndex + 1));
+
+        rows.forEach((row, idx) => {
+            row.addEventListener('click', (event) => {
+                if (event.target.closest('a, button, form, input, select, textarea, label')) return;
+                currentIndex = idx;
+                fillDetail(row);
+                updateNav();
+            });
+
+            row.addEventListener('dblclick', (event) => {
+                if (event.target.closest('a, button, form, input, select, textarea, label')) return;
+                const href = row.getAttribute('data-href');
+                if (href) window.location.href = href;
+            });
+
+            row.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    currentIndex = idx;
+                    fillDetail(row);
+                    updateNav();
+                } else if (event.key === 'ArrowDown') {
+                    event.preventDefault();
+                    selectIndex(idx + 1);
+                } else if (event.key === 'ArrowUp') {
+                    event.preventDefault();
+                    selectIndex(idx - 1);
+                } else if (event.key === 'Home') {
+                    event.preventDefault();
+                    selectIndex(0);
+                } else if (event.key === 'End') {
+                    event.preventDefault();
+                    selectIndex(rows.length - 1);
+                }
+            });
         });
-    });
+
+        if (rows.length > 0) {
+            fillDetail(rows[0]);
+            updateNav();
+        }
+    })();
 </script>
 {% endblock %}

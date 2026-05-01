@@ -11,11 +11,15 @@ final class Version20260421001000 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return 'Create the offre_badge_user table required by App\\Entity\\OffreBadgeUser.';
+        return 'Create the offre_badge_user table required by App\\Entity\\OffreBadgeUser in an idempotent way.';
     }
 
     public function up(Schema $schema): void
     {
+        if ($this->tableExists('offre_badge_user')) {
+            return;
+        }
+
         $this->addSql(<<<'SQL'
             CREATE TABLE offre_badge_user (
                 id INT AUTO_INCREMENT NOT NULL,
@@ -39,6 +43,18 @@ final class Version20260421001000 extends AbstractMigration
 
     public function down(Schema $schema): void
     {
+        if (!$this->tableExists('offre_badge_user')) {
+            return;
+        }
+
         $this->addSql('DROP TABLE offre_badge_user');
+    }
+
+    private function tableExists(string $tableName): bool
+    {
+        return (bool) $this->connection->fetchOne(
+            'SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?',
+            [$tableName]
+        );
     }
 }

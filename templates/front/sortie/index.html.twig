@@ -5,6 +5,184 @@
 {% block stylesheets %}
     {{ parent() }}
     <style>
+        .sortie-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 22px;
+            align-items: stretch;
+        }
+
+        .sortie-card {
+            position: relative;
+            width: 100%;
+            border: 1px solid rgba(20, 61, 113, 0.12);
+            border-radius: 26px;
+            background:
+                radial-gradient(circle at top right, rgba(111, 189, 255, 0.16), transparent 34%),
+                linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(245, 249, 255, 0.96));
+            box-shadow: 0 18px 40px rgba(15, 49, 93, 0.12);
+            overflow: hidden;
+            transition: transform 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease;
+        }
+
+        .sortie-card > *:not(.sortie-card__link) {
+            position: relative;
+            z-index: 2;
+        }
+
+        .sortie-card__link {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            border-radius: inherit;
+        }
+
+        .sortie-card::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.34), transparent 52%);
+            pointer-events: none;
+        }
+
+        .sortie-card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(41, 121, 255, 0.22);
+            box-shadow: 0 26px 54px rgba(15, 49, 93, 0.18);
+        }
+
+        .sortie-card .cover-thumb {
+            position: relative;
+            overflow: hidden;
+            border-radius: 22px;
+            box-shadow: inset 0 -48px 80px rgba(8, 27, 50, 0.2);
+        }
+
+        .sortie-card .cover-thumb::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, transparent 34%, rgba(7, 23, 45, 0.16) 100%);
+            pointer-events: none;
+        }
+
+        .sortie-card .cover-thumb img {
+            transition: transform 0.45s ease, filter 0.45s ease;
+        }
+
+        .sortie-card:hover .cover-thumb img {
+            transform: scale(1.06);
+            filter: saturate(1.06);
+        }
+
+        .sortie-card .listing-card__top {
+            gap: 16px;
+        }
+
+        .sortie-card .listing-card__top h3 {
+            margin-bottom: 6px;
+            font-size: 1.2rem;
+            line-height: 1.25;
+            letter-spacing: -0.02em;
+            color: #143d71;
+        }
+
+        .sortie-card .listing-card__top p {
+            color: #53719a;
+            font-weight: 600;
+        }
+
+        .sortie-card .owner-avatar-row {
+            margin-top: 12px;
+            padding: 8px 12px 8px 8px;
+            border-radius: 999px;
+            background: rgba(235, 244, 255, 0.86);
+            width: fit-content;
+            box-shadow: inset 0 0 0 1px rgba(62, 119, 190, 0.1);
+        }
+
+        .sortie-card .owner-avatar {
+            width: 38px;
+            height: 38px;
+            border: 2px solid rgba(255, 255, 255, 0.95);
+            box-shadow: 0 8px 18px rgba(31, 83, 146, 0.18);
+        }
+
+        .sortie-card .owner-avatar-name {
+            color: #173d73;
+            font-weight: 700;
+        }
+
+        .sortie-card .owner-pill,
+        .sortie-card .price-pill,
+        .sortie-card .status-pill {
+            border-radius: 999px;
+            box-shadow: 0 10px 24px rgba(15, 49, 93, 0.09);
+        }
+
+        .sortie-card .price-pill {
+            background: linear-gradient(135deg, #143d71, #2f72b6);
+            color: #fff;
+            padding: 10px 14px;
+            font-weight: 800;
+            letter-spacing: 0.01em;
+        }
+
+        .sortie-card .meta-row {
+            margin-top: 14px;
+            gap: 10px;
+        }
+
+        .sortie-card .meta-row span {
+            padding: 9px 12px;
+            border-radius: 14px;
+            background: rgba(237, 244, 255, 0.9);
+            border: 1px solid rgba(44, 95, 166, 0.08);
+            color: #33557f;
+            font-weight: 600;
+        }
+
+        .sortie-card .sortie-card__description {
+            margin-top: 16px;
+            color: #39597f;
+            line-height: 1.7;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .sortie-card .btn-row {
+            margin-top: 16px;
+            gap: 10px;
+            position: relative;
+            z-index: 3;
+        }
+
+        .sortie-card .btn-row .outline-btn,
+        .sortie-card .btn-row .primary-btn,
+        .sortie-card .btn-row .danger-btn {
+            border-radius: 14px;
+            box-shadow: 0 10px 24px rgba(15, 49, 93, 0.1);
+        }
+
+        .sortie-card .btn-row .outline-btn:hover,
+        .sortie-card .btn-row .primary-btn:hover,
+        .sortie-card .btn-row .danger-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        @media (max-width: 1100px) {
+            .sortie-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 720px) {
+            .sortie-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
         .sortie-pagination {
             margin-top: 18px;
             display: flex;
@@ -138,8 +316,9 @@
     <div class="listing-grid sortie-grid" data-sortie-list>
         {% for item in sorties %}
             {% set cardImage = item.image_url is defined and item.image_url ? (item.image_url starts with 'http' ? item.image_url : '/' ~ item.image_url|trim('/')) : null %}
-            <article class="listing-card sortie-card" data-sortie-detail data-sortie-id="{{ item.id|default(0) }}" data-sortie-title="{{ attribute(item, 'titre')|e('html_attr') }}" data-sortie-city="{{ (item.ville|default(''))|e('html_attr') }}" data-sortie-type="{{ (item.type_activite|default(''))|e('html_attr') }}" data-sortie-date="{{ item.date_sortie is defined and item.date_sortie ? item.date_sortie|date('d/m/Y H:i') : '-' }}" data-sortie-date-ts="{{ item.date_sortie is defined and item.date_sortie ? item.date_sortie|date('U') : '' }}" data-sortie-places="{{ (item.nb_places|default('-'))|e('html_attr') }}" data-sortie-budget="{{ (item.budget_max|default('-'))|e('html_attr') }}" data-sortie-status="{{ (item.statut|default('-'))|e('html_attr') }}" data-sortie-description="{{ (item.description|default('Aucune description'))|striptags|e('html_attr') }}" data-sortie-lieu="{{ (item.lieu_texte|default('-'))|e('html_attr') }}" data-sortie-point="{{ (item.point_rencontre|default('-'))|e('html_attr') }}" data-sortie-questions="{{ (item.questions_json|default(''))|e('html_attr') }}" data-sortie-createur="{{ ((item.prenom|default('') ~ ' ' ~ item.nom|default(''))|trim ?: 'Inconnu')|e('html_attr') }}" data-sortie-image="{{ (cardImage|default(''))|e('html_attr') }}" style="border:1px solid rgba(20,61,113,.1); box-shadow:0 16px 34px rgba(15,49,93,.12);">
-                <div class="cover-thumb" style="overflow:hidden;">
+            <article class="listing-card sortie-card" data-sortie-id="{{ item.id|default(0) }}" data-sortie-title="{{ attribute(item, 'titre')|e('html_attr') }}" data-sortie-city="{{ (item.ville|default(''))|e('html_attr') }}" data-sortie-type="{{ (item.type_activite|default(''))|e('html_attr') }}" data-sortie-date="{{ item.date_sortie is defined and item.date_sortie ? item.date_sortie|date('d/m/Y H:i') : '-' }}" data-sortie-date-ts="{{ item.date_sortie is defined and item.date_sortie ? item.date_sortie|date('U') : '' }}" data-sortie-places="{{ (item.nb_places|default('-'))|e('html_attr') }}" data-sortie-budget="{{ (item.budget_max|default('-'))|e('html_attr') }}" data-sortie-status="{{ (item.statut|default('-'))|e('html_attr') }}" data-sortie-description="{{ (item.description|default('Aucune description'))|striptags|e('html_attr') }}" data-sortie-lieu="{{ (item.lieu_texte|default('-'))|e('html_attr') }}" data-sortie-point="{{ (item.point_rencontre|default('-'))|e('html_attr') }}" data-sortie-questions="{{ (item.questions_json|default(''))|e('html_attr') }}" data-sortie-createur="{{ ((item.prenom|default('') ~ ' ' ~ item.nom|default(''))|trim ?: 'Inconnu')|e('html_attr') }}" data-sortie-image="{{ (cardImage|default(''))|e('html_attr') }}">
+                <a href="{{ path('app_sorties_show', {id: item.id}) }}" class="sortie-card__link" aria-label="Voir le detail de {{ attribute(item, 'titre') }}"></a>
+                <div class="cover-thumb">
                     {% if cardImage %}
                         <img src="{{ cardImage }}" alt="Image {{ attribute(item, 'titre') }}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;">
                     {% else %}
@@ -198,17 +377,26 @@
                     {% endif %}
                 </div>
                 {% if item.description is defined and item.description %}
-                    <p style="margin-top:14px;">{{ item.description }}</p>
+                    <p class="sortie-card__description">{{ item.description }}</p>
                 {% endif %}
                 {% set canManage = is_granted('ROLE_ADMIN') or (app.user and item.user_id is defined and item.user_id and app.user.id == item.user_id) %}
                 {% set isParticipationBlocked = item.statut is defined and item.statut in ['CLOTUREE', 'TERMINEE', 'ANNULEE'] %}
+                {% set hasChatGroup = item.chat_group_id is defined and item.chat_group_id %}
                 <div class="btn-row" style="margin-top: 12px;">
                     {% if app.user and item.user_id is defined and item.user_id and app.user.id == item.user_id %}
                         <a href="{{ path('app_sorties_show', {id: item.id}) }}#demandes-attente" class="outline-btn"><span class="btn-icon">&#128065;</span>Voir participations</a>
+                        {% if hasChatGroup %}
+                            <a href="{{ path('app_sorties_chat', {id: item.id}) }}" class="primary-btn"><span class="btn-icon">&#128172;</span>Groupe chat</a>
+                        {% endif %}
                     {% elseif isParticipationBlocked %}
                         <button type="button" class="outline-btn" disabled aria-disabled="true" title="Participation indisponible pour ce statut">
                             <span class="btn-icon">&#128274;</span>Participation indisponible
                         </button>
+                    {% elseif app.user and participationsConfirmees is defined and participationsConfirmees[item.id|default(0)] is defined %}
+                        <a href="{{ path('app_sorties_show', {id: item.id}) }}#participation" class="outline-btn"><span class="btn-icon">&#128065;</span>Voir participation</a>
+                        {% if hasChatGroup %}
+                            <a href="{{ path('app_sorties_chat', {id: item.id}) }}" class="primary-btn"><span class="btn-icon">&#128172;</span>Groupe chat</a>
+                        {% endif %}
                     {% else %}
                         <a href="{{ path('app_sorties_show', {id: item.id}) }}" class="outline-btn"><span class="btn-icon">&#128279;</span>participer</a>
                     {% endif %}
@@ -262,17 +450,5 @@
         </nav>
     {% endif %}
 
-    <div class="sortie-modal" id="sortie-detail-modal" hidden>
-        <div class="sortie-modal__backdrop" data-sortie-modal-close></div>
-        <div class="sortie-modal__panel" role="dialog" aria-modal="true" aria-labelledby="sortie-modal-title">
-            <button type="button" class="sortie-modal__close" data-sortie-modal-close aria-label="Fermer">&times;</button>
-            <div class="sortie-modal__media" id="sortie-modal-media"></div>
-            <h3 id="sortie-modal-title"></h3>
-            <p id="sortie-modal-description"></p>
-            <div class="meta-row" id="sortie-modal-meta"></div>
-            <div id="sortie-modal-point-map" class="sortie-modal__point-map" hidden></div>
-            <div id="sortie-modal-questions" class="sortie-modal__questions"></div>
-        </div>
-    </div>
 </section>
 {% endblock %}

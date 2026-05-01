@@ -2,7 +2,9 @@
 
 namespace App\Controller;
 
+use App\Service\ChatService;
 use App\Service\NotificationService;
+use App\Service\ParticipationContactNotifier;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -38,26 +40,7 @@ class AdminParticipationController extends AbstractController
             $where = 'WHERE '.implode(' AND ', $whereParts);
         }
 
-        $participations = $connection->fetchAllAssociative(
-            "SELECT p.id, p.annonce_id, p.user_id, p.statut, p.contact_prefer, p.contact_value, p.commentaire, p.reponses_json, p.date_demande,
-                    s.titre, s.ville, s.nb_places, s.user_id AS organisateur_id,
-                    u.prenom, u.nom,
-                    org.prenom AS organisateur_prenom, org.nom AS organisateur_nom
-             FROM participation_annonce p
-             INNER JOIN annonce_sortie s ON s.id = p.annonce_id
-             INNER JOIN user u ON u.id = p.user_id
-             LEFT JOIN user org ON org.id = s.user_id
-             $where
-                         ORDER BY CASE p.statut
-                                                WHEN 'EN_ATTENTE' THEN 1
-                                                WHEN 'CONFIRMEE' THEN 2
-                                                WHEN 'REFUSEE' THEN 3
-                                                WHEN 'ANNULEE' THEN 4
-                                                ELSE 5
-                                            END,
-                                            p.date_demande DESC",
-            $params
-        );
+        $participations = $this->fetchParticipationsIndex($connection, $where, $params);
 
         foreach ($participations as &$participation) {
             $participation['answers'] = [];
@@ -93,7 +76,7 @@ class AdminParticipationController extends AbstractController
         }
 
         return $this->render('admin/participation/index.html.twig', [
-            'active' => 'participations',
+            'active' => $annonceFilter > 0 ? 'sorties' : 'participations',
             'participations' => $participations,
             'counts' => $counts,
             'statusFilter' => $statusFilter,
@@ -103,7 +86,7 @@ class AdminParticipationController extends AbstractController
     }
 
     #[Route('/{id}/accepter', name: 'app_admin_participations_accept', requirements: ['id' => '\\d+'], methods: ['POST'])]
-    public function accept(int $id, Request $request, Connection $connection, NotificationService $notificationService): RedirectResponse
+    public function accept(int $id, Request $request, Connection $connection, NotificationService $notificationService, ChatService $chatService, ParticipationContactNotifier $participationContactNotifier): RedirectResponse
     {
         $redirectParams = $this->getIndexRedirectParams($request);
         if (!$this->isCsrfTokenValid('accept_participation_'.$id, (string) $request->request->get('_token', ''))) {
@@ -111,7 +94,7 @@ class AdminParticipationController extends AbstractController
             return $this->redirectToRoute('app_admin_participations', $redirectParams);
         }
 
-        $participation = $connection->fetchAssociative('SELECT p.id, p.annonce_id, p.user_id, p.statut, p.nb_places, s.titre, s.nb_places AS sortie_places FROM participation_annonce p INNER JOIN annonce_sortie s ON s.id = p.annonce_id WHERE p.id = ?', [$id]);
+        $participation = $connection->fetchAssociative('SELECT p.id, p.annonce_id, p.user_id, p.statut, p.nb_places, p.contact_prefer, p.contact_value, s.titre, s.nb_places AS sortie_places FROM participation_annonce p INNER JOIN annonce_sortie s ON s.id = p.annonce_id WHERE p.id = ?', [$id]);
         if (!$participation) {
             $this->addFlash('error', 'Participation introuvable.');
             return $this->redirectToRoute('app_admin_participations', $redirectParams);
@@ -143,6 +126,20 @@ class AdminParticipationController extends AbstractController
                 (int) $participation['annonce_id'],
                 ['statut' => 'CONFIRMEE', 'anchor' => 'participation']
             );
+            $participationContactNotifier->sendParticipationDecision(
+                (string) ($participation['contact_prefer'] ?? 'EMAIL'),
+                $participation['contact_value'] ?? null,
+                (int) $participation['annonce_id'],
+                (string) $participation['titre'],
+                true
+            );
+
+            $sortieOwnerId = (int) $connection->fetchOne(
+                'SELECT user_id FROM annonce_sortie WHERE id = ? LIMIT 1',
+                [(int) $participation['annonce_id']]
+            );
+            $chatService->ensureGroupExists((int) $participation['annonce_id'], $sortieOwnerId);
+            $chatService->addMember((int) $participation['annonce_id'], (int) $participation['user_id']);
 
             $this->refreshSortieStatusByCapacity($connection, $notificationService, (int) $participation['annonce_id'], $senderId);
             $this->addFlash('success', 'Participation confirmée.');
@@ -154,7 +151,7 @@ class AdminParticipationController extends AbstractController
     }
 
     #[Route('/{id}/refuser', name: 'app_admin_participations_refuse', requirements: ['id' => '\\d+'], methods: ['POST'])]
-    public function refuse(int $id, Request $request, Connection $connection, NotificationService $notificationService): RedirectResponse
+    public function refuse(int $id, Request $request, Connection $connection, NotificationService $notificationService, ChatService $chatService, ParticipationContactNotifier $participationContactNotifier): RedirectResponse
     {
         $redirectParams = $this->getIndexRedirectParams($request);
         if (!$this->isCsrfTokenValid('refuse_participation_'.$id, (string) $request->request->get('_token', ''))) {
@@ -162,7 +159,7 @@ class AdminParticipationController extends AbstractController
             return $this->redirectToRoute('app_admin_participations', $redirectParams);
         }
 
-        $participation = $connection->fetchAssociative('SELECT p.id, p.annonce_id, p.user_id, s.titre FROM participation_annonce p INNER JOIN annonce_sortie s ON s.id = p.annonce_id WHERE p.id = ?', [$id]);
+        $participation = $connection->fetchAssociative('SELECT p.id, p.annonce_id, p.user_id, p.contact_prefer, p.contact_value, s.titre FROM participation_annonce p INNER JOIN annonce_sortie s ON s.id = p.annonce_id WHERE p.id = ?', [$id]);
         if (!$participation) {
             $this->addFlash('error', 'Participation introuvable.');
             return $this->redirectToRoute('app_admin_participations', $redirectParams);
@@ -182,6 +179,15 @@ class AdminParticipationController extends AbstractController
                 (int) $participation['annonce_id'],
                 ['statut' => 'REFUSEE', 'anchor' => 'participation']
             );
+            $participationContactNotifier->sendParticipationDecision(
+                (string) ($participation['contact_prefer'] ?? 'EMAIL'),
+                $participation['contact_value'] ?? null,
+                (int) $participation['annonce_id'],
+                (string) $participation['titre'],
+                false
+            );
+
+            $chatService->removeMember((int) $participation['annonce_id'], (int) $participation['user_id']);
 
             $this->refreshSortieStatusByCapacity($connection, $notificationService, (int) $participation['annonce_id'], $senderId);
             $this->addFlash('success', 'Participation refusée.');
@@ -193,7 +199,7 @@ class AdminParticipationController extends AbstractController
     }
 
     #[Route('/{id}/supprimer', name: 'app_admin_participations_delete', requirements: ['id' => '\\d+'], methods: ['POST'])]
-    public function delete(int $id, Request $request, Connection $connection, NotificationService $notificationService): RedirectResponse
+    public function delete(int $id, Request $request, Connection $connection, NotificationService $notificationService, ChatService $chatService): RedirectResponse
     {
         $redirectParams = $this->getIndexRedirectParams($request);
         if (!$this->isCsrfTokenValid('delete_participation_'.$id, (string) $request->request->get('_token', ''))) {
@@ -221,6 +227,8 @@ class AdminParticipationController extends AbstractController
                 (int) $participation['annonce_id'],
                 ['statut' => 'SUPPRIMEE', 'anchor' => 'participation']
             );
+
+            $chatService->removeMember((int) $participation['annonce_id'], (int) $participation['user_id']);
 
             $this->refreshSortieStatusByCapacity($connection, $notificationService, (int) $participation['annonce_id'], $senderId);
             $this->addFlash('success', 'Participation supprimée.');
@@ -325,5 +333,50 @@ class AdminParticipationController extends AbstractController
         }
 
         return (int) $user->getId();
+    }
+
+    private function fetchParticipationsIndex(Connection $connection, string $where, array $params): array
+    {
+        $orderSql = " ORDER BY CASE p.statut
+                            WHEN 'EN_ATTENTE' THEN 1
+                            WHEN 'CONFIRMEE' THEN 2
+                            WHEN 'REFUSEE' THEN 3
+                            WHEN 'ANNULEE' THEN 4
+                            ELSE 5
+                        END,
+                        p.date_demande DESC";
+
+        $sqlWithChat = "SELECT p.id, p.annonce_id, p.user_id, p.statut, p.contact_prefer, p.contact_value, p.commentaire, p.reponses_json, p.date_demande,
+                               s.titre, s.ville, s.nb_places, s.user_id AS organisateur_id, cg.id AS chat_group_id,
+                               u.prenom, u.nom,
+                               org.prenom AS organisateur_prenom, org.nom AS organisateur_nom
+                        FROM participation_annonce p
+                        INNER JOIN annonce_sortie s ON s.id = p.annonce_id
+                        LEFT JOIN chat_groupe cg ON cg.annonce_id = s.id
+                        INNER JOIN user u ON u.id = p.user_id
+                        LEFT JOIN user org ON org.id = s.user_id
+                        $where
+                        $orderSql";
+
+        try {
+            return $connection->fetchAllAssociative($sqlWithChat, $params);
+        } catch (\Throwable) {
+            $sqlFallback = "SELECT p.id, p.annonce_id, p.user_id, p.statut, p.contact_prefer, p.contact_value, p.commentaire, p.reponses_json, p.date_demande,
+                                   s.titre, s.ville, s.nb_places, s.user_id AS organisateur_id, NULL AS chat_group_id,
+                                   u.prenom, u.nom,
+                                   org.prenom AS organisateur_prenom, org.nom AS organisateur_nom
+                            FROM participation_annonce p
+                            INNER JOIN annonce_sortie s ON s.id = p.annonce_id
+                            INNER JOIN user u ON u.id = p.user_id
+                            LEFT JOIN user org ON org.id = s.user_id
+                            $where
+                            $orderSql";
+
+            try {
+                return $connection->fetchAllAssociative($sqlFallback, $params);
+            } catch (\Throwable) {
+                return [];
+            }
+        }
     }
 }

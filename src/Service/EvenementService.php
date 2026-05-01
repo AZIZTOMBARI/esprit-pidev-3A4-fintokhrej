@@ -4,8 +4,8 @@ namespace App\Service;
 
 use App\Entity\Evenement;
 use App\Entity\Inscription;
-use App\Entity\Ticket;
 use App\Entity\Paiement;
+use App\Entity\Ticket;
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -14,41 +14,32 @@ class EvenementService
 {
     public function __construct(private EntityManagerInterface $em) {}
 
-    /**
-     * Demander l'inscription à un événement (crée une inscription EN_ATTENTE)
-     * 
-     * @throws BadRequestHttpException Si l'utilisateur est déjà inscrit ou pas assez de places
-     */
     public function demanderInscription(
         Evenement $evenement,
         User $user,
         int $nbTickets = 1
     ): Inscription {
-        // Règle 1 : Vérifier si déjà inscrit (non annulée/rejetée)
         $repoInscription = $this->em->getRepository(Inscription::class);
         if ($repoInscription->isUserAlreadyRegistered($user->getId(), $evenement->getId())) {
-            throw new BadRequestHttpException('Vous êtes déjà inscrit à cet événement.');
+            throw new BadRequestHttpException('Vous etes deja inscrit a cet evenement.');
         }
 
-        // Règle 2 : Vérifier la capacité restante
         if (!$evenement->avoirPlacesPour($nbTickets)) {
             throw new BadRequestHttpException(
                 sprintf('Il ne reste que %d place(s) disponible(s).', $evenement->getPlacesRestantes())
             );
         }
 
-        // Règle 3 : Vérifier que l'événement est ouvert
         if (!$evenement->estOuvert()) {
-            throw new BadRequestHttpException('Les inscriptions à cet événement sont fermées.');
+            throw new BadRequestHttpException('Les inscriptions a cet evenement sont fermees.');
         }
 
-        // Créer l'inscription
         $inscription = new Inscription();
         $inscription->setEvenement($evenement);
         $inscription->setUser($user);
         $inscription->setNbTickets($nbTickets);
-        $inscription->setStatut(Inscription::STATUT_EN_ATTENTE);  // ✨ EN_ATTENTE pour validation admin
-        $inscription->setPaiement(0.0);  // Pas de paiement à ce stade
+        $inscription->setStatut(Inscription::STATUT_CONFIRMEE);
+        $inscription->setPaiement(0.0);
 
         $this->em->persist($inscription);
         $this->em->flush();
@@ -56,19 +47,12 @@ class EvenementService
         return $inscription;
     }
 
-    /**
-     * Accepter une inscription (admin valide)
-     * Passe de EN_ATTENTE → CONFIRMEE
-     */
     public function accepterInscription(Inscription $inscription): Inscription
     {
-        if (!$inscription->peutEtreConfirmee()) {
-            throw new BadRequestHttpException(
-                sprintf('Impossible de confirmer une inscription au statut %s', $inscription->getStatut())
-            );
+        if ($inscription->getStatut() === Inscription::STATUT_PAYEE) {
+            return $inscription;
         }
 
-        // Vérifier encore la capacité (elle peut avoir changé)
         $evenement = $inscription->getEvenement();
         if (!$evenement->avoirPlacesPour($inscription->getNbTickets())) {
             throw new BadRequestHttpException('Plus assez de places disponibles.');
@@ -80,14 +64,12 @@ class EvenementService
         return $inscription;
     }
 
-    /**
-     * Refuser une inscription (admin valide)
-     * Passe de EN_ATTENTE → REJETEE
-     */
     public function refuserInscription(Inscription $inscription, string $motif = ''): Inscription
     {
-        if ($inscription->getStatut() !== Inscription::STATUT_EN_ATTENTE) {
-            throw new BadRequestHttpException('Impossible de refuser une inscription non EN_ATTENTE.');
+        if ($inscription->getStatut() === Inscription::STATUT_PAYEE) {
+            throw new BadRequestHttpException(
+                'Impossible de refuser une inscription deja payee. Utilisez le remboursement.'
+            );
         }
 
         $inscription->setStatut(Inscription::STATUT_REJETEE);
@@ -96,13 +78,10 @@ class EvenementService
         return $inscription;
     }
 
-    /**
-     * Annuler une inscription (utilisateur ou admin)
-     */
     public function annulerInscription(Inscription $inscription): Inscription
     {
-        if (in_array($inscription->getStatut(), [Inscription::STATUT_ANNULEE, Inscription::STATUT_REJETEE])) {
-            throw new BadRequestHttpException('Cette inscription est déjà annulée.');
+        if (in_array($inscription->getStatut(), [Inscription::STATUT_ANNULEE, Inscription::STATUT_REJETEE], true)) {
+            throw new BadRequestHttpException('Cette inscription est deja annulee.');
         }
 
         $inscription->setStatut(Inscription::STATUT_ANNULEE);
@@ -111,45 +90,35 @@ class EvenementService
         return $inscription;
     }
 
-    /**
-     * Effectuer un paiement (simulation simple)
-     * Passe de CONFIRMEE → PAYEE
-     * 
-     * @param string $methode CARTE, CASH, WALLET
-     * @param bool $simulerEchec Si true, simule 20% d'échec
-     */
     public function effectuerPaiement(
         Inscription $inscription,
         string $methode = Paiement::METHODE_CARTE,
+        ?string $nomCarte = null,
+        ?string $quatreDerniers = null,
         bool $simulerEchec = false
     ): Paiement {
-        // Vérifier que l'inscription est confirmée et paiement en attente
         if ($inscription->getStatut() !== Inscription::STATUT_CONFIRMEE) {
-            throw new BadRequestHttpException(
-                'Seules les inscriptions confirmées peuvent être payées.'
-            );
+            throw new BadRequestHttpException('Seules les inscriptions confirmees peuvent etre payees.');
         }
 
         if ($inscription->isPaiementEffectue()) {
-            throw new BadRequestHttpException('Le paiement a déjà été effectué.');
+            throw new BadRequestHttpException('Le paiement a deja ete effectue.');
         }
 
-        // Simulation du paiement : 80% succès, 20% échec
         $isSuccessful = !$simulerEchec && (rand(1, 100) > 20);
 
-        // Créer l'enregistrement de paiement
         $paiement = new Paiement();
         $paiement->setInscription($inscription);
         $paiement->setMontant($inscription->getMontantTotal());
         $paiement->setMethode($methode);
         $paiement->setReferenceCode('REF-' . date('YmdHis') . '-' . bin2hex(random_bytes(4)));
         $paiement->setDatePaiement(new \DateTime());
+        $paiement->setNomCarte($methode === Paiement::METHODE_CARTE ? $nomCarte : null);
+        $paiement->setQuatreDerniers($methode === Paiement::METHODE_CARTE ? $quatreDerniers : null);
 
         if ($isSuccessful) {
             $paiement->setStatut(Paiement::STATUT_PAYE);
             $inscription->setStatut(Inscription::STATUT_PAYEE);
-            
-            // Générer les tickets
             $this->genererTickets($inscription);
         } else {
             $paiement->setStatut(Paiement::STATUT_ECHOUE);
@@ -161,14 +130,10 @@ class EvenementService
         return $paiement;
     }
 
-    /**
-     * Générer les tickets pour une inscription payée
-     */
     public function genererTickets(Inscription $inscription): void
     {
-        // Vérifier si les tickets existent déjà
         if (!$inscription->getTickets()->isEmpty()) {
-            return; // Tickets déjà générés
+            return;
         }
 
         $nbTickets = $inscription->getNbTickets();
@@ -176,21 +141,20 @@ class EvenementService
             $ticket = new Ticket();
             $ticket->setInscription($inscription);
             $ticket->setDate(new \DateTime());
+            $ticket->setNumeroTicket($this->genererNumeroTicket($inscription, $i + 1));
+            $ticket->setCodeValidation($this->genererCodeValidation($inscription, $i + 1));
             $this->em->persist($ticket);
         }
 
         $this->em->flush();
     }
 
-    /**
-     * Rembourser un paiement
-     */
     public function rembourserInscription(Inscription $inscription, string $motif = ''): Paiement
     {
         $paiement = $inscription->getPaiementPrincipal();
 
         if (!$paiement || !$paiement->estReussi()) {
-            throw new BadRequestHttpException('Aucun paiement à rembourser.');
+            throw new BadRequestHttpException('Aucun paiement a rembourser.');
         }
 
         $paiement->setStatut(Paiement::STATUT_REMBOURSE);
@@ -201,31 +165,49 @@ class EvenementService
         return $paiement;
     }
 
-    /**
-     * Obtient les inscriptions en attente de validation
-     */
     public function getInscriptionsEnAttente(Evenement $evenement = null): array
     {
         $repo = $this->em->getRepository(Inscription::class);
+
         return $repo->findInscriptionsEnAttente($evenement);
     }
 
-    /**
-     * Obtient les statistiques d'un événement
-     */
     public function getStatistiquesEvenement(Evenement $evenement): array
     {
         $inscriptions = $evenement->getInscriptions();
-        
+
         return [
             'total_demandes' => $inscriptions->count(),
-            'confirmees' => $inscriptions->filter(fn(Inscription $i) => $i->getStatut() === Inscription::STATUT_CONFIRMEE)->count(),
-            'payees' => $inscriptions->filter(fn(Inscription $i) => $i->getStatut() === Inscription::STATUT_PAYEE)->count(),
-            'en_attente' => $inscriptions->filter(fn(Inscription $i) => $i->getStatut() === Inscription::STATUT_EN_ATTENTE)->count(),
-            'rejetees' => $inscriptions->filter(fn(Inscription $i) => $i->getStatut() === Inscription::STATUT_REJETEE)->count(),
-            'annulees' => $inscriptions->filter(fn(Inscription $i) => $i->getStatut() === Inscription::STATUT_ANNULEE)->count(),
+            'confirmees' => $inscriptions->filter(fn (Inscription $i) => $i->getStatut() === Inscription::STATUT_CONFIRMEE)->count(),
+            'payees' => $inscriptions->filter(fn (Inscription $i) => $i->getStatut() === Inscription::STATUT_PAYEE)->count(),
+            'en_attente' => $inscriptions->filter(fn (Inscription $i) => $i->getStatut() === Inscription::STATUT_EN_ATTENTE)->count(),
+            'rejetees' => $inscriptions->filter(fn (Inscription $i) => $i->getStatut() === Inscription::STATUT_REJETEE)->count(),
+            'annulees' => $inscriptions->filter(fn (Inscription $i) => $i->getStatut() === Inscription::STATUT_ANNULEE)->count(),
+            'non_payees' => $inscriptions->filter(
+                fn (Inscription $i) => $i->getStatut() === Inscription::STATUT_CONFIRMEE && !$i->isPaiementEffectue()
+            )->count(),
             'places_restantes' => $evenement->getPlacesRestantes(),
             'taux_remplissage' => $evenement->getTauxRemplissage(),
         ];
+    }
+
+    private function genererNumeroTicket(Inscription $inscription, int $index): string
+    {
+        $eventId = $inscription->getEvenement()?->getId() ?? 'EVT';
+        $inscriptionId = $inscription->getId() ?? 'INS';
+        $dateCode = (new \DateTime())->format('Ymd');
+
+        return sprintf('EVT-%s-INS-%s-%s-%02d', $eventId, $inscriptionId, $dateCode, $index);
+    }
+
+    private function genererCodeValidation(Inscription $inscription, int $index): string
+    {
+        return strtoupper(substr(hash('sha256', sprintf(
+            '%s-%s-%s-%s',
+            $inscription->getId(),
+            $inscription->getEvenement()?->getId(),
+            $index,
+            microtime(true)
+        )), 0, 16));
     }
 }

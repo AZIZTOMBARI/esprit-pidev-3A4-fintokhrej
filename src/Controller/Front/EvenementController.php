@@ -5,10 +5,13 @@ namespace App\Controller\Front;
 use App\Entity\Evenement;
 use App\Entity\Inscription;
 use App\Entity\Paiement;
+use App\Entity\User;
 use App\Repository\EvenementRepository;
 use App\Repository\InscriptionRepository;
+use App\Service\AiEventService;
 use App\Service\EvenementService;
 use App\Service\GamificationService;
+use App\Service\TicketQrCodeService;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -23,7 +26,8 @@ class EvenementController extends AbstractController
     public function __construct(
         private EvenementService $evenementService,
         private InscriptionRepository $inscriptionRepository,
-        private GamificationService $gamificationService
+        private GamificationService $gamificationService,
+        private TicketQrCodeService $ticketQrCodeService
     ) {}
 
     #[Route('', name: 'app_evenements', methods: ['GET'])]
@@ -48,13 +52,153 @@ class EvenementController extends AbstractController
         ]);
     }
 
+    #[Route('/ai-recommend', name: 'app_evenements_ai_recommend', methods: ['GET'])]
+    public function aiRecommend(Request $request, EvenementRepository $repository, AiEventService $aiService): Response
+    {
+        $localInterests = json_decode((string) $request->query->get('interests', '{}'), true) ?? [];
+        $filters = [
+            'q' => trim((string) $request->query->get('q', '')),
+            'type' => (string) $request->query->get('type', ''),
+            'prix' => (string) $request->query->get('prix', ''),
+        ];
+
+        $user = $this->getUser();
+        $historyInterests = $user instanceof User ? $this->buildUserInterestsFromRegistrations($user) : [];
+        $userInterests = $this->mergeRecommendationInputs($localInterests, $historyInterests);
+
+        $events = $repository->findUpcomingWithFilters(
+            $filters['q'],
+            $filters['type'],
+            $filters['prix']
+        );
+
+        if ($user instanceof User) {
+            $registeredIds = [];
+            foreach ($this->inscriptionRepository->findBy(['user' => $user], ['dateCreation' => 'DESC']) as $inscription) {
+                $eventId = $inscription->getEvenement()?->getId();
+                if ($eventId !== null) {
+                    $registeredIds[$eventId] = true;
+                }
+            }
+
+            $events = array_values(array_filter(
+                $events,
+                static fn (Evenement $event): bool => !isset($registeredIds[$event->getId()])
+            ));
+        }
+
+        $result = $aiService->recommendEvents($events, $userInterests);
+
+        $eventsById = [];
+        foreach ($events as $e) {
+            $eventsById[$e->getId()] = $e;
+        }
+
+        $recommendations = [];
+        foreach ($result['recommendations'] ?? [] as $rec) {
+            $id = (int) ($rec['id'] ?? 0);
+            if (!isset($eventsById[$id])) {
+                continue;
+            }
+            $e = $eventsById[$id];
+            $recommendations[] = [
+                'id' => $e->getId(),
+                'titre' => $e->getTitre(),
+                'score' => (int) ($rec['score'] ?? 0),
+                'reason' => (string) ($rec['reason'] ?? ''),
+                'prix' => $e->getPrix(),
+                'date' => $e->getDateDebut()?->format('d/m/Y H:i'),
+                'lieu' => $e->getLieu()?->getVille() ?? $e->getLieu()?->getNom() ?? '',
+                'type' => $e->getType(),
+                'statut' => $e->getStatut(),
+                'image' => (string) ($e->getImageUrl() ?? ''),
+                'places_restantes' => $e->getPlacesRestantes(),
+                'capacite' => $e->getCapaciteMax(),
+            ];
+        }
+
+        return $this->json([
+            'recommendations' => $recommendations,
+            'profile' => [
+                'has_history' => $historyInterests !== [],
+                'has_local_interests' => $localInterests !== [],
+            ],
+        ]);
+    }
+
+    private function buildUserInterestsFromRegistrations(User $user): array
+    {
+        $inscriptions = $this->inscriptionRepository->findBy(['user' => $user], ['dateCreation' => 'DESC']);
+        if ($inscriptions === []) {
+            return [];
+        }
+
+        $types = [];
+        $cities = [];
+        $titles = [];
+        $priceSignals = [];
+
+        foreach ($inscriptions as $inscription) {
+            $event = $inscription->getEvenement();
+            if (!$event instanceof Evenement) {
+                continue;
+            }
+
+            $types[] = $event->getType();
+            $titles[] = $event->getTitre();
+
+            $ville = $event->getLieu()?->getVille() ?? $event->getLieu()?->getNom();
+            if ($ville) {
+                $cities[] = $ville;
+            }
+
+            $priceSignals[] = $event->getPrix() > 0 ? 'payant' : 'gratuit';
+        }
+
+        $pricePreference = '';
+        if ($priceSignals !== []) {
+            $counts = array_count_values($priceSignals);
+            arsort($counts);
+            $pricePreference = (string) array_key_first($counts);
+        }
+
+        return array_filter([
+            'types_inscrits' => array_values(array_slice(array_unique($types), 0, 5)),
+            'villes_inscrites' => array_values(array_slice(array_unique($cities), 0, 5)),
+            'evenements_inscrits' => array_values(array_slice(array_unique($titles), 0, 8)),
+            'prix_preference_historique' => $pricePreference,
+        ], static fn ($value): bool => is_array($value) ? $value !== [] : $value !== '');
+    }
+
+    private function mergeRecommendationInputs(array $localInterests, array $historyInterests): array
+    {
+        $merged = $historyInterests;
+
+        foreach ($localInterests as $key => $value) {
+            if (is_array($value)) {
+                $existing = $merged[$key] ?? [];
+                if (!is_array($existing)) {
+                    $existing = [];
+                }
+
+                $merged[$key] = array_values(array_slice(array_unique(array_merge($existing, $value)), 0, 10));
+                continue;
+            }
+
+            if ($value !== null && $value !== '') {
+                $merged[$key] = $value;
+            }
+        }
+
+        return $merged;
+    }
+
     #[Route('/{id<\\d+>}', name: 'app_evenement_show', methods: ['GET'])]
     public function show(Evenement $evenement): Response
     {
         $user = $this->getUser();
         $inscription = null;
 
-        // Vérifier si l'utilisateur est déjà inscrit
         if ($user) {
             $inscription = $this->inscriptionRepository->findOneBy([
                 'user' => $user,
@@ -70,21 +214,20 @@ class EvenementController extends AbstractController
         ]);
     }
 
-    /**
-     * Afficher le formulaire d'inscription (choix du nombre de tickets)
-     */
     #[Route('/{id<\\d+>}/inscrire', name: 'app_evenement_inscrire_form', methods: ['GET'])]
     #[IsGranted('IS_AUTHENTICATED')]
     public function inscrireForm(int $id, EvenementRepository $repository): Response
     {
         $evenement = $repository->find($id);
         if (!$evenement) {
-            $this->addFlash('error', 'Événement introuvable.');
+            $this->addFlash('error', 'Evenement introuvable.');
+
             return $this->redirectToRoute('app_evenements');
         }
-        // Vérifier que l'événement est ouvert
+
         if (!$evenement->estOuvert()) {
-            $this->addFlash('error', 'Les inscriptions à cet événement sont fermées.');
+            $this->addFlash('error', 'Les inscriptions a cet evenement sont fermees.');
+
             return $this->redirectToRoute('app_evenement_show', ['id' => $evenement->getId()]);
         }
 
@@ -94,109 +237,110 @@ class EvenementController extends AbstractController
             'active' => 'evenements',
             'event' => $evenement,
             'places_restantes' => $placesRestantes,
-            'max_tickets' => min(5, $placesRestantes), // Max 5 tickets par inscription
+            'max_tickets' => min(5, $placesRestantes),
         ]);
     }
 
-    /**
-     * Soumettre l'inscription (POST)
-     */
     #[Route('/{id<\\d+>}/inscrire', name: 'app_evenement_inscrire', methods: ['POST'])]
     #[IsGranted('IS_AUTHENTICATED')]
     public function inscrire(int $id, Request $request, EvenementRepository $repository): Response
     {
         $evenement = $repository->find($id);
         if (!$evenement) {
-            $this->addFlash('error', 'Événement introuvable.');
+            $this->addFlash('error', 'Evenement introuvable.');
+
             return $this->redirectToRoute('app_evenements');
         }
 
         $user = $this->getUser();
         $nbTickets = (int) $request->request->get('nb_tickets', 1);
 
-        // Validation : vérifier que le nombre de tickets est valide
         if ($nbTickets < 1 || $nbTickets > 5) {
             $this->addFlash('error', 'Nombre de tickets invalide (1-5).');
+
             return $this->redirectToRoute('app_evenement_inscrire_form', ['id' => $evenement->getId()]);
         }
 
         try {
-            // ✨ Créer inscription EN_ATTENTE (validation admin requise)
-            $inscription = $this->evenementService->demanderInscription($evenement, $user, $nbTickets);
-            
+            $this->evenementService->demanderInscription($evenement, $user, $nbTickets);
+
             $this->addFlash('success', sprintf(
-                '✅ Inscription réussie ! Vous avez demandé %d ticket(s). En attente de validation de l\'administrateur.',
+                'Inscription confirmee automatiquement pour %d ticket(s). Vous pouvez passer au paiement.',
                 $nbTickets
             ));
-            
-            if ($user instanceof \App\Entity\User) {
-                $this->flashGamificationBadges($this->gamificationService->awardActionPoints($user->getId(), 'INSCRIPTION_EVENT'));
+
+            if ($user instanceof User) {
+                $this->flashGamificationBadges(
+                    $this->gamificationService->awardActionPoints($user->getId(), 'INSCRIPTION_EVENT')
+                );
             }
 
             return $this->redirectToRoute('app_mon_profil_inscriptions');
         } catch (\Exception $e) {
-            $this->addFlash('error', '❌ ' . $e->getMessage());
+            $this->addFlash('error', $e->getMessage());
+
             return $this->redirectToRoute('app_evenement_inscrire_form', ['id' => $evenement->getId()]);
         }
     }
 
-    /**
-     * Effectuer le paiement (pour une inscription confirmée)
-     */
     #[Route('/inscription/{id}/paiement', name: 'app_inscription_paiement', methods: ['GET', 'POST'])]
     #[IsGranted('IS_AUTHENTICATED')]
     public function effectuerPaiement(Inscription $inscription, Request $request): Response
     {
-        // Vérifier que c'est bien l'inscription de l'utilisateur
-        if ($inscription->getUser() !== $this->getUser()) {
+        $currentUser = $this->getUser();
+        if (!$currentUser instanceof User || $inscription->getUser()?->getId() !== $currentUser->getId()) {
             throw $this->createAccessDeniedException('Vous ne pouvez pas payer l\'inscription d\'une autre personne.');
         }
 
-        // Vérifier que l'inscription est confirmée et en attente de paiement
         if ($inscription->getStatut() !== Inscription::STATUT_CONFIRMEE) {
             $this->addFlash('error', 'Cette inscription n\'est pas en attente de paiement.');
+
             return $this->redirectToRoute('app_mon_profil_inscriptions');
         }
 
         if ($request->isMethod('GET')) {
-            // Afficher le formulaire de paiement
-            $montant = $inscription->getMontantTotal();
-            
             return $this->render('front/evenement/paiement.html.twig', [
                 'active' => 'evenements',
                 'inscription' => $inscription,
-                'montant' => $montant,
+                'montant' => $inscription->getMontantTotal(),
                 'methodes' => [
                     Paiement::METHODE_CARTE => 'Carte bancaire',
-                    Paiement::METHODE_CASH => 'Espèces',
-                    Paiement::METHODE_WALLET => 'Portefeuille numérique',
+                    Paiement::METHODE_CASH => 'Especes',
+                    Paiement::METHODE_WALLET => 'Portefeuille numerique',
                 ],
             ]);
         }
 
-        // POST : soumettre le paiement
         $methode = $request->request->get('methode', Paiement::METHODE_CARTE);
         $nomCarte = trim((string) $request->request->get('nom_carte', ''));
         $quatreDerniers = trim((string) $request->request->get('quatre_derniers', ''));
 
-        if (!in_array($methode, Paiement::METHODES_VALIDES)) {
-            $this->addFlash('error', 'Méthode de paiement invalide.');
+        if (!in_array($methode, Paiement::METHODES_VALIDES, true)) {
+            $this->addFlash('error', 'Methode de paiement invalide.');
+
             return $this->redirectToRoute('app_inscription_paiement', ['id' => $inscription->getId()]);
         }
 
         if ($methode === Paiement::METHODE_CARTE) {
             if ($nomCarte === '') {
                 $this->addFlash('error', 'Le nom sur la carte est obligatoire.');
+
                 return $this->redirectToRoute('app_inscription_paiement', ['id' => $inscription->getId()]);
             }
             if (!preg_match('/^\d{4}$/', $quatreDerniers)) {
                 $this->addFlash('error', 'Les 4 derniers chiffres doivent contenir exactement 4 chiffres.');
+
                 return $this->redirectToRoute('app_inscription_paiement', ['id' => $inscription->getId()]);
             }
         }
 
         try {
-            $paiement = $this->evenementService->effectuerPaiement($inscription, $methode);
+            $paiement = $this->evenementService->effectuerPaiement(
+                $inscription,
+                $methode,
+                $nomCarte !== '' ? $nomCarte : null,
+                $quatreDerniers !== '' ? $quatreDerniers : null,
+            );
 
             if ($paiement->estReussi()) {
                 $session = $request->getSession();
@@ -204,67 +348,72 @@ class EvenementController extends AbstractController
                     $session->getFlashBag()->set('error', []);
                 }
                 $this->addFlash('success', sprintf(
-                    '✅ Paiement réussi ! Référence: %s. Vos tickets ont été générés.',
+                    'Paiement reussi. Reference: %s. Vos tickets ont ete generes.',
                     $paiement->getReferenceCode()
                 ));
+
                 return $this->redirectToRoute('app_inscription_tickets', ['id' => $inscription->getId()]);
-            } else {
-                $this->addFlash('error', '❌ Paiement échoué. Veuillez réessayer avec une autre méthode.');
-                return $this->redirectToRoute('app_inscription_paiement', ['id' => $inscription->getId()]);
             }
+
+            $this->addFlash('error', 'Paiement echoue. Veuillez reessayer avec une autre methode.');
+
+            return $this->redirectToRoute('app_inscription_paiement', ['id' => $inscription->getId()]);
         } catch (\Exception $e) {
-            $this->addFlash('error', '❌ ' . $e->getMessage());
+            $this->addFlash('error', $e->getMessage());
+
             return $this->redirectToRoute('app_inscription_paiement', ['id' => $inscription->getId()]);
         }
     }
 
-    /**
-     * Afficher les tickets générés
-     */
     #[Route('/inscription/{id}/tickets', name: 'app_inscription_tickets', methods: ['GET'])]
     #[IsGranted('IS_AUTHENTICATED')]
     public function voirTickets(Inscription $inscription): Response
     {
-        // Vérifier que c'est bien l'inscription de l'utilisateur
-        if ($inscription->getUser() !== $this->getUser()) {
+        $currentUser = $this->getUser();
+        if (!$currentUser instanceof User || $inscription->getUser()?->getId() !== $currentUser->getId()) {
             throw $this->createAccessDeniedException('Vous ne pouvez pas voir les tickets d\'une autre personne.');
         }
 
         if ($inscription->getStatut() !== Inscription::STATUT_PAYEE) {
-            $this->addFlash('error', 'Seules les inscriptions payées ont des tickets.');
+            $this->addFlash('error', 'Seules les inscriptions payees ont des tickets.');
+
             return $this->redirectToRoute('app_mon_profil_inscriptions');
         }
+
+        $tickets = $inscription->getTickets()->toArray();
 
         return $this->render('front/evenement/tickets.html.twig', [
             'active' => 'evenements',
             'inscription' => $inscription,
-            'tickets' => $inscription->getTickets(),
+            'tickets' => $tickets,
+            'ticket_qr_codes' => $this->ticketQrCodeService->generateMap($tickets),
         ]);
     }
 
-    /**
-     * Télécharger les tickets au format PDF
-     */
     #[Route('/inscription/{id<\\d+>}/tickets/pdf', name: 'app_inscription_tickets_pdf', methods: ['GET'])]
     #[IsGranted('IS_AUTHENTICATED')]
     public function telechargerTicketsPdf(Inscription $inscription): Response
     {
-        if ($inscription->getUser() !== $this->getUser()) {
-            throw $this->createAccessDeniedException('Accès non autorisé.');
+        $currentUser = $this->getUser();
+        if (!$currentUser instanceof User || $inscription->getUser()?->getId() !== $currentUser->getId()) {
+            throw $this->createAccessDeniedException('Acces non autorise.');
         }
 
         if ($inscription->getStatut() !== Inscription::STATUT_PAYEE) {
-            $this->addFlash('error', 'Le PDF est disponible uniquement après paiement.');
+            $this->addFlash('error', 'Le PDF est disponible uniquement apres paiement.');
+
             return $this->redirectToRoute('app_mon_profil_inscriptions');
         }
 
+        $tickets = $inscription->getTickets()->toArray();
         $options = new Options();
         $options->set('defaultFont', 'DejaVu Sans');
 
         $dompdf = new Dompdf($options);
         $html = $this->renderView('front/evenement/tickets-pdf.html.twig', [
             'inscription' => $inscription,
-            'tickets' => $inscription->getTickets(),
+            'tickets' => $tickets,
+            'ticket_qr_codes' => $this->ticketQrCodeService->generateMap($tickets),
         ]);
 
         $dompdf->loadHtml($html);
@@ -279,9 +428,6 @@ class EvenementController extends AbstractController
         ]);
     }
 
-    /**
-     * Afficher mes inscriptions
-     */
     #[Route('/mes-inscriptions', name: 'app_mon_profil_inscriptions', methods: ['GET'])]
     #[IsGranted('IS_AUTHENTICATED')]
     public function mesInscriptions(Request $request, InscriptionRepository $repo): Response
@@ -292,18 +438,21 @@ class EvenementController extends AbstractController
         }
 
         $user = $this->getUser();
-        $inscriptions = $repo->findBy(['user' => $user], ['dateCreation' => 'DESC']);
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
 
-        // Organiser par statut
+        $inscriptions = $repo->findByUserId($user->getId());
+
         $parStatut = [];
         foreach ([
-            Inscription::STATUT_EN_ATTENTE => '⏳ En attente de validation',
-            Inscription::STATUT_CONFIRMEE => '✔️ Confirmée (en attente de paiement)',
-            Inscription::STATUT_PAYEE => '✅ Payée',
-            Inscription::STATUT_REJETEE => '❌ Refusée',
-            Inscription::STATUT_ANNULEE => '🗑️ Annulée',
+            Inscription::STATUT_CONFIRMEE => 'Confirmee automatiquement',
+            Inscription::STATUT_PAYEE => 'Payee',
+            Inscription::STATUT_REJETEE => 'Refusee',
+            Inscription::STATUT_ANNULEE => 'Annulee',
+            Inscription::STATUT_EN_ATTENTE => 'Ancienne demande en attente',
         ] as $statut => $label) {
-            $parStatut[$label] = array_filter($inscriptions, fn(Inscription $i) => $i->getStatut() === $statut);
+            $parStatut[$label] = array_filter($inscriptions, fn (Inscription $i) => $i->getStatut() === $statut);
         }
 
         return $this->render('front/evenement/mes-inscriptions.html.twig', [
@@ -312,14 +461,12 @@ class EvenementController extends AbstractController
         ]);
     }
 
-    /**
-     * Annuler mon inscription
-     */
     #[Route('/inscription/{id}/annuler', name: 'app_inscription_annuler', methods: ['POST'])]
     #[IsGranted('IS_AUTHENTICATED')]
     public function annulerInscription(Inscription $inscription, Request $request): Response
     {
-        if ($inscription->getUser() !== $this->getUser()) {
+        $currentUser = $this->getUser();
+        if (!$currentUser instanceof User || $inscription->getUser()?->getId() !== $currentUser->getId()) {
             throw $this->createAccessDeniedException();
         }
 
@@ -328,30 +475,25 @@ class EvenementController extends AbstractController
         } else {
             try {
                 if ($inscription->getStatut() === Inscription::STATUT_PAYEE) {
-                    // Rembourser si payée
                     $this->evenementService->rembourserInscription($inscription);
-                    $this->addFlash('info', '💰 Inscription annulée et remboursée.');
+                    $this->addFlash('info', 'Inscription annulee et remboursee.');
                 } else {
-                    // Juste annuler
                     $this->evenementService->annulerInscription($inscription);
-                    $this->addFlash('info', '🗑️ Inscription annulée.');
+                    $this->addFlash('info', 'Inscription annulee.');
                 }
             } catch (\Exception $e) {
-                $this->addFlash('error', '❌ ' . $e->getMessage());
+                $this->addFlash('error', $e->getMessage());
             }
         }
 
         return $this->redirectToRoute('app_mon_profil_inscriptions');
     }
 
-    /**
-     * @param list<array<string, mixed>> $badges
-     */
     private function flashGamificationBadges(array $badges): void
     {
         foreach ($badges as $badge) {
             $this->addFlash('gamification_badges', [
-                'emoji' => (string) ($badge['emoji'] ?? '🏅'),
+                'emoji' => (string) ($badge['emoji'] ?? 'Badge'),
                 'nom' => (string) ($badge['nom'] ?? 'Badge'),
                 'description' => (string) ($badge['description'] ?? ''),
                 'points_bonus' => (int) ($badge['points_bonus'] ?? 0),

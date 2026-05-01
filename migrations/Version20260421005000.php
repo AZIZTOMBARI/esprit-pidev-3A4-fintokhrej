@@ -11,11 +11,15 @@ final class Version20260421005000 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return 'Create offre_analysis table for storing offer analysis results';
+        return 'Create offre_analysis table for storing offer analysis results in an idempotent way.';
     }
 
     public function up(Schema $schema): void
     {
+        if ($this->tableExists('offre_analysis')) {
+            return;
+        }
+
         $this->addSql('CREATE TABLE offre_analysis (
             id INT AUTO_INCREMENT NOT NULL,
             offre_id INT,
@@ -34,6 +38,18 @@ final class Version20260421005000 extends AbstractMigration
 
     public function down(Schema $schema): void
     {
+        if (!$this->tableExists('offre_analysis')) {
+            return;
+        }
+
         $this->addSql('DROP TABLE offre_analysis');
+    }
+
+    private function tableExists(string $tableName): bool
+    {
+        return (bool) $this->connection->fetchOne(
+            'SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?',
+            [$tableName]
+        );
     }
 }

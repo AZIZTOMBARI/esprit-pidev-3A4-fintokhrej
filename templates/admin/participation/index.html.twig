@@ -77,6 +77,9 @@
                 </details>
 
                 <div class="btn-row" style="margin-top: 14px;">
+                    {% if item.chat_group_id %}
+                        <a href="{{ path('app_sorties_chat', {id: item.annonce_id}) }}" class="primary-btn">💬 Ouvrir groupe chat</a>
+                    {% endif %}
                     {% if item.statut != 'CONFIRMEE' %}
                         <form method="post" class="btn-inline-form" action="{{ path('app_admin_participations_accept', {id: item.id}) ~ (annonceFilter > 0 or statusFilter ? '?' ~ (annonceFilter > 0 ? 'annonce=' ~ annonceFilter ~ '&' : '') ~ (statusFilter ? 'statut=' ~ statusFilter : '') : '') }}">
                             <input type="hidden" name="_token" value="{{ csrf_token('accept_participation_' ~ item.id) }}">

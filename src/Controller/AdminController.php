@@ -14,6 +14,8 @@ use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\Email;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\UX\Chartjs\Builder\ChartBuilderInterface;
+use Symfony\UX\Chartjs\Model\Chart;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 #[Route('/admin')]
@@ -616,17 +618,7 @@ class AdminController extends AbstractController
 
         return $this->render('admin/sortie/index.html.twig', [
             'active' => 'sorties',
-            'sorties' => $this->fetchAll(
-                $connection,
-                'SELECT s.id, s.user_id, s.titre, s.description, s.ville, s.lieu_texte, s.point_rencontre, s.type_activite, s.date_sortie, s.budget_max, s.nb_places, s.statut, s.image_url, s.questions_json, u.prenom, u.nom, u.imageUrl AS user_image_url
-                 FROM annonce_sortie s
-                 LEFT JOIN user u ON u.id = s.user_id
-                 '.$whereSql.'
-                 ORDER BY '.$sortSql.'
-                 LIMIT '.$pageSize.' OFFSET '.$offset
-            ,
-                $params
-            ),
+            'sorties' => $this->fetchAdminSortiesForListing($connection, $whereSql, $sortSql, $pageSize, $offset, $params),
             'page' => $page,
             'pageSize' => $pageSize,
             'total' => $total,
@@ -636,6 +628,162 @@ class AdminController extends AbstractController
                 'status' => $status,
                 'sort' => $sort,
             ],
+        ]);
+    }
+
+    #[Route('/sorties/statistiques', name: 'app_admin_sorties_stats')]
+    public function sortieStats(Connection $connection, ChartBuilderInterface $chartBuilder): Response
+    {
+        $cityRows = $this->fetchAll($connection, "
+            SELECT COALESCE(NULLIF(ville, ''), 'Non renseignee') AS city, COUNT(*) AS total
+            FROM annonce_sortie
+            GROUP BY city
+            ORDER BY total DESC, city ASC
+            LIMIT 7
+        ");
+        $statusRows = $this->fetchAll($connection, "
+            SELECT COALESCE(NULLIF(statut, ''), 'INCONNU') AS status, COUNT(*) AS total
+            FROM annonce_sortie
+            GROUP BY status
+            ORDER BY total DESC, status ASC
+        ");
+        $typeRows = $this->fetchAll($connection, "
+            SELECT COALESCE(NULLIF(type_activite, ''), 'Non renseignee') AS type_label, COUNT(*) AS total
+            FROM annonce_sortie
+            GROUP BY type_label
+            ORDER BY total DESC, type_label ASC
+            LIMIT 6
+        ");
+        $budgetRows = $this->fetchAll($connection, "
+            SELECT COALESCE(NULLIF(ville, ''), 'Non renseignee') AS city, ROUND(AVG(COALESCE(budget_max, 0)), 1) AS avg_budget
+            FROM annonce_sortie
+            GROUP BY city
+            ORDER BY avg_budget DESC, city ASC
+            LIMIT 6
+        ");
+        $trendRows = $this->fetchAll($connection, "
+            SELECT DATE_FORMAT(date_sortie, '%Y-%m') AS month_key, COUNT(*) AS total
+            FROM annonce_sortie
+            WHERE date_sortie >= DATE_SUB(CURDATE(), INTERVAL 5 MONTH)
+            GROUP BY month_key
+            ORDER BY month_key ASC
+        ");
+
+        $months = [];
+        $trendMap = [];
+        foreach ($trendRows as $trendRow) {
+            $trendMap[(string) $trendRow['month_key']] = (int) $trendRow['total'];
+        }
+        for ($i = 5; $i >= 0; --$i) {
+            $month = (new \DateTimeImmutable('first day of this month'))->modify(sprintf('-%d month', $i));
+            $key = $month->format('Y-m');
+            $months[] = [
+                'label' => $month->format('M Y'),
+                'total' => $trendMap[$key] ?? 0,
+            ];
+        }
+
+        $topCity = $cityRows[0]['city'] ?? 'Aucune donnee';
+        $topCityCount = (int) ($cityRows[0]['total'] ?? 0);
+        $completed = (int) $this->fetchValue($connection, "SELECT COUNT(*) FROM annonce_sortie WHERE statut = 'TERMINEE'");
+        $totalSorties = (int) $this->fetchValue($connection, 'SELECT COUNT(*) FROM annonce_sortie');
+        $upcoming = (int) $this->fetchValue($connection, 'SELECT COUNT(*) FROM annonce_sortie WHERE date_sortie >= NOW()');
+        $completionRate = $totalSorties > 0 ? round(($completed / $totalSorties) * 100) : 0;
+
+        $cityChart = $chartBuilder->createChart(Chart::TYPE_BAR);
+        $cityChart->setData([
+            'labels' => array_map(static fn (array $row) => (string) $row['city'], $cityRows),
+            'datasets' => [[
+                'label' => 'Sorties par ville',
+                'data' => array_map(static fn (array $row) => (int) $row['total'], $cityRows),
+                'backgroundColor' => ['#1d4ed8', '#3b82f6', '#60a5fa', '#7dd3fc', '#38bdf8', '#0ea5e9', '#2563eb'],
+                'borderRadius' => 16,
+            ]],
+        ]);
+        $cityChart->setOptions([
+            'plugins' => ['legend' => ['display' => false]],
+            'scales' => ['y' => ['beginAtZero' => true, 'ticks' => ['precision' => 0]]],
+            'maintainAspectRatio' => false,
+        ]);
+
+        $statusChart = $chartBuilder->createChart(Chart::TYPE_DOUGHNUT);
+        $statusChart->setData([
+            'labels' => array_map(static fn (array $row) => (string) $row['status'], $statusRows),
+            'datasets' => [[
+                'data' => array_map(static fn (array $row) => (int) $row['total'], $statusRows),
+                'backgroundColor' => ['#2563eb', '#f59e0b', '#10b981', '#ef4444', '#94a3b8'],
+                'borderWidth' => 0,
+            ]],
+        ]);
+        $statusChart->setOptions([
+            'maintainAspectRatio' => false,
+            'plugins' => ['legend' => ['position' => 'bottom']],
+        ]);
+
+        $typeChart = $chartBuilder->createChart(Chart::TYPE_POLAR_AREA);
+        $typeChart->setData([
+            'labels' => array_map(static fn (array $row) => (string) $row['type_label'], $typeRows),
+            'datasets' => [[
+                'data' => array_map(static fn (array $row) => (int) $row['total'], $typeRows),
+                'backgroundColor' => ['rgba(37,99,235,.8)', 'rgba(14,165,233,.8)', 'rgba(16,185,129,.8)', 'rgba(249,115,22,.8)', 'rgba(168,85,247,.8)', 'rgba(244,63,94,.8)'],
+            ]],
+        ]);
+        $typeChart->setOptions([
+            'maintainAspectRatio' => false,
+            'plugins' => ['legend' => ['position' => 'bottom']],
+        ]);
+
+        $trendChart = $chartBuilder->createChart(Chart::TYPE_LINE);
+        $trendChart->setData([
+            'labels' => array_map(static fn (array $row) => (string) $row['label'], $months),
+            'datasets' => [[
+                'label' => 'Evolution sur 6 mois',
+                'data' => array_map(static fn (array $row) => (int) $row['total'], $months),
+                'borderColor' => '#0f5fd7',
+                'backgroundColor' => 'rgba(15,95,215,.15)',
+                'fill' => true,
+                'tension' => 0.35,
+            ]],
+        ]);
+        $trendChart->setOptions([
+            'maintainAspectRatio' => false,
+            'scales' => ['y' => ['beginAtZero' => true, 'ticks' => ['precision' => 0]]],
+        ]);
+
+        return $this->render('admin/sortie/stats.html.twig', [
+            'active' => 'sorties_stats',
+            'cityChart' => $cityChart,
+            'statusChart' => $statusChart,
+            'typeChart' => $typeChart,
+            'trendChart' => $trendChart,
+            'statsCards' => [
+                'total' => $totalSorties,
+                'topCity' => $topCity,
+                'topCityCount' => $topCityCount,
+                'upcoming' => $upcoming,
+                'completionRate' => $completionRate,
+            ],
+            'topCity' => $topCity,
+            'topCityCount' => $topCityCount,
+            'completionRate' => $completionRate,
+            'upcoming' => $upcoming,
+            'budgetRows' => $budgetRows,
+        ]);
+    }
+
+    #[Route('/sorties/calendrier', name: 'app_admin_sorties_calendar')]
+    public function sortieCalendar(Connection $connection): Response
+    {
+        $statusCounts = [
+            'OUVERTE' => $this->fetchValue($connection, "SELECT COUNT(*) FROM annonce_sortie WHERE statut = 'OUVERTE'"),
+            'CLOTUREE' => $this->fetchValue($connection, "SELECT COUNT(*) FROM annonce_sortie WHERE statut = 'CLOTUREE'"),
+            'TERMINEE' => $this->fetchValue($connection, "SELECT COUNT(*) FROM annonce_sortie WHERE statut = 'TERMINEE'"),
+            'ANNULEE' => $this->fetchValue($connection, "SELECT COUNT(*) FROM annonce_sortie WHERE statut = 'ANNULEE'"),
+        ];
+
+        return $this->render('admin/sortie/calendar.html.twig', [
+            'active' => 'sorties_calendar',
+            'statusCounts' => $statusCounts,
         ]);
     }
 
@@ -867,14 +1015,27 @@ class AdminController extends AbstractController
         // Créer un ID de tracking unique
         $trackingId = bin2hex(random_bytes(18)); // 36 caractères
 
-        // Sauvegarder le tracking
-        $connection->insert('offre_analysis_tracking', [
-            'tracking_id' => $trackingId,
-            'offre_id' => !empty($offreId) ? (int) $offreId : null,
-            'status' => 'pending',
-            'created_at' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
-            'expires_at' => (new \DateTimeImmutable())->modify('+1 hour')->format('Y-m-d H:i:s'),
-        ]);
+        try {
+            $this->ensureOffreAnalysisTables($connection);
+
+            // Sauvegarder le tracking
+            $connection->insert('offre_analysis_tracking', [
+                'tracking_id' => $trackingId,
+                'offre_id' => !empty($offreId) ? (int) $offreId : null,
+                'status' => 'pending',
+                'created_at' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
+                'expires_at' => (new \DateTimeImmutable())->modify('+1 hour')->format('Y-m-d H:i:s'),
+            ]);
+        } catch (\Throwable $e) {
+            $errorMsg = 'Impossible de prÃ©parer le suivi d\'analyse: '.$e->getMessage();
+            if ($request->isXmlHttpRequest() || str_contains($contentType, 'application/json')) {
+                return $this->json(['success' => false, 'error' => $errorMsg], 500);
+            }
+
+            $this->addFlash('error', $errorMsg);
+
+            return $this->redirectToRoute('app_admin_offres');
+        }
 
         $currentUser = $this->getUser();
         $adminUserId = $currentUser instanceof User ? $currentUser->getId() : null;
@@ -959,6 +1120,35 @@ class AdminController extends AbstractController
         }
 
         return $this->redirectToRoute('app_admin_offres');
+    }
+
+    private function ensureOffreAnalysisTables(Connection $connection): void
+    {
+        $connection->executeStatement('CREATE TABLE IF NOT EXISTS offre_analysis (
+            id INT AUTO_INCREMENT NOT NULL,
+            offre_id INT DEFAULT NULL,
+            score INT NOT NULL,
+            evaluation LONGTEXT NOT NULL,
+            points_faibles JSON NOT NULL,
+            ameliorations JSON NOT NULL,
+            offre_optimisee JSON NOT NULL,
+            diffusion JSON NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY(id),
+            KEY idx_offre_id (offre_id),
+            KEY idx_created_at (created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
+
+        $connection->executeStatement('CREATE TABLE IF NOT EXISTS offre_analysis_tracking (
+            tracking_id VARCHAR(36) NOT NULL,
+            offre_id INT DEFAULT NULL,
+            status VARCHAR(50) NOT NULL DEFAULT "pending",
+            analysis_id INT DEFAULT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            expires_at DATETIME NOT NULL,
+            PRIMARY KEY(tracking_id),
+            KEY idx_created_at (created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
     }
 
     #[Route('/offres/{id}/delete', name: 'app_admin_offres_delete', methods: ['POST'])]
@@ -1329,6 +1519,37 @@ class AdminController extends AbstractController
         } catch (Exception) {
             return [];
         }
+    }
+
+    private function fetchAdminSortiesForListing(
+        Connection $connection,
+        string $whereSql,
+        string $sortSql,
+        int $limit,
+        int $offset,
+        array $params
+    ): array {
+        $sqlWithChat = 'SELECT s.id, s.user_id, s.titre, s.description, s.ville, s.lieu_texte, s.point_rencontre, s.type_activite, s.date_sortie, s.budget_max, s.nb_places, s.statut, s.image_url, s.questions_json, u.prenom, u.nom, u.imageUrl AS user_image_url, cg.id AS chat_group_id
+                        FROM annonce_sortie s
+                        LEFT JOIN user u ON u.id = s.user_id
+                        LEFT JOIN chat_groupe cg ON cg.annonce_id = s.id
+                        '.$whereSql.'
+                        ORDER BY '.$sortSql.'
+                        LIMIT '.$limit.' OFFSET '.$offset;
+
+        $sorties = $this->fetchAll($connection, $sqlWithChat, $params);
+        if ($sorties !== []) {
+            return $sorties;
+        }
+
+        $sqlFallback = 'SELECT s.id, s.user_id, s.titre, s.description, s.ville, s.lieu_texte, s.point_rencontre, s.type_activite, s.date_sortie, s.budget_max, s.nb_places, s.statut, s.image_url, s.questions_json, u.prenom, u.nom, u.imageUrl AS user_image_url, NULL AS chat_group_id
+                        FROM annonce_sortie s
+                        LEFT JOIN user u ON u.id = s.user_id
+                        '.$whereSql.'
+                        ORDER BY '.$sortSql.'
+                        LIMIT '.$limit.' OFFSET '.$offset;
+
+        return $this->fetchAll($connection, $sqlFallback, $params);
     }
 
     private function fetchValue(Connection $connection, string $sql): int

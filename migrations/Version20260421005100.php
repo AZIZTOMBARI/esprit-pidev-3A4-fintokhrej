@@ -11,11 +11,15 @@ final class Version20260421005100 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return 'Create offre_analysis_tracking table for tracking analysis requests';
+        return 'Create offre_analysis_tracking table for tracking analysis requests in an idempotent way.';
     }
 
     public function up(Schema $schema): void
     {
+        if ($this->tableExists('offre_analysis_tracking')) {
+            return;
+        }
+
         $this->addSql('CREATE TABLE offre_analysis_tracking (
             tracking_id VARCHAR(36) NOT NULL,
             offre_id INT,
@@ -30,6 +34,18 @@ final class Version20260421005100 extends AbstractMigration
 
     public function down(Schema $schema): void
     {
+        if (!$this->tableExists('offre_analysis_tracking')) {
+            return;
+        }
+
         $this->addSql('DROP TABLE offre_analysis_tracking');
+    }
+
+    private function tableExists(string $tableName): bool
+    {
+        return (bool) $this->connection->fetchOne(
+            'SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?',
+            [$tableName]
+        );
     }
 }

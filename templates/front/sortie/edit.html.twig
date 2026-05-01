@@ -11,7 +11,10 @@
 <section>
     <div class="section-head">
         <div>
-            <h1 class="section-title">Modifier annonce #{{ sortie.id }}</h1>
+            <h1 class="section-title">Modifier annonce</h1>
+            <p class="section-subtitle" style="margin-bottom:8px;">
+                Statut: <strong>{{ (sortie.statut|default('INCONNU'))|replace({'_': ' '})|title }}</strong>
+            </p>
             <p class="section-subtitle">Mettez à jour votre annonce de sortie.</p>
         </div>
         <a href="{{ path('app_sorties') }}" class="outline-btn"><span class="btn-icon">&larr;</span>Retour aux sorties</a>

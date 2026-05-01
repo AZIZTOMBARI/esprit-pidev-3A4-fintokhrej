@@ -11,11 +11,15 @@ final class Version20260421003000 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return 'Create the reservation_offre table required by the offer detail and reservation flow.';
+        return 'Create the reservation_offre table required by the offer detail and reservation flow in an idempotent way.';
     }
 
     public function up(Schema $schema): void
     {
+        if ($this->tableExists('reservation_offre')) {
+            return;
+        }
+
         $this->addSql(<<<'SQL'
             CREATE TABLE reservation_offre (
                 id INT AUTO_INCREMENT NOT NULL,
@@ -37,6 +41,18 @@ final class Version20260421003000 extends AbstractMigration
 
     public function down(Schema $schema): void
     {
+        if (!$this->tableExists('reservation_offre')) {
+            return;
+        }
+
         $this->addSql('DROP TABLE reservation_offre');
+    }
+
+    private function tableExists(string $tableName): bool
+    {
+        return (bool) $this->connection->fetchOne(
+            'SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?',
+            [$tableName]
+        );
     }
 }

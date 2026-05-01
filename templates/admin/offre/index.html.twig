@@ -1028,7 +1028,15 @@
                 });
                 
                 console.log('Analyze response:', response.status);
-                const result = await response.json();
+                const raw = await response.text();
+                let result = null;
+
+                try {
+                    result = raw ? JSON.parse(raw) : null;
+                } catch (parseError) {
+                    throw new Error('Le serveur a renvoyé une page d\\'erreur au lieu du JSON attendu.');
+                }
+
                 console.log('Analyze result:', result);
                 
                 if (result.success && result.tracking_id) {

@@ -59,6 +59,18 @@
             "./config/packages/knpu_oauth2_client.yaml"
         ]
     },
+    "php-http/discovery": {
+        "version": "1.20",
+        "recipe": {
+            "repo": "github.com/symfony/recipes",
+            "branch": "main",
+            "version": "1.18",
+            "ref": "f45b5dd173a27873ab19f5e3180b2f661c21de02"
+        },
+        "files": [
+            "./config/packages/http_discovery.yaml"
+        ]
+    },
     "phpunit/phpunit": {
         "version": "11.5",
         "recipe": {
@@ -169,6 +181,18 @@
             "ref": "fadbfe33303a76e25cb63401050439aa9b1a9c7f"
         }
     },
+    "symfony/mercure-bundle": {
+        "version": "0.4",
+        "recipe": {
+            "repo": "github.com/symfony/recipes",
+            "branch": "main",
+            "version": "0.4",
+            "ref": "b141b8c8f13bc8c31d718a5488039b712c0d3592"
+        },
+        "files": [
+            "./config/packages/mercure.yaml"
+        ]
+    },
     "symfony/messenger": {
         "version": "6.4",
         "recipe": {
@@ -271,6 +295,18 @@
             "./templates/base.html.twig"
         ]
     },
+    "symfony/twilio-notifier": {
+        "version": "6.4",
+        "recipe": {
+            "repo": "github.com/symfony/recipes",
+            "branch": "main",
+            "version": "5.0",
+            "ref": "295c79af6b41fb4b6aa18f6f63eaa02051ebba5b"
+        }
+    },
+    "symfony/ux-chartjs": {
+        "version": "v2.32.0"
+    },
     "symfony/ux-turbo": {
         "version": "2.34",
         "recipe": {
@@ -315,6 +351,18 @@
         },
         "files": [
             "./config/packages/messenger.yaml"
+        ]
+    },
+    "tattali/calendar-bundle": {
+        "version": "1.3",
+        "recipe": {
+            "repo": "github.com/symfony/recipes-contrib",
+            "branch": "main",
+            "version": "1.1",
+            "ref": "0c643e17b5340747b35c2c75e11727fa31bfa9bb"
+        },
+        "files": [
+            "./config/routes/calendar.yaml"
         ]
     },
     "twig/extra-bundle": {

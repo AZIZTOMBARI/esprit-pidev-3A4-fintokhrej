@@ -15,6 +15,8 @@ class WebhookController extends AbstractController
     public function offresAnalyzeCallback(Request $request, Connection $connection): JsonResponse
     {
         try {
+            $this->ensureOffreAnalysisTables($connection);
+
             $data = json_decode($request->getContent(), true);
             
             if (json_last_error() !== JSON_ERROR_NONE) {
@@ -80,6 +82,35 @@ class WebhookController extends AbstractController
         }
 
         return $payload;
+    }
+
+    private function ensureOffreAnalysisTables(Connection $connection): void
+    {
+        $connection->executeStatement('CREATE TABLE IF NOT EXISTS offre_analysis (
+            id INT AUTO_INCREMENT NOT NULL,
+            offre_id INT DEFAULT NULL,
+            score INT NOT NULL,
+            evaluation LONGTEXT NOT NULL,
+            points_faibles JSON NOT NULL,
+            ameliorations JSON NOT NULL,
+            offre_optimisee JSON NOT NULL,
+            diffusion JSON NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY(id),
+            KEY idx_offre_id (offre_id),
+            KEY idx_created_at (created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
+
+        $connection->executeStatement('CREATE TABLE IF NOT EXISTS offre_analysis_tracking (
+            tracking_id VARCHAR(36) NOT NULL,
+            offre_id INT DEFAULT NULL,
+            status VARCHAR(50) NOT NULL DEFAULT "pending",
+            analysis_id INT DEFAULT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            expires_at DATETIME NOT NULL,
+            PRIMARY KEY(tracking_id),
+            KEY idx_created_at (created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
     }
 
     #[Route('/offres/analysis/{id}', name: 'app_offres_analysis_view', methods: ['GET'])]

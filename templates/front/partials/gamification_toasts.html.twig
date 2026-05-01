@@ -21,7 +21,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.gamification-toast').forEach((toast, index) => {
-                const delay = index * 600;
+                const delay = index * 350;
                 window.setTimeout(() => {
                     toast.animate(
                         [
@@ -37,10 +37,10 @@
                                 { opacity: 1, transform: 'translateY(0)' },
                                 { opacity: 0, transform: 'translateY(10px)' }
                             ],
-                            { duration: 400, easing: 'ease-in', fill: 'forwards' }
+                            { duration: 320, easing: 'ease-in', fill: 'forwards' }
                         );
                         outro.onfinish = () => toast.remove();
-                    }, 4300);
+                    }, 2200);
                 }, delay);
             });
         });

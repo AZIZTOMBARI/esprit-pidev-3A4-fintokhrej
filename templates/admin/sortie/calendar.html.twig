@@ -1,0 +1,149 @@
+{% extends 'admin/base_admin.html.twig' %}
+
+{% block title %}Calendrier sorties | Fin Tokhroj{% endblock %}
+{% block admin_page_title %}Calendrier sorties{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.css">
+    <style>
+        .calendar-shell {
+            display: grid;
+            gap: 18px;
+        }
+        .calendar-topbar {
+            display: flex;
+            justify-content: space-between;
+            gap: 14px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .calendar-panel {
+            padding: 18px;
+            border-radius: 28px;
+            border: 1px solid rgba(24, 71, 129, .1);
+            background:
+                radial-gradient(circle at top right, rgba(116, 199, 255, .12), transparent 30%),
+                linear-gradient(180deg, rgba(255,255,255,.98), rgba(245,249,255,.96));
+            box-shadow: 0 22px 48px rgba(16, 45, 88, .1);
+        }
+        .calendar-legend {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+        .calendar-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            background: rgba(239,245,255,.92);
+            border: 1px solid rgba(24,71,129,.08);
+            color: #204973;
+            font-weight: 700;
+        }
+        .calendar-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+        }
+        #admin-sortie-calendar {
+            margin-top: 18px;
+            min-height: 760px;
+        }
+        .fc .fc-toolbar-title {
+            color: #163f73;
+            font-size: 1.35rem;
+        }
+        .fc .fc-button-primary {
+            background: #1d4ed8;
+            border-color: #1d4ed8;
+            box-shadow: none;
+        }
+        .fc .fc-button-primary:not(:disabled).fc-button-active,
+        .fc .fc-button-primary:not(:disabled):active {
+            background: #143c94;
+            border-color: #143c94;
+        }
+        .fc-theme-standard td,
+        .fc-theme-standard th,
+        .fc-theme-standard .fc-scrollgrid {
+            border-color: rgba(24, 71, 129, .12);
+        }
+    </style>
+{% endblock %}
+
+{% block admin_content %}
+    <div class="calendar-shell">
+        <div class="calendar-topbar">
+            <div>
+                <h2 class="section-title">Calendrier des sorties</h2>
+                <p class="section-subtitle">Vision temporelle de toutes les sorties avec ouverture directe sur le detail admin.</p>
+            </div>
+            <div class="btn-row">
+                <a href="{{ path('app_admin_sorties_stats') }}" class="primary-btn">Statistiques</a>
+                <a href="{{ path('app_admin_sorties') }}" class="outline-btn">Retour sorties</a>
+            </div>
+        </div>
+
+        <section class="calendar-panel">
+            <div class="calendar-legend">
+                <span class="calendar-chip"><span class="calendar-dot" style="background:#2276f5;"></span> Ouverte · {{ statusCounts.OUVERTE }}</span>
+                <span class="calendar-chip"><span class="calendar-dot" style="background:#f59e0b;"></span> Cloturee · {{ statusCounts.CLOTUREE }}</span>
+                <span class="calendar-chip"><span class="calendar-dot" style="background:#10b981;"></span> Terminee · {{ statusCounts.TERMINEE }}</span>
+                <span class="calendar-chip"><span class="calendar-dot" style="background:#ef4444;"></span> Annulee · {{ statusCounts.ANNULEE }}</span>
+            </div>
+
+            <div id="admin-sortie-calendar"></div>
+        </section>
+    </div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/locales-all.global.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const target = document.getElementById('admin-sortie-calendar');
+            if (!target || typeof FullCalendar === 'undefined') {
+                return;
+            }
+
+            const calendar = new FullCalendar.Calendar(target, {
+                initialView: 'dayGridMonth',
+                locale: 'fr',
+                height: 'auto',
+                firstDay: 1,
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,listMonth'
+                },
+                buttonText: {
+                    today: 'Aujourd hui',
+                    month: 'Mois',
+                    week: 'Semaine',
+                    list: 'Liste'
+                },
+                events: '{{ path('fc_load_events') }}',
+                eventTimeFormat: {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                },
+                eventDidMount: function(info) {
+                    const props = info.event.extendedProps || {};
+                    const details = [props.ville, props.typeActivite, props.statut].filter(Boolean).join(' · ');
+                    if (details) {
+                        info.el.title = details;
+                    }
+                }
+            });
+
+            calendar.render();
+        });
+    </script>
+{% endblock %}

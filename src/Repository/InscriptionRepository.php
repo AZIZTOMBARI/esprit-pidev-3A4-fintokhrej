@@ -97,4 +97,14 @@ class InscriptionRepository extends ServiceEntityRepository
             ->getQuery()
             ->getSingleScalarResult() ?? 0;
     }
+
+    public function findByUserId(int $userId): array
+    {
+        return $this->createQueryBuilder('i')
+            ->where('IDENTITY(i.user) = :userId')
+            ->setParameter('userId', $userId)
+            ->orderBy('i.dateCreation', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
 }

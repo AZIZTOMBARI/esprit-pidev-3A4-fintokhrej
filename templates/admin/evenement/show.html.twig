@@ -3,51 +3,729 @@
 {% block title %}Evenement | {{ evenement.titre }}{% endblock %}
 {% block admin_page_title %}Événements{% endblock %}
 
+{% block stylesheets %}
+    {{ parent() }}
+    <link rel="stylesheet" href="{{ asset('theme/css/evenement-enhance.css') }}?v=v2">
+{% endblock %}
+
 {% block admin_content %}
-<div class="admin-container" style="max-width: 1100px; margin: 30px auto;">
-    <div class="section-head" style="margin-bottom: 20px;">
-        <div>
+{% set rawImage = (evenement.imageUrl|default(''))|trim %}
+{% if rawImage and (rawImage starts with 'http://' or rawImage starts with 'https://' or rawImage starts with 'data:image/') %}
+    {% set imageSrc = rawImage %}
+{% elseif rawImage and (rawImage starts with '/') %}
+    {% set imageSrc = rawImage %}
+{% elseif rawImage and (rawImage starts with 'theme/' or rawImage starts with 'uploads/') %}
+    {% set imageSrc = '/' ~ rawImage|trim('/') %}
+{% elseif rawImage %}
+    {% set imageSrc = '/uploads/evenements/' ~ rawImage|trim('/') %}
+{% else %}
+    {% set imageSrc = asset('theme/images/logo.png') %}
+{% endif %}
+
+<div class="admin-container event-show-shell">
+    <header class="event-show-hero">
+        <div class="event-hero-copy">
+            <div class="event-hero-kicker">Fiche evenement</div>
             <h1 class="section-title">{{ evenement.titre }}</h1>
             <p class="section-subtitle">{{ evenement.dateDebut|date('d/m/Y H:i') }} - {{ evenement.dateFin|date('d/m/Y H:i') }}</p>
+            <div class="event-hero-tags">
+                <span class="event-tag">{{ evenement.type }}</span>
+                <span class="event-tag event-tag--status">{{ evenement.statut }}</span>
+            </div>
         </div>
-        <div style="display: flex; gap: 10px;">
+        <div class="event-hero-actions">
             <a href="{{ path('app_admin_evenements_edit', {id: evenement.id}) }}" class="outline-btn">Modifier</a>
             <a href="{{ path('app_admin_inscriptions', {id: evenement.id}) }}" class="cta-btn">Gerer les inscriptions</a>
         </div>
-    </div>
+    </header>
 
-    <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px;">
-        <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px;">
-            <h3 style="margin: 0 0 10px 0; font-size: 16px;">Informations</h3>
-            <div style="display: grid; gap: 6px;">
-                <div><strong>Lieu:</strong> {{ evenement.lieu ? evenement.lieu.nom : 'Lieu a confirmer' }}</div>
-                <div><strong>Type:</strong> {{ evenement.type }}</div>
-                <div><strong>Statut:</strong> {{ evenement.statut }}</div>
-                <div><strong>Capacite:</strong> {{ evenement.capaciteMax }} places</div>
-                <div><strong>Prix:</strong> {{ evenement.prix }} TND</div>
-                <div><strong>Places restantes:</strong> {{ stats.places_restantes }}</div>
+    <div class="event-show-grid">
+        <section class="event-card">
+            <div class="event-media">
+                <img src="{{ imageSrc }}" alt="{{ evenement.titre }}" onerror="this.onerror=null;this.src='{{ asset('theme/images/logo.png') }}';" />
             </div>
-
-            {% if evenement.description %}
-                <div style="margin-top: 12px;">
-                    <h4 style="margin: 0 0 6px 0; font-size: 14px;">Description</h4>
-                    <p style="margin: 0; color: #475569;">{{ evenement.description }}</p>
+            <div class="event-card-body">
+                <h3>Informations</h3>
+                <div class="event-info-list">
+                    <div><span>Lieu</span><strong>{{ evenement.lieu ? evenement.lieu.nom : 'Lieu a confirmer' }}</strong></div>
+                    <div><span>Capacite</span><strong>{{ evenement.capaciteMax }} places</strong></div>
+                    <div><span>Prix</span><strong>{{ evenement.prix }} TND</strong></div>
+                    <div><span>Places restantes</span><strong>{{ stats.places_restantes }}</strong></div>
                 </div>
-            {% endif %}
-        </div>
 
-        <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px;">
-            <h3 style="margin: 0 0 10px 0; font-size: 16px;">Statistiques</h3>
-            <div style="display: grid; gap: 8px;">
-                <div>Demandes: <strong>{{ stats.total_demandes }}</strong></div>
-                <div>En attente: <strong>{{ stats.en_attente }}</strong></div>
-                <div>Confirmees: <strong>{{ stats.confirmees }}</strong></div>
-                <div>Payees: <strong>{{ stats.payees }}</strong></div>
-                <div>Rejetees: <strong>{{ stats.rejetees }}</strong></div>
-                <div>Annulees: <strong>{{ stats.annulees }}</strong></div>
-                <div>Taux de remplissage: <strong>{{ stats.taux_remplissage }}%</strong></div>
+                {% if evenement.description %}
+                    <div class="event-description">
+                        <h4>Description</h4>
+                        <p>{{ evenement.description }}</p>
+                    </div>
+                {% endif %}
             </div>
+        </section>
+        <div class="event-side-stack">
+            <aside class="event-card event-card--weather">
+                <div class="event-card-body">
+                    <div class="event-weather-header">
+                        <div>
+                            <h3>Meteo evenement</h3>
+                            {% set eventStartLabel = evenement.dateDebut|date('d/m/Y') %}
+                            {% set eventEndLabel = evenement.dateFin|date('d/m/Y') %}
+                            {% set eventRangeLabel = eventStartLabel == eventEndLabel
+                                ? 'le ' ~ eventStartLabel
+                                : 'du ' ~ eventStartLabel ~ ' au ' ~ eventEndLabel
+                            %}
+                            <div class="event-weather-range">{{ eventRangeLabel }}</div>
+                        </div>
+                        <div class="event-weather-location">
+                            <span>Localisation</span>
+                            <strong>{{ weather.location }}</strong>
+                        </div>
+                    </div>
+
+                    {% if weather.status != 'ok' or weather.days is empty %}
+                        <div class="event-weather-empty">Meteo indisponible pour le moment.</div>
+                    {% else %}
+                        {% set eventStart = evenement.dateDebut|date('Y-m-d') %}
+                        {% set eventEnd = evenement.dateFin|date('Y-m-d') %}
+                        {% set eventDays = weather.days|filter(day => day.date >= eventStart and day.date <= eventEnd) %}
+                        {% if eventDays is empty %}
+                            {% set eventDays = weather.days %}
+                        {% endif %}
+
+                        {# ═════ Cartes météo (style image de référence) ═════ #}
+                        <div class="wx-cards-strip" aria-label="Prévisions jour par jour" style="margin-top: 14px;">
+                            {% for day in eventDays|slice(0, 6) %}
+                                {% set code = day.weather_code %}
+                                {% set gradCls =
+                                    code == 0 ? 'grad-sunny' :
+                                    (code in 1..3 ? 'grad-partly' :
+                                    (code in 45..48 ? 'grad-fog' :
+                                    (code in 51..57 ? 'grad-drizzle' :
+                                    (code in 61..67 ? 'grad-rain' :
+                                    (code in 71..77 ? 'grad-snow' :
+                                    (code in 80..82 ? 'grad-showers' :
+                                    (code in 95..99 ? 'grad-storm' : 'grad-cloudy')))))))
+                                %}
+                                {% set iconSlug =
+                                    code == 0 ? 'sunny' :
+                                    (code in 1..3 ? 'partly-sunny' :
+                                    (code in 45..48 ? 'fog' :
+                                    (code in 51..57 ? 'drizzle' :
+                                    (code in 61..67 ? 'rain' :
+                                    (code in 71..77 ? 'snow' :
+                                    (code in 80..82 ? 'showers' :
+                                    (code in 95..99 ? 'thunderstorm' : 'cloudy')))))))
+                                %}
+                                <div class="wx-card {{ gradCls }}" style="animation-delay: {{ loop.index0 * 60 }}ms;">
+                                    <div class="wx-card__date">{{ day.date|date('D d/m') }}</div>
+                                    <div class="wx-card__icon" aria-hidden="true" data-icon="{{ iconSlug }}">
+                                        <!-- icône injectée par JS ci-dessous -->
+                                    </div>
+                                    <div class="wx-card__temp">{{ day.temp_max|default('--') }}°</div>
+                                    <div class="wx-card__label">{{ day.label }}</div>
+                                    <div class="wx-card__meta">
+                                        {% if day.precip_prob is not null %}<span>💧 {{ day.precip_prob }}%</span>{% endif %}
+                                        {% if day.wind_max is not null %}<span>💨 {{ day.wind_max|round }}</span>{% endif %}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        <script>
+                        (function () {
+                            const icons = {
+                                sunny: '<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="sunG{{ evenement.id }}" cx="50%" cy="45%" r="55%"><stop offset="0%" stop-color="#fff7c2"/><stop offset="100%" stop-color="#f7c137"/></radialGradient></defs><circle cx="32" cy="32" r="14" fill="url(#sunG{{ evenement.id }})"/><g stroke="#ffeaa3" stroke-width="3" stroke-linecap="round"><line x1="32" y1="6"  x2="32" y2="12"/><line x1="32" y1="52" x2="32" y2="58"/><line x1="6"  y1="32" x2="12" y2="32"/><line x1="52" y1="32" x2="58" y2="32"/><line x1="14" y1="14" x2="18" y2="18"/><line x1="46" y1="46" x2="50" y2="50"/><line x1="14" y1="50" x2="18" y2="46"/><line x1="46" y1="18" x2="50" y2="14"/></g></svg>',
+                                'partly-sunny': '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><circle cx="22" cy="22" r="11" fill="#f7c137"/><g transform="translate(20,28)"><ellipse cx="20" cy="14" rx="18" ry="10" fill="#fff"/><ellipse cx="10" cy="18" rx="14" ry="8" fill="#e9f2fb"/></g></svg>',
+                                cloudy: '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><ellipse cx="36" cy="32" rx="20" ry="12" fill="#fff"/><ellipse cx="22" cy="38" rx="14" ry="8" fill="#dbe6f3"/></svg>',
+                                rain: '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><ellipse cx="32" cy="24" rx="20" ry="11" fill="#fff"/><g fill="#9cc0e8"><ellipse cx="18" cy="44" rx="2" ry="4"/><ellipse cx="28" cy="48" rx="2" ry="4"/><ellipse cx="38" cy="44" rx="2" ry="4"/><ellipse cx="46" cy="48" rx="2" ry="4"/></g></svg>',
+                                showers: '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><ellipse cx="32" cy="22" rx="20" ry="11" fill="#fff"/><g fill="#a9cbe8"><path d="M16 38 L14 48 L20 42 Z"/><path d="M30 40 L28 52 L34 44 Z"/><path d="M44 38 L42 48 L48 42 Z"/></g></svg>',
+                                thunderstorm: '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><ellipse cx="32" cy="22" rx="20" ry="11" fill="#fff"/><path d="M30 34 L20 48 H28 L24 58 L40 42 H32 L36 34 Z" fill="#ffd54f"/></svg>',
+                                drizzle: '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><ellipse cx="32" cy="22" rx="20" ry="11" fill="#fff"/><g stroke="#9cc0e8" stroke-width="2" stroke-linecap="round"><line x1="18" y1="40" x2="16" y2="46"/><line x1="28" y1="42" x2="26" y2="48"/><line x1="38" y1="40" x2="36" y2="46"/><line x1="46" y1="42" x2="44" y2="48"/></g></svg>',
+                                snow: '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><ellipse cx="32" cy="22" rx="20" ry="11" fill="#fff"/><g fill="#fff"><circle cx="18" cy="44" r="2"/><circle cx="28" cy="50" r="2"/><circle cx="38" cy="44" r="2"/><circle cx="46" cy="50" r="2"/></g></svg>',
+                                fog: '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><g stroke="#fff" stroke-width="3" stroke-linecap="round" opacity="0.85"><line x1="10" y1="20" x2="54" y2="20"/><line x1="14" y1="30" x2="50" y2="30"/><line x1="10" y1="40" x2="54" y2="40"/><line x1="14" y1="50" x2="50" y2="50"/></g></svg>',
+                            };
+                            document.querySelectorAll('.wx-card__icon[data-icon]').forEach(el => {
+                                const slug = el.getAttribute('data-icon');
+                                el.innerHTML = icons[slug] || icons.cloudy;
+                            });
+                        })();
+                        </script>
+
+                        {% set weatherIcons = {
+                            0: '☀️',
+                            1: '🌤️',
+                            2: '⛅',
+                            3: '☁️',
+                            45: '🌫️',
+                            48: '🌫️',
+                            51: '🌦️',
+                            53: '🌦️',
+                            55: '🌧️',
+                            56: '🌧️',
+                            57: '🌧️',
+                            61: '🌧️',
+                            63: '🌧️',
+                            65: '🌧️',
+                            66: '🌧️',
+                            67: '🌧️',
+                            71: '🌨️',
+                            73: '🌨️',
+                            75: '🌨️',
+                            77: '🌨️',
+                            80: '🌧️',
+                            81: '🌧️',
+                            82: '🌧️',
+                            85: '🌨️',
+                            86: '🌨️',
+                            95: '⛈️',
+                            96: '⛈️',
+                            99: '⛈️'
+                        } %}
+
+                        {% set firstDay = eventDays|first %}
+                        <div class="event-weather-hero">
+                            <div class="event-weather-hero__main">
+                                <div class="event-weather-hero__icon">{{ weatherIcons[firstDay.weather_code]|default('🌤️') }}</div>
+                                <div>
+                                    <div class="event-weather-hero__temp">{{ firstDay.temp_max }}°</div>
+                                    <div class="event-weather-hero__label">{{ firstDay.label }}</div>
+                                    <div class="event-weather-hero__minmax">Min {{ firstDay.temp_min }}° · Max {{ firstDay.temp_max }}°</div>
+                                </div>
+                            </div>
+                            <div class="event-weather-hero__stats">
+                                <div>
+                                    <span>Pluie</span>
+                                    <strong>{{ firstDay.precip_prob }}%</strong>
+                                </div>
+                                <div>
+                                    <span>Vent</span>
+                                    <strong>{{ firstDay.wind_max }} km/h</strong>
+                                </div>
+                                <div>
+                                    <span>Accum.</span>
+                                    <strong>{{ firstDay.precip_sum|default(0) }} mm</strong>
+                                </div>
+                            </div>
+                            <div class="event-weather-hero__insights">
+                                <div>
+                                    <span>Participation estimee</span>
+                                    <strong>{{ weather.avg_participation|default(0) }}%</strong>
+                                </div>
+                                <div>
+                                    <span>Participants estimes</span>
+                                    <strong>{{ weather.estimated_participants|default(0) }}</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="event-weather-list">
+                            {% for day in eventDays %}
+                                <article class="event-weather-row">
+                                    <div class="event-weather-row__date">
+                                        <span class="event-weather-row__day">{{ day.date|date('D') }}</span>
+                                        <span class="event-weather-row__full">{{ day.date|date('d/m') }}</span>
+                                    </div>
+                                    <div class="event-weather-row__main">
+                                        <div class="event-weather-row__icon">{{ weatherIcons[day.weather_code]|default('🌤️') }}</div>
+                                        <div>
+                                            <div class="event-weather-row__label">{{ day.label }}</div>
+                                            <div class="event-weather-row__temps">{{ day.temp_min }}° / {{ day.temp_max }}°</div>
+                                        </div>
+                                    </div>
+                                    <div class="event-weather-row__meta">
+                                        <span>Pluie {{ day.precip_prob }}%</span>
+                                        <span>Vent {{ day.wind_max }} km/h</span>
+                                    </div>
+                                </article>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </aside>
+
+            <aside class="event-card event-card--stats">
+                <div class="event-card-body">
+                    <h3>Statistiques</h3>
+                    <div class="event-stats-grid">
+                        <div class="event-stat">
+                            <span>Demandes</span>
+                            <strong>{{ stats.total_demandes }}</strong>
+                        </div>
+                        <div class="event-stat">
+                            <span>En attente</span>
+                            <strong>{{ stats.en_attente }}</strong>
+                        </div>
+                        <div class="event-stat">
+                            <span>Confirmees</span>
+                            <strong>{{ stats.confirmees }}</strong>
+                        </div>
+                        <div class="event-stat">
+                            <span>Payees</span>
+                            <strong>{{ stats.payees }}</strong>
+                        </div>
+                        <div class="event-stat">
+                            <span>Rejetees</span>
+                            <strong>{{ stats.rejetees }}</strong>
+                        </div>
+                        <div class="event-stat">
+                            <span>Annulees</span>
+                            <strong>{{ stats.annulees }}</strong>
+                        </div>
+                    </div>
+                    <div class="event-fill">
+                        <div class="event-fill-label">
+                            <span>Taux de remplissage</span>
+                            <strong>{{ stats.taux_remplissage }}%</strong>
+                        </div>
+                        <div class="event-fill-bar">
+                            <span style="width: {{ stats.taux_remplissage }}%"></span>
+                        </div>
+                    </div>
+                </div>
+            </aside>
         </div>
     </div>
- </div>
+</div>
+
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap');
+
+    :root {
+        --event-ink: #0f1f2e;
+        --event-muted: #56657a;
+        --event-accent: #0b5c78;
+        --event-accent-soft: rgba(11, 92, 120, 0.14);
+        --event-card: #ffffff;
+        --event-stroke: rgba(15, 31, 46, 0.12);
+        --event-shadow: 0 24px 48px rgba(15, 31, 46, 0.12);
+    }
+
+    .event-show-shell {
+        max-width: 1120px;
+        margin: 30px auto 48px;
+        font-family: 'Manrope', 'Trebuchet MS', sans-serif;
+        color: var(--event-ink);
+    }
+    .event-show-hero {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        align-items: flex-end;
+        margin-bottom: 20px;
+    }
+    .event-hero-kicker {
+        font-size: 12px;
+        letter-spacing: 0.25em;
+        text-transform: uppercase;
+        color: var(--event-muted);
+        margin-bottom: 8px;
+    }
+    .event-hero-copy .section-title {
+        font-family: 'Fraunces', 'Times New Roman', serif;
+        margin-bottom: 6px;
+    }
+    .event-hero-tags {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+        flex-wrap: wrap;
+    }
+    .event-tag {
+        background: var(--event-accent-soft);
+        color: var(--event-accent);
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+    }
+    .event-tag--status {
+        background: rgba(16, 185, 129, 0.18);
+        color: #0f766e;
+    }
+    .event-hero-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .event-show-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.4fr) minmax(260px, 1fr);
+        gap: 20px;
+        align-items: start;
+    }
+    .event-side-stack {
+        display: grid;
+        gap: 20px;
+    }
+    .event-card {
+        background: linear-gradient(140deg, #ffffff, #f6fbff 70%);
+        border: 1px solid rgba(11, 92, 120, 0.16);
+        border-radius: 24px;
+        box-shadow: var(--event-shadow);
+        overflow: hidden;
+        animation: cardLift 0.6s ease both;
+    }
+    .event-card--stats {
+        position: sticky;
+        top: 16px;
+    }
+    .event-card--weather {
+        align-self: start;
+    }
+    .event-media {
+        height: 220px;
+        background: #e2e8f0;
+        overflow: hidden;
+    }
+    .event-media img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+    .event-card-body {
+        padding: 20px 22px 22px;
+    }
+    .event-card-body h3 {
+        margin: 0 0 14px;
+        font-size: 16px;
+    }
+    .event-info-list {
+        display: grid;
+        gap: 10px;
+    }
+    .event-info-list div {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: rgba(15, 31, 46, 0.03);
+        border: 1px solid rgba(15, 31, 46, 0.08);
+        border-radius: 14px;
+        padding: 10px 12px;
+        font-size: 13px;
+    }
+    .event-info-list span {
+        color: var(--event-muted);
+        font-weight: 600;
+    }
+    .event-info-list strong {
+        font-weight: 700;
+    }
+    .event-description {
+        margin-top: 16px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(15, 31, 46, 0.08);
+    }
+    .event-description h4 {
+        margin: 0 0 6px;
+        font-size: 14px;
+    }
+    .event-description p {
+        margin: 0;
+        color: var(--event-muted);
+        line-height: 1.55;
+    }
+    .event-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    .event-stat {
+        background: #ffffff;
+        border: 1px solid rgba(15, 31, 46, 0.08);
+        border-radius: 16px;
+        padding: 12px;
+        display: grid;
+        gap: 6px;
+    }
+    .event-stat span {
+        color: var(--event-muted);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+    }
+    .event-stat strong {
+        font-size: 18px;
+    }
+    .event-fill {
+        background: rgba(15, 31, 46, 0.03);
+        border-radius: 16px;
+        padding: 12px;
+        border: 1px solid rgba(15, 31, 46, 0.08);
+    }
+    .event-fill-label {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+        font-size: 13px;
+        color: var(--event-muted);
+    }
+    .event-fill-bar {
+        height: 8px;
+        border-radius: 999px;
+        background: rgba(11, 92, 120, 0.12);
+        overflow: hidden;
+    }
+    .event-fill-bar span {
+        display: block;
+        height: 100%;
+        background: linear-gradient(90deg, #0b5c78, #117ea5);
+        border-radius: 999px;
+        animation: fillIn 0.8s ease forwards;
+    }
+    .event-weather-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: flex-start;
+    }
+    .event-weather-header h3 {
+        margin: 0 0 6px;
+        font-size: 16px;
+    }
+    .event-weather-range {
+        font-size: 12px;
+        color: var(--event-muted);
+    }
+    .event-weather-location {
+        display: grid;
+        gap: 4px;
+        padding: 8px 12px;
+        border-radius: 14px;
+        border: 1px solid rgba(15, 31, 46, 0.12);
+        background: rgba(15, 31, 46, 0.04);
+        text-align: right;
+        font-size: 12px;
+    }
+    .event-weather-location span {
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--event-muted);
+        font-size: 10px;
+    }
+    .event-weather-hero {
+        margin-top: 12px;
+        background: linear-gradient(135deg, #0b5c78, #0e7490 60%, #0f172a 120%);
+        color: #fff;
+        border-radius: 18px;
+        padding: 16px;
+        display: grid;
+        gap: 12px;
+        box-shadow: 0 16px 28px rgba(9, 20, 45, 0.28);
+    }
+    .event-weather-hero__main {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .event-weather-hero__icon {
+        font-size: 32px;
+    }
+    .event-weather-hero__temp {
+        font-size: 30px;
+        font-weight: 700;
+        margin-bottom: 2px;
+    }
+    .event-weather-hero__label {
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-size: 11px;
+        opacity: 0.8;
+    }
+    .event-weather-hero__minmax {
+        font-size: 12px;
+        opacity: 0.9;
+    }
+    .event-weather-hero__stats {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 12px;
+        padding: 8px;
+    }
+    .event-weather-hero__stats span,
+    .event-weather-hero__insights span {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        opacity: 0.8;
+    }
+    .event-weather-hero__stats strong,
+    .event-weather-hero__insights strong {
+        font-size: 14px;
+    }
+    .event-weather-hero__insights {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+    .event-weather-hero__insights div {
+        background: rgba(255, 255, 255, 0.16);
+        border-radius: 12px;
+        padding: 8px;
+        display: grid;
+        gap: 4px;
+    }
+    .event-weather-list {
+        margin-top: 14px;
+        display: grid;
+        gap: 10px;
+        max-height: 320px;
+        overflow-y: auto;
+        padding-right: 4px;
+    }
+    .event-weather-row {
+        display: grid;
+        grid-template-columns: 70px minmax(0, 1fr) 120px;
+        gap: 10px;
+        align-items: center;
+        background: #fff;
+        border: 1px solid rgba(15, 31, 46, 0.08);
+        border-radius: 16px;
+        padding: 10px 12px;
+    }
+    .event-weather-row__date {
+        display: grid;
+        gap: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-size: 11px;
+        color: var(--event-muted);
+        font-weight: 700;
+    }
+    .event-weather-row__main {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .event-weather-row__icon {
+        font-size: 20px;
+    }
+    .event-weather-row__label {
+        font-weight: 700;
+        font-size: 13px;
+    }
+    .event-weather-row__temps {
+        font-size: 12px;
+        color: var(--event-muted);
+    }
+    .event-weather-row__meta {
+        display: grid;
+        gap: 4px;
+        font-size: 12px;
+        color: var(--event-muted);
+        text-align: right;
+    }
+    .event-weather-empty {
+        color: var(--event-muted);
+        font-size: 13px;
+    }
+    @keyframes cardLift {
+        from { transform: translateY(10px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+    @keyframes fillIn {
+        from { transform: scaleX(0); transform-origin: left; }
+        to { transform: scaleX(1); transform-origin: left; }
+    }
+    @media (max-width: 980px) {
+        .event-show-hero { flex-direction: column; align-items: flex-start; }
+        .event-show-grid { grid-template-columns: 1fr; }
+        .event-card--stats { position: static; }
+        .event-weather-header { flex-direction: column; align-items: flex-start; }
+        .event-weather-location { text-align: left; }
+        .event-weather-row {
+            grid-template-columns: 1fr;
+            text-align: left;
+        }
+        .event-weather-row__meta { text-align: left; }
+    }
+</style>
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script>
+const AI_URL = '{{ path('app_admin_evenement_ai_insights', {id: evenement.id}) }}';
+let aiLoaded = false;
+
+function toggleAiPanel() {
+    const body    = document.getElementById('ai-body');
+    const hint    = document.getElementById('ai-trigger-hint');
+    const isOpen  = body.classList.contains('open');
+
+    if (isOpen) {
+        body.classList.remove('open');
+        hint.textContent = 'Cliquez pour analyser cet événement →';
+    } else {
+        body.classList.add('open');
+        hint.textContent = '▲ Fermer';
+        if (!aiLoaded) fetchInsights();
+    }
+}
+
+async function fetchInsights() {
+    try {
+        const res  = await fetch(AI_URL);
+        const data = await res.json();
+        renderInsights(data);
+    } catch (e) {
+        document.getElementById('ai-loading').innerHTML =
+            '<span style="color:#f87171;">❌ Erreur de chargement. Verifiez la configuration GEMINI_API_KEY.</span>';
+    }
+    aiLoaded = true;
+}
+
+function scoreColor(n) {
+    if (n >= 75) return '#4ade80';
+    if (n >= 50) return '#facc15';
+    return '#f87171';
+}
+
+function renderInsights(data) {
+    const loading = document.getElementById('ai-loading');
+    const results = document.getElementById('ai-results');
+
+    if (data.error || !data.performance_score && data.performance_score !== 0) {
+        loading.innerHTML = '<span style="color:#f87171;">❌ ' + (data.error || 'Analyse indisponible.') + '</span>';
+        return;
+    }
+
+    const pct    = Math.min(100, Math.max(0, data.performance_score || 0));
+    const color  = scoreColor(pct);
+    const label  = data.performance_label || '';
+
+    const insightsHtml = (data.insights || []).map(i => `<li>${i}</li>`).join('');
+    const recsHtml     = (data.recommendations || []).map(r => `<li>→ ${r}</li>`).join('');
+    const predHtml     = data.prediction
+        ? `<div class="evs-ai-prediction"><strong>🔮 Prédiction :</strong> ${data.prediction}</div>`
+        : '';
+
+    results.innerHTML = `
+        <div class="evs-ai-score-row">
+            <div class="evs-ai-score-circle" style="--pct: ${pct * 3.6}deg;">
+                <span class="evs-ai-score-num">${pct}</span>
+            </div>
+            <div>
+                <div class="evs-ai-score-label" style="color:${color};">${label}</div>
+                <div class="evs-ai-score-sublabel">Score de performance globale</div>
+            </div>
+        </div>
+
+        ${insightsHtml ? `
+        <p class="evs-ai-section-title">💡 Insights clés</p>
+        <ul class="evs-ai-list">${insightsHtml}</ul>` : ''}
+
+        ${recsHtml ? `
+        <p class="evs-ai-section-title">✅ Recommandations</p>
+        <ul class="evs-ai-list evs-ai-list--rec">${recsHtml}</ul>` : ''}
+
+        ${predHtml}
+    `;
+
+    loading.style.display = 'none';
+    results.style.display = '';
+}
+</script>
 {% endblock %}

@@ -3,8 +3,26 @@
 {% block title %}Modifier l'événement - Admin{% endblock %}
 {% block admin_page_title %}Événements{% endblock %}
 
+{% block stylesheets %}
+    {{ parent() }}
+    <link rel="stylesheet" href="{{ asset('theme/css/evenement-enhance.css') }}?v=v2">
+{% endblock %}
+
 {% block admin_content %}
-<div class="admin-container" style="max-width: 920px; margin: 40px auto;">
+{% set rawImage = (evenement.imageUrl|default(''))|trim %}
+{% if rawImage and (rawImage starts with 'http://' or rawImage starts with 'https://' or rawImage starts with 'data:image/') %}
+    {% set imageSrc = rawImage %}
+{% elseif rawImage and (rawImage starts with '/') %}
+    {% set imageSrc = rawImage %}
+{% elseif rawImage and (rawImage starts with 'theme/' or rawImage starts with 'uploads/') %}
+    {% set imageSrc = '/' ~ rawImage|trim('/') %}
+{% elseif rawImage %}
+    {% set imageSrc = '/uploads/evenements/' ~ rawImage|trim('/') %}
+{% else %}
+    {% set imageSrc = asset('theme/images/logo.png') %}
+{% endif %}
+
+<div class="admin-container event-form-shell">
     <div class="section-head">
         <div>
             <h1 class="section-title">Modifier l'événement</h1>
@@ -108,10 +126,10 @@
 
         <div class="event-form-section">
             <h3 class="event-form-title">Visuel</h3>
-            <div class="event-form-grid">
+            <div class="event-form-grid event-form-grid--media">
                 <div class="event-field">
                     {{ form_label(form.imageFile) }}
-                    {{ form_widget(form.imageFile, {attr: {class: 'form-control'}}) }}
+                    {{ form_widget(form.imageFile, {attr: {class: 'form-control file-input'}}) }}
                     {% if form.imageFile.vars.errors|length > 0 %}
                         <div class="event-error">
                             {% for error in form.imageFile.vars.errors %}
@@ -120,18 +138,21 @@
                         </div>
                     {% endif %}
                     <div class="event-help">Formats acceptés: JPG, PNG, WEBP, GIF. Taille max: 4 Mo.</div>
+                    <div class="event-help">Ou générez un visuel avec l'IA à partir du titre et de la description.</div>
+                    <div>
+                        <button type="button" id="btnGenerateImage" class="ai-image-btn">
+                            <span id="btnGenLabel">✨ Générer image (IA)</span>
+                            <span id="btnGenSpinner" class="spinner" style="display: none;"></span>
+                        </button>
+                        <input type="hidden" name="generated_image" id="generatedImagePath">
+                    </div>
                 </div>
-                <div class="event-field">
-                    {{ form_label(form.imageUrl) }}
-                    {{ form_widget(form.imageUrl, {attr: {class: 'form-control', placeholder: 'https://...'}}) }}
-                    {% if form.imageUrl.vars.errors|length > 0 %}
-                        <div class="event-error">
-                            {% for error in form.imageUrl.vars.errors %}
-                                {{ error.message }}
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-                    <div class="event-help">L'upload a la priorité sur l'URL si les deux sont fournis.</div>
+                <div class="event-field event-preview">
+                    <span class="event-preview-label">Image actuelle</span>
+                    <div class="event-preview-frame">
+                        <img id="event-image-preview" src="{{ imageSrc }}" alt="Aperçu" onerror="this.onerror=null;this.src='{{ asset('theme/images/logo.png') }}';" />
+                    </div>
+                    <div class="event-help">Si vous ne changez pas l'image, elle sera conservée.</div>
                 </div>
             </div>
         </div>
@@ -146,27 +167,57 @@
 </div>
 
 <style>
-    .event-form-card {
-        background: #fff;
-        border: 1px solid rgba(20,61,113,0.08);
-        border-radius: 20px;
-        box-shadow: var(--ft-shadow);
-        padding: 26px;
+    @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap');
+
+    :root {
+        --event-ink: #0f1f2e;
+        --event-muted: #56657a;
+        --event-accent: #0b5c78;
+        --event-accent-soft: rgba(11, 92, 120, 0.12);
+        --event-card: #ffffff;
+        --event-stroke: rgba(15, 31, 46, 0.12);
+        --event-shadow: 0 24px 48px rgba(15, 31, 46, 0.12);
     }
-    .event-form-section { margin-bottom: 22px; }
+
+    .event-form-shell {
+        max-width: 980px;
+        margin: 34px auto 48px;
+        font-family: 'Manrope', 'Trebuchet MS', sans-serif;
+        color: var(--event-ink);
+    }
+    .event-form-card {
+        background: linear-gradient(140deg, #ffffff, #f6fbff 70%);
+        border: 1px solid rgba(11, 92, 120, 0.16);
+        border-radius: 24px;
+        box-shadow: var(--event-shadow);
+        padding: 28px 28px 24px;
+        animation: formLift 0.6s ease both;
+    }
+    .event-form-section {
+        margin-bottom: 24px;
+        animation: formSectionIn 0.6s ease both;
+    }
+    .event-form-section:nth-of-type(2) { animation-delay: 0.05s; }
+    .event-form-section:nth-of-type(3) { animation-delay: 0.1s; }
+    .event-form-section:nth-of-type(4) { animation-delay: 0.15s; }
     .event-form-title {
         margin: 0 0 12px;
-        font-size: 15px;
-        color: #143d71;
+        font-size: 13px;
+        color: var(--event-muted);
         text-transform: uppercase;
-        letter-spacing: 0.06em;
+        letter-spacing: 0.2em;
+        font-weight: 700;
     }
     .event-form-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 14px;
+        gap: 16px;
     }
-    .event-field { display: grid; gap: 6px; }
+    .event-form-grid--media {
+        grid-template-columns: minmax(0, 1fr) 220px;
+        align-items: center;
+    }
+    .event-field { display: grid; gap: 8px; }
     .event-field--full { grid-column: 1 / -1; }
     .event-error {
         color: #b91c1c;
@@ -176,22 +227,45 @@
     }
     .event-help {
         font-size: 12px;
-        color: #64748b;
+        color: var(--event-muted);
     }
     .form-control {
         display: block;
         width: 100%;
-        padding: 10px 12px;
+        padding: 11px 12px;
         border: 1px solid #cbd5e1;
-        border-radius: 12px;
+        border-radius: 14px;
         font-size: 14px;
         font-family: inherit;
         background: #fff;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
     }
     .form-control:focus {
         outline: none;
         border-color: #38bdf8;
-        box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+        box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.15);
+        transform: translateY(-1px);
+    }
+    .file-input {
+        padding: 8px 10px;
+        background: #f8fbff;
+        border-style: dashed;
+        border-color: rgba(11, 92, 120, 0.32);
+    }
+    .file-input::file-selector-button {
+        border: none;
+        border-radius: 999px;
+        padding: 8px 14px;
+        margin-right: 10px;
+        background: linear-gradient(135deg, #0b5c78, #117ea5);
+        color: #fff;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .file-input::file-selector-button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 18px rgba(11, 92, 120, 0.3);
     }
     label {
         display: block;
@@ -200,6 +274,31 @@
         font-size: 13px;
         color: #334155;
     }
+    .event-preview {
+        align-items: stretch;
+    }
+    .event-preview-label {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--event-muted);
+        font-weight: 600;
+    }
+    .event-preview-frame {
+        border-radius: 18px;
+        overflow: hidden;
+        border: 1px solid rgba(11, 92, 120, 0.18);
+        background: #e2e8f0;
+        height: 160px;
+        display: grid;
+        place-items: center;
+    }
+    .event-preview-frame img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
     .event-form-actions {
         display: flex;
         gap: 12px;
@@ -207,9 +306,73 @@
         border-top: 1px solid #e2e8f0;
         padding-top: 16px;
     }
-    @media (max-width: 860px) {
-        .event-form-grid { grid-template-columns: 1fr; }
+    @keyframes formLift {
+        from { transform: translateY(12px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+    @keyframes formSectionIn {
+        from { transform: translateY(8px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+    @media (max-width: 900px) {
+        .event-form-shell { margin: 24px 16px 36px; }
+        .event-form-grid,
+        .event-form-grid--media { grid-template-columns: 1fr; }
         .event-form-actions { flex-direction: column; align-items: stretch; }
     }
 </style>
+
+<script>
+    (function () {
+        /* ══ Génération image IA ══ */
+        const generateButton = document.getElementById('btnGenerateImage');
+        const genLabel = document.getElementById('btnGenLabel');
+        const genSpinner = document.getElementById('btnGenSpinner');
+        const hiddenPath = document.getElementById('generatedImagePath');
+        const titleInput = document.getElementById('evenement_titre') || document.querySelector('[name="evenement[titre]"]');
+        const descInput = document.getElementById('evenement_description') || document.querySelector('[name="evenement[description]"]');
+        const imagePreview = document.getElementById('event-image-preview');
+
+        if (generateButton) {
+            generateButton.addEventListener('click', async () => {
+                const title = titleInput?.value?.trim() || '';
+                const desc = descInput?.value?.trim() || '';
+                const prompt = [title, desc].filter(Boolean).join('. ');
+                if (!prompt) { alert('Veuillez saisir un titre ou une description.'); return; }
+
+                generateButton.disabled = true;
+                if (genLabel) genLabel.textContent = 'Génération en cours…';
+                if (genSpinner) genSpinner.style.display = 'inline-block';
+                try {
+                    const formData = new FormData();
+                    formData.append('prompt', prompt);
+                    const res = await fetch('{{ path('admin_evenement_generate_image') }}', { method: 'POST', body: formData });
+                    const json = await res.json();
+                    if (!json.ok) throw new Error(json.message || 'Erreur API');
+                    if (hiddenPath) hiddenPath.value = json.path;
+                    if (imagePreview) { imagePreview.src = '/' + json.path; imagePreview.style.animation = 'formLift 0.5s ease both'; }
+                } catch (e) { alert('Échec : ' + e.message); }
+                finally {
+                    generateButton.disabled = false;
+                    if (genLabel) genLabel.textContent = '✨ Générer image (IA)';
+                    if (genSpinner) genSpinner.style.display = 'none';
+                }
+            });
+        }
+
+        /* ══ Preview upload ══ */
+        const input = document.getElementById('{{ form.imageFile.vars.id }}');
+        const preview = document.getElementById('event-image-preview');
+        if (!input || !preview) return;
+        input.addEventListener('change', function () {
+            const file = input.files && input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                preview.src = String(event.target && event.target.result ? event.target.result : preview.src);
+            };
+            reader.readAsDataURL(file);
+        });
+    })();
+</script>
 {% endblock %}

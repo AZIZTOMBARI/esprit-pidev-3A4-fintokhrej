@@ -193,7 +193,7 @@ class FrontController extends AbstractController
         $user = $this->getUser();
         $isFavorite = false;
         if ($user instanceof User) {
-            $this->flashGamificationBadges($gamificationService->trackLieuVisit($user->getId(), $id));
+            $this->flashGamificationBadges($gamificationService->trackLieuVisit($user->getId(), $id), false);
 
             $currentUserEvaluation = $connection->fetchAssociative(
                 'SELECT id, note, commentaire, date_evaluation, updated_at FROM evaluation_lieu WHERE lieu_id = ? AND user_id = ? LIMIT 1',
@@ -1147,7 +1147,7 @@ class FrontController extends AbstractController
     }
 
     /**
-     * @param array<int, array{term?:string}> $matches
+     * @param array<int, mixed> $matches
      */
     private function logReviewModerationAttempt(
         Connection $connection,
@@ -1162,16 +1162,22 @@ class FrontController extends AbstractController
         try {
             $terms = [];
             foreach ($matches as $match) {
-                $term = trim((string) ($match['term'] ?? ''));
+                $term = is_array($match)
+                    ? trim((string) ($match['term'] ?? ''))
+                    : trim((string) $match);
                 if ($term !== '') {
                     $terms[] = $term;
                 }
             }
 
+            $normalizedSeverity = in_array($severity, ['high', 'critical', 'severe'], true)
+                ? 'severe'
+                : 'moderate';
+
             $connection->insert('review_moderation_log', [
                 'user_id' => $userId,
                 'lieu_id' => $lieuId,
-                'severity' => in_array($severity, ['moderate', 'severe'], true) ? $severity : 'moderate',
+                'severity' => $normalizedSeverity,
                 'score' => max(0, $score),
                 'terms_text' => implode(', ', array_values(array_unique($terms))),
                 'comment_preview' => mb_substr(trim($comment), 0, 500),
@@ -1186,7 +1192,7 @@ class FrontController extends AbstractController
     /**
      * @param list<array<string, mixed>> $badges
      */
-    private function flashGamificationBadges(array $badges): void
+    private function flashGamificationBadges(array $badges, bool $includeRewardOfferSuccess = true): void
     {
         foreach ($badges as $badge) {
             $this->addFlash('gamification_badges', [
@@ -1196,7 +1202,7 @@ class FrontController extends AbstractController
                 'points_bonus' => (int) ($badge['points_bonus'] ?? 0),
             ]);
 
-            if (!empty($badge['reward_offer']['titre'] ?? null)) {
+            if ($includeRewardOfferSuccess && !empty($badge['reward_offer']['titre'] ?? null)) {
                 $this->addFlash('success', 'Nouvelle recompense debloquee: '.(string) $badge['reward_offer']['titre']);
             }
         }

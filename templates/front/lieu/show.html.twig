@@ -1190,9 +1190,9 @@
             return;
         }
 
-        const severity = moderationState.severity === 'severe' ? 'severe' : 'moderate';
+        const severity = ['high', 'critical', 'severe'].includes(moderationState.severity) ? 'severe' : 'moderate';
         const terms = Array.isArray(moderationState.matches)
-            ? moderationState.matches.map((m) => escapeHtml(m.term)).filter(Boolean)
+            ? moderationState.matches.map((m) => escapeHtml(typeof m === 'string' ? m : (m?.term || ''))).filter(Boolean)
             : [];
 
         const headline = severity === 'severe'
@@ -1571,26 +1571,25 @@
 
     // Form submission pour avis
     document.getElementById('avisForm').addEventListener('submit', function (e) {
-        e.preventDefault();
         const note = document.getElementById('note').value;
         const commentaire = document.getElementById('commentaire').value;
 
         if (!note || note < 1 || note > 5) {
+            e.preventDefault();
             alert('Veuillez sélectionner une note entre 1 et 5.');
             return;
         }
 
         if (commentaire.length < 10 && commentaire.length > 0) {
+            e.preventDefault();
             alert('Le commentaire doit contenir au moins 10 caractères.');
             return;
         }
 
         if (moderationState.hasViolation) {
             renderModerationFeedback();
-            alert('Ce commentaire contient un contenu inapproprié. Il sera refusé côté serveur.');
+            return;
         }
-
-        this.submit();
     });
 </script>
 {% endblock %}
