@@ -90,21 +90,36 @@ class Lieu
     #[ORM\OneToOne(targetEntity: EvaluationLieu::class, mappedBy: 'lieu')]
     private ?EvaluationLieu $evaluationLieu = null;
 
+    /**
+     * @var Collection<int, Evenement>
+     */
     #[ORM\OneToMany(targetEntity: Evenement::class, mappedBy: 'lieu')]
     private Collection $evenements;
 
     #[ORM\OneToOne(targetEntity: LieuHoraire::class, mappedBy: 'lieu')]
     private ?LieuHoraire $lieuHoraire = null;
 
+    /**
+     * @var Collection<int, LieuImage>
+     */
     #[ORM\OneToMany(targetEntity: LieuImage::class, mappedBy: 'lieu')]
     private Collection $lieuImages;
 
+    /**
+     * @var Collection<int, Offre>
+     */
     #[ORM\OneToMany(targetEntity: Offre::class, mappedBy: 'lieu')]
     private Collection $offres;
 
+    /**
+     * @var Collection<int, ReservationOffre>
+     */
     #[ORM\OneToMany(targetEntity: ReservationOffre::class, mappedBy: 'lieu')]
     private Collection $reservationOffres;
 
+    /**
+     * @var Collection<int, User>
+     */
     #[ORM\ManyToMany(targetEntity: User::class, inversedBy: 'lieus')]
     #[ORM\JoinTable(
         name: 'favori_lieu',

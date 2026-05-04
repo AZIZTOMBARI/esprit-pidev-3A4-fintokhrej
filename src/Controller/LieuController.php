@@ -254,11 +254,10 @@ class LieuController extends AbstractController
                 'timeout' => 8,
             ]);
 
+            /** @var array<string, mixed> $payload */
             $payload = $response->toArray(false);
-            if (!is_array($payload)) {
-                throw new \RuntimeException('Reponse geocodage invalide.');
-            }
 
+            /** @var array<string, mixed> $address */
             $address = is_array($payload['address'] ?? null) ? $payload['address'] : [];
 
             $ville = '';
@@ -299,6 +298,9 @@ class LieuController extends AbstractController
         }
     }
 
+    /**
+     * @return array{q:string, categorie:?LieuCategorie, type:?LieuTypeEnum, sort:string, dir:string}
+     */
     private function extractFilters(Request $request): array
     {
         $categorie = LieuCategorie::tryFrom((string) $request->query->get('categorie', ''));
@@ -318,11 +320,12 @@ class LieuController extends AbstractController
         $imageFile = $form->get('imageFile')->getData();
 
         if ($imageFile !== null) {
-            $originalFilename = pathinfo($imageFile->getClientOriginalName(), PATHINFO_FILENAME);
+            $originalFilename = (string) pathinfo($imageFile->getClientOriginalName(), PATHINFO_FILENAME);
             $safeFilename = $slugger->slug($originalFilename);
             $newFilename = $safeFilename.'-'.uniqid('', true).'.'.$imageFile->guessExtension();
 
-            $uploadDir = $this->getParameter('kernel.project_dir').'/public/uploads/lieux';
+            $uploadDir = (string) $this->getParameter('kernel.project_dir');
+            $uploadDir .= '/public/uploads/lieux';
             if (!is_dir($uploadDir)) {
                 mkdir($uploadDir, 0775, true);
             }
@@ -413,11 +416,14 @@ class LieuController extends AbstractController
                 continue;
             }
 
-            $normalized[$day]['ouvert'] = isset($row['ouvert']) && (string) $row['ouvert'] !== '';
-            $normalized[$day]['heure_ouverture_1'] = trim((string) ($row['heure_ouverture_1'] ?? ''));
-            $normalized[$day]['heure_fermeture_1'] = trim((string) ($row['heure_fermeture_1'] ?? ''));
-            $normalized[$day]['heure_ouverture_2'] = trim((string) ($row['heure_ouverture_2'] ?? ''));
-            $normalized[$day]['heure_fermeture_2'] = trim((string) ($row['heure_fermeture_2'] ?? ''));
+            $normalized[$day] = [
+                'jour' => $day,
+                'ouvert' => isset($row['ouvert']) && (string) $row['ouvert'] !== '',
+                'heure_ouverture_1' => trim((string) ($row['heure_ouverture_1'] ?? '')),
+                'heure_fermeture_1' => trim((string) ($row['heure_fermeture_1'] ?? '')),
+                'heure_ouverture_2' => trim((string) ($row['heure_ouverture_2'] ?? '')),
+                'heure_fermeture_2' => trim((string) ($row['heure_fermeture_2'] ?? '')),
+            ];
         }
 
         return $normalized;
@@ -434,19 +440,13 @@ class LieuController extends AbstractController
 
         foreach (self::WEEK_DAYS as $day) {
             $label = ucfirst($day);
-            $row = $horaires[$day] ?? [
-                'ouvert' => false,
-                'heure_ouverture_1' => '',
-                'heure_fermeture_1' => '',
-                'heure_ouverture_2' => '',
-                'heure_fermeture_2' => '',
-            ];
+            $row = $horaires[$day];
 
-            $ouvert = (bool) ($row['ouvert'] ?? false);
-            $o1 = trim((string) ($row['heure_ouverture_1'] ?? ''));
-            $f1 = trim((string) ($row['heure_fermeture_1'] ?? ''));
-            $o2 = trim((string) ($row['heure_ouverture_2'] ?? ''));
-            $f2 = trim((string) ($row['heure_fermeture_2'] ?? ''));
+            $ouvert = $row['ouvert'];
+            $o1 = trim($row['heure_ouverture_1']);
+            $f1 = trim($row['heure_fermeture_1']);
+            $o2 = trim($row['heure_ouverture_2']);
+            $f2 = trim($row['heure_fermeture_2']);
 
             if (!$ouvert) {
                 $rows[] = [

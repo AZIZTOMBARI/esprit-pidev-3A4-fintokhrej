@@ -27,6 +27,7 @@ class LieuRepository extends ServiceEntityRepository
      * Retourne un Paginator filtré par recherche, catégorie, type, tri.
      *
      * @param array{q:string, categorie:?LieuCategorie, type:?LieuType, sort:string, dir:string} $filters
+     * @return Paginator<Lieu>
      */
     public function paginateFiltered(array $filters, int $page, int $perPage): Paginator
     {
@@ -88,6 +89,9 @@ class LieuRepository extends ServiceEntityRepository
     // Utilisé par Admin\LieuController (ancien controller du zip)
     // -------------------------------------------------------------------------
 
+    /**
+     * @return array<int, Lieu>
+     */
     public function findAllOrderedByName(): array
     {
         return $this->createQueryBuilder('l')
@@ -96,6 +100,9 @@ class LieuRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * @return array<int, Lieu>
+     */
     public function search(string $query): array
     {
         $q = '%'.mb_strtolower($query).'%';
@@ -108,6 +115,9 @@ class LieuRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * @return array<int, Lieu>
+     */
     public function findByCategorie(string $categorie): array
     {
         $cat = LieuCategorie::tryFrom(strtoupper($categorie));
@@ -123,6 +133,9 @@ class LieuRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * @return array<int, Lieu>
+     */
     public function findByType(string $type): array
     {
         $t = LieuType::tryFrom(strtoupper($type));

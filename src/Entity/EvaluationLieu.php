@@ -121,24 +121,24 @@ class EvaluationLieu
         return $this;
     }
 
-    public function getDateEvaluation(): ?\DateTime
+    public function getDateEvaluation(): ?\DateTimeInterface
     {
         return $this->date_evaluation;
     }
 
-    public function setDateEvaluation(\DateTime $date_evaluation): static
+    public function setDateEvaluation(\DateTimeInterface $date_evaluation): static
     {
         $this->date_evaluation = $date_evaluation;
 
         return $this;
     }
 
-    public function getUpdatedAt(): ?\DateTime
+    public function getUpdatedAt(): ?\DateTimeInterface
     {
         return $this->updated_at;
     }
 
-    public function setUpdatedAt(?\DateTime $updated_at): static
+    public function setUpdatedAt(?\DateTimeInterface $updated_at): static
     {
         $this->updated_at = $updated_at;
 

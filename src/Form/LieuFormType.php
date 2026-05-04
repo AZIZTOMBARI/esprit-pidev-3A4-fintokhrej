@@ -4,6 +4,8 @@ namespace App\Form;
 
 use App\Entity\Lieu;
 use App\Entity\Offre;
+use App\Enum\LieuCategorie;
+use App\Enum\LieuType;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
@@ -129,14 +131,14 @@ class LieuFormType extends AbstractType
             // -------------------------------------------------------------------
             ->add('categorie', ChoiceType::class, [
                 'label'       => 'Catégorie *',
-                'choices'     => Lieu::CATEGORIES,
+                'choices'     => LieuCategorie::choices(),
                 'placeholder' => '-- Choisir une catégorie --',
                 'attr'        => ['class' => 'form-control'],
             ])
 
             ->add('type', ChoiceType::class, [
                 'label'       => 'Type *',
-                'choices'     => Lieu::TYPES,
+                'choices'     => LieuType::choices(),
                 'placeholder' => '-- Choisir un type --',
                 'attr'        => ['class' => 'form-control'],
             ])
