@@ -12,6 +12,9 @@ settings.font_family: 'Police'
 settings.font_size: 'Taille du texte'
 settings.brightness: 'Luminosite'
 settings.reset: 'Reinitialiser'
+accessibility.mode_label: 'Vision'
+accessibility.mode_normal: 'Normal'
+accessibility.mode_daltonian: 'Daltonien'
 
 front.footer_note: 'Fin Tokhroj - Ne cherche plus... Tokhrej !'
 

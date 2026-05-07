@@ -12,6 +12,11 @@ use App\Repository\SortieRecapRepository;
 #[ORM\Table(name: 'sortie_recap')]
 class SortieRecap
 {
+    public function __construct()
+    {
+        $this->generated_at = new \DateTimeImmutable();
+    }
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: 'integer')]
@@ -44,7 +49,7 @@ class SortieRecap
     }
 
     #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $video_path = null;
+    private string $video_path = '';
 
     public function getVideo_path(): ?string
     {
@@ -58,21 +63,21 @@ class SortieRecap
     }
 
     #[ORM\Column(type: 'datetime', nullable: false)]
-    private ?\DateTimeInterface $generated_at = null;
+    private \DateTimeInterface $generated_at;
 
     public function getGenerated_at(): ?\DateTimeInterface
     {
         return $this->generated_at;
     }
 
-    public function setGenerated_at(\DateTimeInterface $generated_at): self
+    protected function setGenerated_at(\DateTimeInterface $generated_at): self
     {
         $this->generated_at = $generated_at;
         return $this;
     }
 
     #[ORM\Column(type: 'integer', nullable: false)]
-    private ?int $version = null;
+    private int $version = 1;
 
     public function getVersion(): ?int
     {
@@ -111,12 +116,12 @@ class SortieRecap
         return $this;
     }
 
-    public function getGeneratedAt(): ?\DateTime
+    public function getGeneratedAt(): ?\DateTimeInterface
     {
         return $this->generated_at;
     }
 
-    public function setGeneratedAt(\DateTime $generated_at): static
+    protected function setGeneratedAt(\DateTimeInterface $generated_at): static
     {
         $this->generated_at = $generated_at;
 

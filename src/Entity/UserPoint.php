@@ -12,6 +12,11 @@ use App\Repository\UserPointRepository;
 #[ORM\Table(name: 'user_points')]
 class UserPoint
 {
+    public function __construct()
+    {
+        $this->updated_at = new \DateTimeImmutable();
+    }
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: 'integer')]
@@ -114,14 +119,14 @@ class UserPoint
     }
 
     #[ORM\Column(type: 'datetime', nullable: false)]
-    private ?\DateTimeInterface $updated_at = null;
+    private \DateTimeInterface $updated_at;
 
     public function getUpdated_at(): ?\DateTimeInterface
     {
         return $this->updated_at;
     }
 
-    public function setUpdated_at(\DateTimeInterface $updated_at): self
+    protected function setUpdated_at(\DateTimeInterface $updated_at): self
     {
         $this->updated_at = $updated_at;
         return $this;
@@ -187,12 +192,12 @@ class UserPoint
         return $this;
     }
 
-    public function getUpdatedAt(): ?\DateTime
+    public function getUpdatedAt(): ?\DateTimeInterface
     {
         return $this->updated_at;
     }
 
-    public function setUpdatedAt(\DateTime $updated_at): static
+    protected function setUpdatedAt(\DateTimeInterface $updated_at): static
     {
         $this->updated_at = $updated_at;
 

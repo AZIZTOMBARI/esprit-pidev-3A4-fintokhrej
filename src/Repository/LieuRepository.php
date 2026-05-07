@@ -47,12 +47,12 @@ class LieuRepository extends ServiceEntityRepository
 
         if ($filters['categorie'] instanceof LieuCategorie) {
             $qb->andWhere('l.categorie = :categorie')
-               ->setParameter('categorie', $filters['categorie']);
+               ->setParameter('categorie', $filters['categorie']->value);
         }
 
         if ($filters['type'] instanceof LieuType) {
             $qb->andWhere('l.type = :type')
-               ->setParameter('type', $filters['type']);
+               ->setParameter('type', $filters['type']->value);
         }
 
         $allowed = ['id', 'nom', 'ville', 'categorie', 'type', 'budget_min', 'budget_max'];
@@ -127,7 +127,7 @@ class LieuRepository extends ServiceEntityRepository
 
         return $this->createQueryBuilder('l')
             ->where('l.categorie = :cat')
-            ->setParameter('cat', $cat)
+            ->setParameter('cat', $cat->value)
             ->orderBy('l.nom', 'ASC')
             ->getQuery()
             ->getResult();
@@ -145,7 +145,7 @@ class LieuRepository extends ServiceEntityRepository
 
         return $this->createQueryBuilder('l')
             ->where('l.type = :type')
-            ->setParameter('type', $t)
+            ->setParameter('type', $t->value)
             ->orderBy('l.nom', 'ASC')
             ->getQuery()
             ->getResult();

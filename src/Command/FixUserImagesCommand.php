@@ -40,7 +40,7 @@ class FixUserImagesCommand extends Command
             return Command::INVALID;
         }
 
-        $rows = $this->connection->fetchAllAssociative('SELECT id, prenom, nom, imageUrl FROM user ORDER BY id ASC');
+        $rows = $this->connection->fetchAllAssociative('SELECT id, prenom, nom, image_url FROM user ORDER BY id ASC');
         if (count($rows) === 0) {
             $io->success('No users found.');
             return Command::SUCCESS;
@@ -48,7 +48,7 @@ class FixUserImagesCommand extends Command
 
         $broken = [];
         foreach ($rows as $row) {
-            $imagePath = (string) ($row['imageUrl'] ?? '');
+            $imagePath = (string) ($row['image_url'] ?? '');
             if (!$this->isBrokenLocalImage($imagePath)) {
                 continue;
             }
@@ -84,7 +84,7 @@ class FixUserImagesCommand extends Command
 
         $updated = 0;
         foreach ($broken as $item) {
-            $updated += $this->connection->update('user', ['imageUrl' => $defaultPath], ['id' => $item['id']]);
+            $updated += $this->connection->update('user', ['image_url' => $defaultPath], ['id' => $item['id']]);
         }
 
         $io->success(sprintf('Updated %d user row(s) to fallback image: %s', $updated, $defaultPath));

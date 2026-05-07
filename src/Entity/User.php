@@ -37,7 +37,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Assert\NotBlank(message: 'Le nom est obligatoire.')]
     #[Assert\Length(min: 2, max: 50, minMessage: 'Le nom doit contenir au moins {{ limit }} caracteres.', maxMessage: 'Le nom ne peut pas depasser {{ limit }} caracteres.')]
     #[Assert\Regex(pattern: '/^[A-Za-zÀ-ÿ\s\-\']+$/u', message: 'Le nom contient des caracteres invalides.')]
-    private ?string $nom = null;
+    private string $nom = '';
 
     public function getNom(): ?string
     {
@@ -54,7 +54,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Assert\NotBlank(message: 'Le prenom est obligatoire.')]
     #[Assert\Length(min: 2, max: 50, minMessage: 'Le prenom doit contenir au moins {{ limit }} caracteres.', maxMessage: 'Le prenom ne peut pas depasser {{ limit }} caracteres.')]
     #[Assert\Regex(pattern: '/^[A-Za-zÀ-ÿ\s\-\']+$/u', message: 'Le prenom contient des caracteres invalides.')]
-    private ?string $prenom = null;
+    private string $prenom = '';
 
     public function getPrenom(): ?string
     {
@@ -71,7 +71,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Assert\NotBlank(message: 'L\'email est obligatoire.')]
     #[Assert\Email(message: 'Le format de l\'email est invalide.')]
     #[Assert\Length(max: 180, maxMessage: 'L\'email ne peut pas depasser {{ limit }} caracteres.')]
-    private ?string $email = null;
+    private string $email = '';
 
     public function getEmail(): ?string
     {
@@ -85,7 +85,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $password_hash = null;
+    private string $password_hash = '';
 
     public function getPassword_hash(): ?string
     {
@@ -101,7 +101,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: 'string', nullable: false)]
     #[Assert\NotBlank(message: 'Le role est obligatoire.')]
     #[Assert\Choice(choices: ['admin', 'abonne', 'visiteur', 'ROLE_USER'], message: 'Le role {{ value }} est invalide.')]
-    private ?string $role = null;
+    private string $role = 'ROLE_USER';
 
     public function getRole(): ?string
     {
@@ -159,10 +159,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    #[ORM\Column(name: 'imageUrl', type: 'string', nullable: false)]
+    #[ORM\Column(name: 'image_url', type: 'string', nullable: false)]
     #[Assert\NotBlank(message: 'L\'image utilisateur est obligatoire.')]
     #[Assert\Length(max: 255, maxMessage: 'Le chemin de l\'image ne peut pas depasser {{ limit }} caracteres.')]
-    private ?string $imageUrl = null;
+    private string $imageUrl = '';
 
     public function getImageUrl(): ?string
     {
@@ -371,7 +371,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    #[ORM\OneToOne(targetEntity: ParticipationAnnonce::class, mappedBy: 'user')]
+    #[ORM\OneToOne(
+        targetEntity: ParticipationAnnonce::class,
+        mappedBy: 'user',
+        cascade: ['persist', 'remove'],
+        orphanRemoval: true
+    )]
     private ?ParticipationAnnonce $participationAnnonce = null;
 
     public function getParticipationAnnonce(): ?ParticipationAnnonce

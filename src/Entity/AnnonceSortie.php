@@ -48,7 +48,7 @@ class AnnonceSortie
     #[ORM\Column(type: 'string', length: 140, nullable: false)]
     #[Assert\NotBlank(message: 'Le titre est obligatoire.')]
     #[Assert\Length(max: 140, maxMessage: 'Le titre ne doit pas depasser {{ limit }} caracteres.')]
-    private ?string $titre = null;
+    private string $titre = '';
 
     public function getTitre(): ?string
     {
@@ -86,7 +86,7 @@ class AnnonceSortie
         ],
         message: 'Veuillez choisir une ville tunisienne valide.'
     )]
-    private ?string $ville = null;
+    private string $ville = '';
 
     public function getVille(): ?string
     {
@@ -102,7 +102,7 @@ class AnnonceSortie
     #[ORM\Column(type: 'string', length: 255, nullable: false)]
     #[Assert\NotBlank(message: 'Le lieu est obligatoire.')]
     #[Assert\Length(max: 255, maxMessage: 'Le lieu ne doit pas depasser {{ limit }} caracteres.')]
-    private ?string $lieu_texte = null;
+    private string $lieu_texte = '';
 
     public function getLieu_texte(): ?string
     {
@@ -118,7 +118,7 @@ class AnnonceSortie
     #[ORM\Column(type: 'string', length: 255, nullable: false)]
     #[Assert\NotBlank(message: 'Le point de rencontre est obligatoire.')]
     #[Assert\Length(max: 255, maxMessage: 'Le point de rencontre est trop long.')]
-    private ?string $point_rencontre = null;
+    private string $point_rencontre = '';
 
     public function getPoint_rencontre(): ?string
     {
@@ -134,7 +134,7 @@ class AnnonceSortie
     #[ORM\Column(type: 'string', length: 80, nullable: false)]
     #[Assert\NotBlank(message: 'Le type d activite est obligatoire.')]
     #[Assert\Length(max: 80, maxMessage: 'Le type d activite ne doit pas depasser {{ limit }} caracteres.')]
-    private ?string $type_activite = null;
+    private string $type_activite = '';
 
     public function getType_activite(): ?string
     {
@@ -150,7 +150,7 @@ class AnnonceSortie
     #[ORM\Column(type: 'datetime', nullable: false)]
     #[Assert\NotNull(message: 'La date de sortie est obligatoire.')]
     #[Assert\GreaterThan('today', message: 'La date de sortie doit etre superieure a aujourd hui.')]
-    private ?\DateTimeInterface $date_sortie = null;
+    private \DateTimeInterface $date_sortie;
 
     public function getDate_sortie(): ?\DateTimeInterface
     {
@@ -163,10 +163,10 @@ class AnnonceSortie
         return $this;
     }
 
-    #[ORM\Column(type: 'decimal', precision: 10, scale: 2, nullable: false)]
+    #[ORM\Column(type: 'float', nullable: false)]
     #[Assert\NotNull(message: 'Le budget est obligatoire. Mettez 0 pour Gratuit.')]
     #[Assert\GreaterThanOrEqual(value: 0, message: 'Le budget doit etre positif ou nul (0 pour Gratuit).')]
-    private ?float $budget_max = null;
+    private float $budget_max = 0.0;
 
     public function getBudget_max(): ?float
     {
@@ -182,7 +182,7 @@ class AnnonceSortie
     #[ORM\Column(type: 'integer', nullable: false)]
     #[Assert\NotNull(message: 'Le nombre de places est obligatoire.')]
     #[Assert\Positive(message: 'Le nombre de places doit etre strictement positif.')]
-    private ?int $nb_places = null;
+    private int $nb_places = 0;
 
     public function getNb_places(): ?int
     {
@@ -213,7 +213,7 @@ class AnnonceSortie
     #[ORM\Column(type: 'string', nullable: false)]
     #[Assert\NotBlank(message: 'Le statut est obligatoire.')]
     #[Assert\Choice(choices: ['OUVERTE', 'CLOTUREE', 'ANNULEE', 'TERMINEE'], message: 'Statut invalide.')]
-    private ?string $statut = 'OUVERTE';
+    private string $statut = 'OUVERTE';
 
     public function getStatut(): ?string
     {
@@ -241,7 +241,7 @@ class AnnonceSortie
         return $this;
     }
 
-    #[ORM\OneToMany(targetEntity: ChatMessage::class, mappedBy: 'annonceSortie')]
+    #[ORM\OneToMany(targetEntity: ChatMessage::class, mappedBy: 'annonceSortie', cascade: ['persist'])]
     private Collection $chatMessages;
 
     /**
@@ -269,7 +269,12 @@ class AnnonceSortie
         return $this;
     }
 
-    #[ORM\OneToOne(targetEntity: ParticipationAnnonce::class, mappedBy: 'annonceSortie')]
+    #[ORM\OneToOne(
+        targetEntity: ParticipationAnnonce::class,
+        mappedBy: 'annonceSortie',
+        cascade: ['persist', 'remove'],
+        orphanRemoval: true
+    )]
     private ?ParticipationAnnonce $participationAnnonce = null;
 
     public function getParticipationAnnonce(): ?ParticipationAnnonce
@@ -353,7 +358,7 @@ class AnnonceSortie
         return $this;
     }
 
-    #[ORM\OneToOne(targetEntity: ExperienceSharing::class, mappedBy: 'annonceSortie')]
+    #[ORM\OneToOne(targetEntity: ExperienceSharing::class, mappedBy: 'annonceSortie', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private ?ExperienceSharing $experienceSharing = null;
 
     public function getExperienceSharing(): ?ExperienceSharing
@@ -410,6 +415,7 @@ class AnnonceSortie
 
     public function __construct()
     {
+        $this->date_sortie = new \DateTimeImmutable();
         $this->chatMessages = new ArrayCollection();
         $this->polls = new ArrayCollection();
         $this->sortieMedias = new ArrayCollection();
@@ -447,7 +453,7 @@ class AnnonceSortie
         return $this->lieu_texte;
     }
 
-    public function setLieuTexte(?string $lieu_texte): static
+    public function setLieuTexte(string $lieu_texte): static
     {
         $this->lieu_texte = $lieu_texte;
 
@@ -459,7 +465,7 @@ class AnnonceSortie
         return $this->point_rencontre;
     }
 
-    public function setPointRencontre(?string $point_rencontre): static
+    public function setPointRencontre(string $point_rencontre): static
     {
         $this->point_rencontre = $point_rencontre;
 
@@ -471,7 +477,7 @@ class AnnonceSortie
         return $this->type_activite;
     }
 
-    public function setTypeActivite(?string $type_activite): static
+    public function setTypeActivite(string $type_activite): static
     {
         $this->type_activite = $type_activite;
 
@@ -483,7 +489,7 @@ class AnnonceSortie
         return $this->date_sortie;
     }
 
-    public function setDateSortie(?\DateTimeInterface $date_sortie): static
+    public function setDateSortie(\DateTimeInterface $date_sortie): static
     {
         $this->date_sortie = $date_sortie;
 
@@ -495,7 +501,7 @@ class AnnonceSortie
         return $this->budget_max;
     }
 
-    public function setBudgetMax(?float $budget_max): static
+    public function setBudgetMax(float $budget_max): static
     {
         $this->budget_max = $budget_max;
 
@@ -507,7 +513,7 @@ class AnnonceSortie
         return $this->nb_places;
     }
 
-    public function setNbPlaces(?int $nb_places): static
+    public function setNbPlaces(int $nb_places): static
     {
         $this->nb_places = $nb_places;
 

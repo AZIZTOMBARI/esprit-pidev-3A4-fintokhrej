@@ -191,13 +191,13 @@ final class GamificationService
     public function getLeaderboard(int $limit = 20): array
     {
         $rows = $this->connection->fetchAllAssociative(
-            "SELECT u.id AS user_id, u.nom, u.prenom, u.imageUrl,
+            "SELECT u.id AS user_id, u.nom, u.prenom, u.image_url,
                     up.total_points, up.nb_lieux_visites, up.nb_avis_laisses, up.nb_favoris, up.nb_sorties_jointes,
                     COUNT(ub.badge_id) AS nb_badges
              FROM user_points up
              INNER JOIN user u ON u.id = up.user_id
              LEFT JOIN user_badge ub ON ub.user_id = up.user_id
-             GROUP BY u.id, u.nom, u.prenom, u.imageUrl, up.total_points, up.nb_lieux_visites, up.nb_avis_laisses, up.nb_favoris, up.nb_sorties_jointes
+             GROUP BY u.id, u.nom, u.prenom, u.image_url, up.total_points, up.nb_lieux_visites, up.nb_avis_laisses, up.nb_favoris, up.nb_sorties_jointes
              ORDER BY up.total_points DESC, u.id ASC
              LIMIT ?",
             [$limit],

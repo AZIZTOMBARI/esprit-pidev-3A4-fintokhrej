@@ -13,6 +13,12 @@ use App\Repository\ReservationOffreRepository;
 #[ORM\Table(name: 'reservation_offre')]
 class ReservationOffre
 {
+    public function __construct()
+    {
+        $this->date_reservation = new \DateTimeImmutable();
+        $this->created_at = new \DateTimeImmutable();
+    }
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: 'integer')]
@@ -75,7 +81,7 @@ class ReservationOffre
     }
 
     #[ORM\Column(type: 'date', nullable: false)]
-    private ?\DateTimeInterface $date_reservation = null;
+    private \DateTimeInterface $date_reservation;
 
     public function getDate_reservation(): ?\DateTimeInterface
     {
@@ -89,7 +95,7 @@ class ReservationOffre
     }
 
     #[ORM\Column(type: 'integer', nullable: false)]
-    private ?int $nombre_personnes = null;
+    private int $nombre_personnes = 0;
 
     public function getNombre_personnes(): ?int
     {
@@ -103,7 +109,7 @@ class ReservationOffre
     }
 
     #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $statut = null;
+    private string $statut = '';
 
     public function getStatut(): ?string
     {
@@ -131,25 +137,25 @@ class ReservationOffre
     }
 
     #[ORM\Column(type: 'datetime', nullable: false)]
-    private ?\DateTimeInterface $created_at = null;
+    private \DateTimeInterface $created_at;
 
     public function getCreated_at(): ?\DateTimeInterface
     {
         return $this->created_at;
     }
 
-    public function setCreated_at(\DateTimeInterface $created_at): self
+    protected function setCreated_at(\DateTimeInterface $created_at): self
     {
         $this->created_at = $created_at;
         return $this;
     }
 
-    public function getDateReservation(): ?\DateTime
+    public function getDateReservation(): ?\DateTimeInterface
     {
         return $this->date_reservation;
     }
 
-    public function setDateReservation(\DateTime $date_reservation): static
+    public function setDateReservation(\DateTimeInterface $date_reservation): static
     {
         $this->date_reservation = $date_reservation;
 
@@ -168,12 +174,12 @@ class ReservationOffre
         return $this;
     }
 
-    public function getCreatedAt(): ?\DateTime
+    public function getCreatedAt(): ?\DateTimeInterface
     {
         return $this->created_at;
     }
 
-    public function setCreatedAt(\DateTime $created_at): static
+    protected function setCreatedAt(\DateTimeInterface $created_at): static
     {
         $this->created_at = $created_at;
 

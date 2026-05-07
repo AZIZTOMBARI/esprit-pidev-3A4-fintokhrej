@@ -45,7 +45,7 @@ class CodePromo
     }
 
     #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $qr_image_url = null;
+    private string $qr_image_url = '';
 
     public function getQr_image_url(): ?string
     {
@@ -59,7 +59,7 @@ class CodePromo
     }
 
     #[ORM\Column(type: 'date', nullable: false)]
-    private ?\DateTimeInterface $date_generation = null;
+    private \DateTimeInterface $date_generation;
 
     public function getDate_generation(): ?\DateTimeInterface
     {
@@ -73,7 +73,7 @@ class CodePromo
     }
 
     #[ORM\Column(type: 'date', nullable: false)]
-    private ?\DateTimeInterface $date_expiration = null;
+    private \DateTimeInterface $date_expiration;
 
     public function getDate_expiration(): ?\DateTimeInterface
     {
@@ -87,7 +87,7 @@ class CodePromo
     }
 
     #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $statut = null;
+    private string $statut = '';
 
     public function getStatut(): ?string
     {
@@ -115,6 +115,12 @@ class CodePromo
         return $this;
     }
 
+    public function __construct()
+    {
+        $this->date_generation = new \DateTimeImmutable();
+        $this->date_expiration = new \DateTimeImmutable('+30 days');
+    }
+
     public function getQrImageUrl(): ?string
     {
         return $this->qr_image_url;
@@ -127,24 +133,24 @@ class CodePromo
         return $this;
     }
 
-    public function getDateGeneration(): ?\DateTime
+    public function getDateGeneration(): ?\DateTimeInterface
     {
         return $this->date_generation;
     }
 
-    public function setDateGeneration(\DateTime $date_generation): static
+    public function setDateGeneration(\DateTimeInterface $date_generation): static
     {
         $this->date_generation = $date_generation;
 
         return $this;
     }
 
-    public function getDateExpiration(): ?\DateTime
+    public function getDateExpiration(): ?\DateTimeInterface
     {
         return $this->date_expiration;
     }
 
-    public function setDateExpiration(\DateTime $date_expiration): static
+    public function setDateExpiration(\DateTimeInterface $date_expiration): static
     {
         $this->date_expiration = $date_expiration;
 

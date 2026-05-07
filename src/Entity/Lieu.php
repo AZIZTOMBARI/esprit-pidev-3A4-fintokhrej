@@ -22,20 +22,20 @@ class Lieu
     private ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Offre::class, inversedBy: 'lieus')]
-    #[ORM\JoinColumn(name: 'id_offre', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    #[ORM\JoinColumn(name: 'offre_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     private ?Offre $offre = null;
 
     #[ORM\Column(type: Types::STRING, length: 120, nullable: false)]
     #[Assert\NotBlank(message: 'Le nom est obligatoire.')]
     #[Assert\Length(min: 2, minMessage: 'Le nom doit contenir au moins {{ limit }} caracteres.')]
     #[Assert\Length(max: 120, maxMessage: 'Le nom ne peut pas depasser {{ limit }} caracteres.')]
-    private ?string $nom = null;
+    private string $nom = '';
 
     #[ORM\Column(type: Types::STRING, length: 80, nullable: false)]
     #[Assert\NotBlank(message: 'La ville est obligatoire.')]
     #[Assert\Length(min: 2, minMessage: 'La ville doit contenir au moins {{ limit }} caracteres.')]
     #[Assert\Length(max: 80, maxMessage: 'La ville ne peut pas depasser {{ limit }} caracteres.')]
-    private ?string $ville = null;
+    private string $ville = '';
 
     #[ORM\Column(type: Types::STRING, length: 200, nullable: true)]
     #[Assert\Length(max: 200, maxMessage: 'L\'adresse ne peut pas depasser {{ limit }} caracteres.')]
@@ -67,9 +67,9 @@ class Lieu
     #[Assert\PositiveOrZero(message: 'Le budget maximum doit etre positif.')]
     private ?float $budget_max = null;
 
-    #[ORM\Column(enumType: LieuCategorie::class, length: 50, nullable: false)]
-    #[Assert\NotNull(message: 'La catégorie est obligatoire.')]
-    private ?LieuCategorie $categorie = null;
+    #[ORM\Column(type: Types::STRING, length: 50, nullable: false)]
+    #[Assert\NotBlank(message: 'La catégorie est obligatoire.')]
+    private string $categorie = '';
 
     #[ORM\Column(type: Types::FLOAT, nullable: true)]
     #[Assert\Range(min: -90, max: 90, notInRangeMessage: 'La latitude doit etre comprise entre {{ min }} et {{ max }}.')]
@@ -79,9 +79,9 @@ class Lieu
     #[Assert\Range(min: -180, max: 180, notInRangeMessage: 'La longitude doit etre comprise entre {{ min }} et {{ max }}.')]
     private ?float $longitude = null;
 
-    #[ORM\Column(enumType: LieuType::class, length: 20, nullable: false)]
-    #[Assert\NotNull(message: 'Le type est obligatoire.')]
-    private ?LieuType $type = null;
+    #[ORM\Column(type: Types::STRING, length: 20, nullable: false)]
+    #[Assert\NotBlank(message: 'Le type est obligatoire.')]
+    private string $type = '';
 
     #[ORM\Column(name: 'image_url', type: Types::STRING, length: 500, nullable: true)]
     #[Assert\Length(max: 500, maxMessage: 'Le chemin de l\'image ne peut pas depasser {{ limit }} caracteres.')]
@@ -312,12 +312,12 @@ class Lieu
 
     public function getCategorie(): ?LieuCategorie
     {
-        return $this->categorie;
+        return $this->categorie !== '' ? LieuCategorie::tryFrom($this->categorie) : null;
     }
 
     public function setCategorie(?LieuCategorie $categorie): self
     {
-        $this->categorie = $categorie;
+        $this->categorie = $categorie?->value ?? '';
 
         return $this;
     }
@@ -353,12 +353,12 @@ class Lieu
 
     public function getType(): ?LieuType
     {
-        return $this->type;
+        return $this->type !== '' ? LieuType::tryFrom($this->type) : null;
     }
 
     public function setType(?LieuType $type): self
     {
-        $this->type = $type;
+        $this->type = $type?->value ?? '';
 
         return $this;
     }

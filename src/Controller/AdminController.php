@@ -336,7 +336,7 @@ class AdminController extends AbstractController
 
             $users = $this->fetchAll(
                 $connection,
-                'SELECT id, prenom, nom, email, telephone, role, imageUrl FROM user WHERE LOWER(prenom) LIKE LOWER(?) OR LOWER(nom) LIKE LOWER(?) OR LOWER(email) LIKE LOWER(?) OR LOWER(telephone) LIKE LOWER(?) OR LOWER(role) LIKE LOWER(?) ORDER BY id ASC LIMIT '.$perPage.' OFFSET '.$offset,
+                'SELECT id, prenom, nom, email, telephone, role, image_url FROM user WHERE LOWER(prenom) LIKE LOWER(?) OR LOWER(nom) LIKE LOWER(?) OR LOWER(email) LIKE LOWER(?) OR LOWER(telephone) LIKE LOWER(?) OR LOWER(role) LIKE LOWER(?) ORDER BY id ASC LIMIT '.$perPage.' OFFSET '.$offset,
                 $filters
             );
         } else {
@@ -347,7 +347,7 @@ class AdminController extends AbstractController
 
             $users = $this->fetchAll(
                 $connection,
-                'SELECT id, prenom, nom, email, telephone, role, imageUrl FROM user ORDER BY id ASC LIMIT '.$perPage.' OFFSET '.$offset
+                'SELECT id, prenom, nom, email, telephone, role, image_url FROM user ORDER BY id ASC LIMIT '.$perPage.' OFFSET '.$offset
             );
         }
 
@@ -437,7 +437,7 @@ class AdminController extends AbstractController
                 'password_hash' => $passwordHash,
                 'role' => $role,
                 'telephone' => $telephone !== '' ? $telephone : null,
-                'imageUrl' => 'theme/images/logo.png',
+                'image_url' => 'theme/images/logo.png',
             ]);
 
             $this->addFlash('success', 'Utilisateur ajouté avec succès.');
@@ -1529,7 +1529,7 @@ class AdminController extends AbstractController
         int $offset,
         array $params
     ): array {
-        $sqlWithChat = 'SELECT s.id, s.user_id, s.titre, s.description, s.ville, s.lieu_texte, s.point_rencontre, s.type_activite, s.date_sortie, s.budget_max, s.nb_places, s.statut, s.image_url, s.questions_json, u.prenom, u.nom, u.imageUrl AS user_image_url, cg.id AS chat_group_id
+        $sqlWithChat = 'SELECT s.id, s.user_id, s.titre, s.description, s.ville, s.lieu_texte, s.point_rencontre, s.type_activite, s.date_sortie, s.budget_max, s.nb_places, s.statut, s.image_url, s.questions_json, u.prenom, u.nom, u.image_url AS user_image_url, cg.id AS chat_group_id
                         FROM annonce_sortie s
                         LEFT JOIN user u ON u.id = s.user_id
                         LEFT JOIN chat_groupe cg ON cg.annonce_id = s.id
@@ -1542,7 +1542,7 @@ class AdminController extends AbstractController
             return $sorties;
         }
 
-        $sqlFallback = 'SELECT s.id, s.user_id, s.titre, s.description, s.ville, s.lieu_texte, s.point_rencontre, s.type_activite, s.date_sortie, s.budget_max, s.nb_places, s.statut, s.image_url, s.questions_json, u.prenom, u.nom, u.imageUrl AS user_image_url, NULL AS chat_group_id
+        $sqlFallback = 'SELECT s.id, s.user_id, s.titre, s.description, s.ville, s.lieu_texte, s.point_rencontre, s.type_activite, s.date_sortie, s.budget_max, s.nb_places, s.statut, s.image_url, s.questions_json, u.prenom, u.nom, u.image_url AS user_image_url, NULL AS chat_group_id
                         FROM annonce_sortie s
                         LEFT JOIN user u ON u.id = s.user_id
                         '.$whereSql.'

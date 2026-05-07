@@ -22,7 +22,12 @@ class ChatGroupeMembre
     private ?User $user = null;
 
     #[ORM\Column(type: 'datetime_immutable')]
-    private ?\DateTimeImmutable $joinedAt = null;
+    private \DateTimeImmutable $joinedAt;
+
+    public function __construct()
+    {
+        $this->joinedAt = new \DateTimeImmutable();
+    }
 
     public function getId(): ?int
     {
@@ -58,7 +63,7 @@ class ChatGroupeMembre
         return $this->joinedAt;
     }
 
-    public function setJoinedAt(\DateTimeImmutable $joinedAt): self
+    protected function setJoinedAt(\DateTimeImmutable $joinedAt): self
     {
         $this->joinedAt = $joinedAt;
 

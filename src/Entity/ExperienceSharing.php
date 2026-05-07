@@ -19,7 +19,7 @@ class ExperienceSharing
     private ?AnnonceSortie $annonceSortie = null;
 
     #[ORM\Column(type: 'datetime_immutable')]
-    private ?\DateTimeImmutable $activatedAt = null;
+    private \DateTimeImmutable $activatedAt;
 
     #[ORM\Column(type: 'boolean')]
     private bool $isOpen = true;
@@ -35,6 +35,11 @@ class ExperienceSharing
 
     #[ORM\Column(type: 'string', length: 20)]
     private string $recapMode = 'fallback';
+
+    public function __construct()
+    {
+        $this->activatedAt = new \DateTimeImmutable();
+    }
 
     public function getId(): ?int
     {
@@ -62,7 +67,7 @@ class ExperienceSharing
         return $this->activatedAt;
     }
 
-    public function setActivatedAt(\DateTimeImmutable $activatedAt): self
+    protected function setActivatedAt(\DateTimeImmutable $activatedAt): self
     {
         $this->activatedAt = $activatedAt;
 
@@ -98,7 +103,7 @@ class ExperienceSharing
         return $this->lastMediaAddedAt;
     }
 
-    public function setLastMediaAddedAt(?\DateTimeImmutable $lastMediaAddedAt): self
+    protected function setLastMediaAddedAt(?\DateTimeImmutable $lastMediaAddedAt): self
     {
         $this->lastMediaAddedAt = $lastMediaAddedAt;
 
@@ -110,7 +115,7 @@ class ExperienceSharing
         return $this->lastGeneratedAt;
     }
 
-    public function setLastGeneratedAt(?\DateTimeImmutable $lastGeneratedAt): self
+    protected function setLastGeneratedAt(?\DateTimeImmutable $lastGeneratedAt): self
     {
         $this->lastGeneratedAt = $lastGeneratedAt;
 

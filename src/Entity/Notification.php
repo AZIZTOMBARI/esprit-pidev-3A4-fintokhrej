@@ -13,6 +13,11 @@ use App\Repository\NotificationRepository;
 #[ORM\Table(name: 'notifications')]
 class Notification
 {
+    public function __construct()
+    {
+        $this->created_at = new \DateTimeImmutable();
+    }
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: 'integer')]
@@ -60,7 +65,7 @@ class Notification
     }
 
     #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $type = null;
+    private string $type = '';
 
     public function getType(): ?string
     {
@@ -74,7 +79,7 @@ class Notification
     }
 
     #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $title = null;
+    private string $title = '';
 
     public function getTitle(): ?string
     {
@@ -88,7 +93,7 @@ class Notification
     }
 
     #[ORM\Column(type: 'text', nullable: false)]
-    private ?string $body = null;
+    private string $body = '';
 
     public function getBody(): ?string
     {
@@ -102,7 +107,7 @@ class Notification
     }
 
     #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $entity_type = null;
+    private string $entity_type = '';
 
     public function getEntity_type(): ?string
     {
@@ -116,7 +121,7 @@ class Notification
     }
 
     #[ORM\Column(type: 'integer', nullable: false)]
-    private ?int $entity_id = null;
+    private int $entity_id = 0;
 
     public function getEntity_id(): ?int
     {
@@ -130,14 +135,14 @@ class Notification
     }
 
     #[ORM\Column(type: 'datetime', nullable: false)]
-    private ?\DateTimeInterface $created_at = null;
+    private \DateTimeInterface $created_at;
 
     public function getCreated_at(): ?\DateTimeInterface
     {
         return $this->created_at;
     }
 
-    public function setCreated_at(\DateTimeInterface $created_at): self
+    protected function setCreated_at(\DateTimeInterface $created_at): self
     {
         $this->created_at = $created_at;
         return $this;
@@ -151,7 +156,7 @@ class Notification
         return $this->read_at;
     }
 
-    public function setRead_at(?\DateTimeInterface $read_at): self
+    protected function setRead_at(?\DateTimeInterface $read_at): self
     {
         $this->read_at = $read_at;
         return $this;
@@ -195,24 +200,24 @@ class Notification
         return $this;
     }
 
-    public function getCreatedAt(): ?\DateTime
+    public function getCreatedAt(): ?\DateTimeInterface
     {
         return $this->created_at;
     }
 
-    public function setCreatedAt(\DateTime $created_at): static
+    protected function setCreatedAt(\DateTimeInterface $created_at): static
     {
         $this->created_at = $created_at;
 
         return $this;
     }
 
-    public function getReadAt(): ?\DateTime
+    public function getReadAt(): ?\DateTimeInterface
     {
         return $this->read_at;
     }
 
-    public function setReadAt(?\DateTime $read_at): static
+    protected function setReadAt(?\DateTimeInterface $read_at): static
     {
         $this->read_at = $read_at;
 

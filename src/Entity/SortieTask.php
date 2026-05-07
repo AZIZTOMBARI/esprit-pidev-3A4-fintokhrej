@@ -45,7 +45,7 @@ class SortieTask
     }
 
     #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'sortieTasks')]
-    #[ORM\JoinColumn(name: 'created_by', referencedColumnName: 'id')]
+    #[ORM\JoinColumn(name: 'created_by_id', referencedColumnName: 'id')]
     private ?User $user = null;
 
     public function getUser(): ?User
@@ -60,7 +60,7 @@ class SortieTask
     }
 
     #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $title = null;
+    private string $title = '';
 
     public function getTitle(): ?string
     {
@@ -88,7 +88,7 @@ class SortieTask
     }
 
     #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $status = null;
+    private string $status = '';
 
     public function getStatus(): ?string
     {
@@ -102,7 +102,7 @@ class SortieTask
     }
 
     #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'sortieTasks')]
-    #[ORM\JoinColumn(name: 'assigned_to', referencedColumnName: 'id')]
+    #[ORM\JoinColumn(name: 'assigned_to_id', referencedColumnName: 'id')]
     private ?User $assignedTo = null;
 
     public function getAssignedTo(): ?User
@@ -117,28 +117,35 @@ class SortieTask
     }
 
     #[ORM\Column(type: 'datetime', nullable: false)]
-    private ?\DateTimeInterface $created_at = null;
+    private \DateTimeInterface $created_at;
 
     public function getCreated_at(): ?\DateTimeInterface
     {
         return $this->created_at;
     }
 
-    public function setCreated_at(\DateTimeInterface $created_at): self
+    protected function setCreated_at(\DateTimeInterface $created_at): self
     {
         $this->created_at = $created_at;
         return $this;
     }
 
     #[ORM\Column(type: 'datetime', nullable: false)]
-    private ?\DateTimeInterface $updated_at = null;
+    private \DateTimeInterface $updated_at;
+
+    public function __construct()
+    {
+        $now = new \DateTimeImmutable();
+        $this->created_at = $now;
+        $this->updated_at = $now;
+    }
 
     public function getUpdated_at(): ?\DateTimeInterface
     {
         return $this->updated_at;
     }
 
-    public function setUpdated_at(\DateTimeInterface $updated_at): self
+    protected function setUpdated_at(\DateTimeInterface $updated_at): self
     {
         $this->updated_at = $updated_at;
         return $this;
@@ -152,42 +159,42 @@ class SortieTask
         return $this->done_at;
     }
 
-    public function setDone_at(?\DateTimeInterface $done_at): self
+    protected function setDone_at(?\DateTimeInterface $done_at): self
     {
         $this->done_at = $done_at;
         return $this;
     }
 
-    public function getCreatedAt(): ?\DateTime
+    public function getCreatedAt(): ?\DateTimeInterface
     {
         return $this->created_at;
     }
 
-    public function setCreatedAt(\DateTime $created_at): static
+    protected function setCreatedAt(\DateTimeInterface $created_at): static
     {
         $this->created_at = $created_at;
 
         return $this;
     }
 
-    public function getUpdatedAt(): ?\DateTime
+    public function getUpdatedAt(): ?\DateTimeInterface
     {
         return $this->updated_at;
     }
 
-    public function setUpdatedAt(\DateTime $updated_at): static
+    protected function setUpdatedAt(\DateTimeInterface $updated_at): static
     {
         $this->updated_at = $updated_at;
 
         return $this;
     }
 
-    public function getDoneAt(): ?\DateTime
+    public function getDoneAt(): ?\DateTimeInterface
     {
         return $this->done_at;
     }
 
-    public function setDoneAt(?\DateTime $done_at): static
+    protected function setDoneAt(?\DateTimeInterface $done_at): static
     {
         $this->done_at = $done_at;
 

@@ -35,6 +35,19 @@
 .badge-open      { background:#dcfce7; color:#166534; padding:5px 12px; border-radius:20px; font-size:12px; font-weight:700; }
 .badge-closed-ev { background:#fef3c7; color:#92400e; padding:5px 12px; border-radius:20px; font-size:12px; font-weight:700; }
 .badge-canceled  { background:#fee2e2; color:#991b1b; padding:5px 12px; border-radius:20px; font-size:12px; font-weight:700; }
+html[data-vision='daltonian'] .badge-public,
+html[data-vision='daltonian'] .badge-private,
+html[data-vision='daltonian'] .badge-open,
+html[data-vision='daltonian'] .badge-closed-ev,
+html[data-vision='daltonian'] .badge-canceled{
+    border:2px solid currentColor;
+    box-shadow:none;
+}
+html[data-vision='daltonian'] .badge-public{background:repeating-linear-gradient(135deg,#e8f2fb 0 10px,#d9eaf8 10px 20px);color:#0d3b66}
+html[data-vision='daltonian'] .badge-private{background:repeating-linear-gradient(135deg,#eef2f7 0 10px,#dfe7ef 10px 20px);color:#43566b}
+html[data-vision='daltonian'] .badge-open{background:repeating-linear-gradient(135deg,#ebf5ff 0 10px,#dceeff 10px 20px);color:#145da0}
+html[data-vision='daltonian'] .badge-closed-ev{background:repeating-linear-gradient(135deg,#fff4e6 0 10px,#ffe7cc 10px 20px);color:#8f4700}
+html[data-vision='daltonian'] .badge-canceled{background:repeating-linear-gradient(135deg,#fff2f7 0 10px,#ffe5ef 10px 20px);color:#8a1c4a}
 
 /* Two-column layout (same as lieu/show) */
 .evs-grid {
@@ -84,6 +97,8 @@
     font-size: 13px; font-weight: 700;
 }
 .evs-hero-price.free { background: #10b981; }
+html[data-vision='daltonian'] .evs-hero-price{background:#b85c00;border:2px solid #fff;color:#fff}
+html[data-vision='daltonian'] .evs-hero-price.free{background:#0d3b66}
 
 /* Detail blocks (same design as lieu/show .details-block) */
 .evs-block {

@@ -36,11 +36,11 @@ class Inscription
 private ?User $user = null;
 
 #[ORM\ManyToOne(targetEntity: Evenement::class, inversedBy: 'inscriptions')]
-#[ORM\JoinColumn(name: 'event_id', referencedColumnName: 'id', nullable: false)]
+#[ORM\JoinColumn(name: 'event_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
 private ?Evenement $evenement = null;
 
     #[ORM\Column(name: 'date_creation', type: 'datetime')]
-    private ?\DateTimeInterface $dateCreation = null;
+    private \DateTimeInterface $dateCreation;
 
     #[ORM\Column(type: 'string', length: 20)]
     #[Assert\Choice(choices: self::STATUTS_VALIDES)]
@@ -53,15 +53,15 @@ private ?Evenement $evenement = null;
     #[Assert\Positive]
     private int $nbTickets = 1;
 
-    #[ORM\OneToMany(mappedBy: 'inscription', targetEntity: Ticket::class, cascade: ['persist', 'remove'])]
+    #[ORM\OneToMany(mappedBy: 'inscription', targetEntity: Ticket::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $tickets;
 
-    #[ORM\OneToMany(mappedBy: 'inscription', targetEntity: Paiement::class)]
+    #[ORM\OneToMany(mappedBy: 'inscription', targetEntity: Paiement::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $paiements;
 
     public function __construct()
     {
-        $this->dateCreation = new \DateTime();
+        $this->dateCreation = new \DateTimeImmutable();
         $this->tickets = new ArrayCollection();
         $this->paiements = new ArrayCollection();
     }

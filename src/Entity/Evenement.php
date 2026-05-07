@@ -28,12 +28,12 @@ class Evenement
     private ?int $id = null;
 
     #[ORM\Column(name: 'date_creation', type: 'datetime')]
-    private ?\DateTimeInterface $dateCreation = null;
+    private \DateTimeInterface $dateCreation;
 
     #[ORM\Column(length: 140)]
     #[Assert\NotBlank]
     #[Assert\Length(max: 140)]
-    private ?string $titre = null;
+    private string $titre = '';
 
     #[ORM\Column(type: 'text', nullable: true)]
     #[Assert\Length(max: 2000)]
@@ -41,16 +41,16 @@ class Evenement
 
     #[ORM\Column(name: 'date_debut', type: 'datetime')]
     #[Assert\NotBlank]
-    private ?\DateTimeInterface $dateDebut = null;
+    private \DateTimeInterface $dateDebut;
 
     #[ORM\Column(name: 'date_fin', type: 'datetime')]
     #[Assert\NotBlank]
     #[Assert\GreaterThan(propertyPath: 'dateDebut')]
-    private ?\DateTimeInterface $dateFin = null;
+    private \DateTimeInterface $dateFin;
 
     #[ORM\Column(name: 'capacite_max', type: 'integer')]
     #[Assert\Positive]
-    private ?int $capaciteMax = null;
+    private int $capaciteMax = 0;
 
     #[ORM\ManyToOne(targetEntity: Lieu::class, inversedBy: 'evenements')]  // on inverse correctement si Lieu a la collection
     #[ORM\JoinColumn(name: 'lieu_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
@@ -71,13 +71,15 @@ class Evenement
     #[Assert\PositiveOrZero]
     private float $prix = 0.0;
 
-    #[ORM\OneToMany(mappedBy: 'evenement', targetEntity: Inscription::class, cascade: ['persist', 'remove'])]
+    #[ORM\OneToMany(mappedBy: 'evenement', targetEntity: Inscription::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $inscriptions;
 
     public function __construct()
     {
         $this->inscriptions = new ArrayCollection();
-        $this->dateCreation = new \DateTime();
+        $this->dateCreation = new \DateTimeImmutable();
+        $this->dateDebut = new \DateTimeImmutable();
+        $this->dateFin = new \DateTimeImmutable();
     }
 
     public function getId(): ?int { return $this->id; }
@@ -127,7 +129,7 @@ class Evenement
      */
     public function estOuvert(): bool
     {
-        return $this->statut === self::STATUT_OUVERT && new \DateTime() < $this->dateDebut;
+        return $this->statut === self::STATUT_OUVERT && new \DateTimeImmutable() < $this->dateDebut;
     }
 
     /**

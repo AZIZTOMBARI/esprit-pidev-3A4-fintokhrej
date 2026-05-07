@@ -91,7 +91,7 @@ class FrontController extends AbstractController
                 LIMIT 6
             "),
             'userChip' => $this->fetchOne($connection, "
-                SELECT prenom, nom, role, email, imageUrl
+                SELECT prenom, nom, role, email, image_url
                 FROM user
                 ORDER BY id ASC
                 LIMIT 1
@@ -312,8 +312,7 @@ class FrontController extends AbstractController
 
         $evaluationInput = (new EvaluationLieu())
             ->setNote($note)
-            ->setCommentaire($commentaire !== '' ? $commentaire : null)
-            ->setDate_evaluation(new \DateTimeImmutable());
+            ->setCommentaire($commentaire !== '' ? $commentaire : null);
 
         $violations = $validator->validate($evaluationInput);
         if (count($violations) > 0) {
@@ -399,8 +398,7 @@ class FrontController extends AbstractController
 
         $evaluationInput = (new EvaluationLieu())
             ->setNote($note)
-            ->setCommentaire($commentaire !== '' ? $commentaire : null)
-            ->setDate_evaluation(new \DateTimeImmutable());
+            ->setCommentaire($commentaire !== '' ? $commentaire : null);
 
         $violations = $validator->validate($evaluationInput);
         if (count($violations) > 0) {
@@ -516,7 +514,7 @@ class FrontController extends AbstractController
                 $connection,
                 'SELECT s.id, s.user_id, s.titre, s.description, s.ville, s.lieu_texte, s.point_rencontre,
                         s.type_activite, s.date_sortie, s.budget_max, s.nb_places, s.statut, s.image_url, s.questions_json,
-                        u.prenom, u.nom, u.imageUrl AS user_image_url
+                        u.prenom, u.nom, u.image_url AS user_image_url
                  FROM annonce_sortie s
                  LEFT JOIN user u ON u.id = s.user_id
                  '.$whereSql.'

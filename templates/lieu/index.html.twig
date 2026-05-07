@@ -149,6 +149,20 @@
         .badge-plage { background-color: #17a2b8; }
         .badge-centre_commercial { background-color: #007bff; }
         .badge-default { background-color: #334155; }
+        html[data-vision='daltonian'] .lieu-badge {
+            border: 2px solid currentColor;
+            color: #fff;
+            box-shadow: none;
+        }
+        html[data-vision='daltonian'] .badge-cafe { background: #b85c00; }
+        html[data-vision='daltonian'] .badge-resto { background: #8a1c4a; }
+        html[data-vision='daltonian'] .badge-resto_bar { background: #6c7a89; }
+        html[data-vision='daltonian'] .badge-lieu_public { background: #0d3b66; }
+        html[data-vision='daltonian'] .badge-parc_attraction { background: #145da0; }
+        html[data-vision='daltonian'] .badge-musee { background: #60798f; }
+        html[data-vision='daltonian'] .badge-plage { background: #0077b6; }
+        html[data-vision='daltonian'] .badge-centre_commercial { background: #425b16; }
+        html[data-vision='daltonian'] .badge-default { background: #43566b; }
 
         .lieu-type-public {
             background: #dcfce7;
@@ -159,6 +173,12 @@
             background: #fef3c7;
             color: #92400e;
         }
+        html[data-vision='daltonian'] .lieu-type-public,
+        html[data-vision='daltonian'] .lieu-type-prive {
+            border: 2px solid currentColor;
+        }
+        html[data-vision='daltonian'] .lieu-type-public { background: #ebf5ff; color: #0d3b66; }
+        html[data-vision='daltonian'] .lieu-type-prive { background: #fff4e6; color: #8f4700; }
 
         .lieux-pagination {
             display: flex;

@@ -15,7 +15,7 @@ class ChatMessage
     private ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: AnnonceSortie::class, inversedBy: 'chatMessages')]
-    #[ORM\JoinColumn(name: 'annonce_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
+    #[ORM\JoinColumn(name: 'annonce_id', referencedColumnName: 'id', nullable: false)]
     private ?AnnonceSortie $annonceSortie = null;
 
     #[ORM\ManyToOne(targetEntity: ChatGroupe::class, inversedBy: 'messages')]
@@ -27,10 +27,10 @@ class ChatMessage
     private ?User $user = null;
 
     #[ORM\Column(type: 'text')]
-    private ?string $content = null;
+    private string $content = '';
 
     #[ORM\Column(name: 'message_type', type: 'string', length: 50)]
-    private ?string $messageType = null;
+    private string $messageType = 'SYSTEM';
 
     #[ORM\ManyToOne(targetEntity: Poll::class, inversedBy: 'chatMessages')]
     #[ORM\JoinColumn(name: 'poll_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
@@ -40,19 +40,24 @@ class ChatMessage
     private ?string $metaJson = null;
 
     #[ORM\Column(name: 'sent_at', type: 'datetime')]
-    private ?\DateTimeInterface $sentAt = null;
+    private \DateTimeInterface $sentAt;
 
     #[ORM\Column(name: 'edited_at', type: 'datetime', nullable: true)]
     private ?\DateTimeInterface $editedAt = null;
 
-    #[ORM\Column(name: 'deleted_at', type: 'datetime', nullable: true)]
-    private ?\DateTimeInterface $deletedAt = null;
+    #[ORM\Column(name: 'deleted_at', type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $deletedAt = null;
 
     #[ORM\Column(name: 'attachment_path', type: 'string', length: 255, nullable: true)]
     private ?string $attachmentPath = null;
 
     #[ORM\Column(name: 'attachment_type', type: 'string', length: 60, nullable: true)]
     private ?string $attachmentType = null;
+
+    public function __construct()
+    {
+        $this->sentAt = new \DateTimeImmutable();
+    }
 
     public function getId(): ?int
     {
@@ -167,7 +172,7 @@ class ChatMessage
         return $this->sentAt;
     }
 
-    public function setSentAt(\DateTimeInterface $sentAt): self
+    protected function setSentAt(\DateTimeInterface $sentAt): self
     {
         $this->sentAt = $sentAt;
 
@@ -179,21 +184,35 @@ class ChatMessage
         return $this->editedAt;
     }
 
-    public function setEditedAt(?\DateTimeInterface $editedAt): self
+    protected function setEditedAt(?\DateTimeInterface $editedAt): self
     {
         $this->editedAt = $editedAt;
 
         return $this;
     }
 
-    public function getDeletedAt(): ?\DateTimeInterface
+    public function getDeletedAt(): ?\DateTimeImmutable
     {
         return $this->deletedAt;
     }
 
-    public function setDeletedAt(?\DateTimeInterface $deletedAt): self
+    protected function setDeletedAt(?\DateTimeImmutable $deletedAt): self
     {
         $this->deletedAt = $deletedAt;
+
+        return $this;
+    }
+
+    public function softDelete(?\DateTimeImmutable $deletedAt = null): self
+    {
+        $this->deletedAt = $deletedAt ?? new \DateTimeImmutable();
+
+        return $this;
+    }
+
+    public function restore(): self
+    {
+        $this->deletedAt = null;
 
         return $this;
     }

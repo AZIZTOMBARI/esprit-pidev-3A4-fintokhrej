@@ -43,7 +43,7 @@ class LieuHoraire
     }
 
     #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $jour = null;
+    private string $jour = '';
 
     public function getJour(): ?string
     {
@@ -57,7 +57,7 @@ class LieuHoraire
     }
 
     #[ORM\Column(type: 'boolean', nullable: false)]
-    private ?bool $ouvert = null;
+    private bool $ouvert = false;
 
     public function isOuvert(): ?bool
     {

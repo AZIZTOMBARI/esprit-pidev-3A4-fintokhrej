@@ -4,16 +4,96 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Entity\Offre;
+use App\Entity\ReservationOffre;
 use Doctrine\DBAL\Connection;
+use InvalidArgumentException;
 
 /**
  * Gestion des offres actives avec filtrage par lieu et tri.
+ *
+ * @phpstan-type OfferSummary array{
+ *     title: string|null,
+ *     discount: float|null,
+ *     finalPrice: float,
+ *     reservationCount: int
+ * }
  */
 final class OffreManager
 {
     public function __construct(
         private readonly Connection $connection,
     ) {}
+
+    public function validateOfferDates(Offre $offre): bool
+    {
+        $dateDebut = $offre->getDateDebut();
+        $dateFin = $offre->getDateFin();
+
+        if ($dateDebut === null || $dateFin === null) {
+            throw new InvalidArgumentException('Les dates de debut et de fin sont obligatoires.');
+        }
+
+        if ($dateFin <= $dateDebut) {
+            throw new InvalidArgumentException('La date de fin doit etre posterieure a la date de debut.');
+        }
+
+        return true;
+    }
+
+    public function validateOfferDiscount(Offre $offre): bool
+    {
+        $pourcentage = $offre->getPourcentage();
+
+        if ($pourcentage < 0 || $pourcentage > 100) {
+            throw new InvalidArgumentException('Le pourcentage de reduction doit etre compris entre 0 et 100.');
+        }
+
+        return true;
+    }
+
+    public function canBeReserved(Offre $offre): bool
+    {
+        if (!in_array($offre->getStatut(), ['active', 'actif', 'OUVERTE'], true)) {
+            throw new InvalidArgumentException('Le statut de l offre ne permet pas la reservation.');
+        }
+
+        $this->validateOfferDates($offre);
+        $this->validateOfferDiscount($offre);
+
+        return true;
+    }
+
+    public function calculateFinalPrice(float $prixInitial, Offre $offre): float
+    {
+        if ($prixInitial < 0) {
+            throw new InvalidArgumentException('Le prix initial doit etre positif ou nul.');
+        }
+
+        $this->validateOfferDiscount($offre);
+
+        return round($prixInitial * (1 - ($offre->getPourcentage() / 100)), 2);
+    }
+
+    public function countReservations(Offre $offre): int
+    {
+        return $offre->getReservationOffres()->count();
+    }
+
+    /**
+     * @phpstan-return OfferSummary
+     */
+    public function getOfferSummary(Offre $offre, float $prixInitial): array
+    {
+        $summary = [
+            'title' => $offre->getTitre(),
+            'discount' => $offre->getPourcentage(),
+            'finalPrice' => $this->calculateFinalPrice($prixInitial, $offre),
+            'reservationCount' => $this->countReservations($offre),
+        ];
+
+        return $summary;
+    }
 
     /**
      * Retourne les offres actives, optionnellement filtrées par lieu, triées selon $sort.

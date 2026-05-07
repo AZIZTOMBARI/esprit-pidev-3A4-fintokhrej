@@ -13,6 +13,13 @@ use App\Repository\OffreBadgeUserRepository;
 #[ORM\Table(name: 'offre_badge_user')]
 class OffreBadgeUser
 {
+    public function __construct()
+    {
+        $this->date_debut = new \DateTimeImmutable();
+        $this->date_fin = new \DateTimeImmutable();
+        $this->date_created = new \DateTimeImmutable();
+    }
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: 'integer')]
@@ -45,7 +52,7 @@ class OffreBadgeUser
     }
 
     #[ORM\Column(name: 'badge_code', type: 'string', nullable: false)]
-    private ?string $badge_code = null;
+    private string $badge_code = '';
 
     public function getBadgeCode(): ?string
     {
@@ -59,7 +66,7 @@ class OffreBadgeUser
     }
 
     #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $titre = null;
+    private string $titre = '';
 
     public function getTitre(): ?string
     {
@@ -73,7 +80,7 @@ class OffreBadgeUser
     }
 
     #[ORM\Column(type: 'float', nullable: false)]
-    private ?float $pourcentage = null;
+    private float $pourcentage = 0.0;
 
     public function getPourcentage(): ?float
     {
@@ -87,7 +94,7 @@ class OffreBadgeUser
     }
 
     #[ORM\Column(type: 'date', nullable: false)]
-    private ?\DateTimeInterface $date_debut = null;
+    private \DateTimeInterface $date_debut;
 
     public function getDate_debut(): ?\DateTimeInterface
     {
@@ -101,7 +108,7 @@ class OffreBadgeUser
     }
 
     #[ORM\Column(type: 'date', nullable: false)]
-    private ?\DateTimeInterface $date_fin = null;
+    private \DateTimeInterface $date_fin;
 
     public function getDate_fin(): ?\DateTimeInterface
     {
@@ -115,7 +122,7 @@ class OffreBadgeUser
     }
 
     #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $statut = null;
+    private string $statut = '';
 
     public function getStatut(): ?string
     {
@@ -129,49 +136,49 @@ class OffreBadgeUser
     }
 
     #[ORM\Column(type: 'datetime', nullable: false)]
-    private ?\DateTimeInterface $date_created = null;
+    private \DateTimeInterface $date_created;
 
     public function getDate_created(): ?\DateTimeInterface
     {
         return $this->date_created;
     }
 
-    public function setDate_created(\DateTimeInterface $date_created): self
+    protected function setDate_created(\DateTimeInterface $date_created): self
     {
         $this->date_created = $date_created;
         return $this;
     }
 
-    public function getDateDebut(): ?\DateTime
+    public function getDateDebut(): ?\DateTimeInterface
     {
         return $this->date_debut;
     }
 
-    public function setDateDebut(\DateTime $date_debut): static
+    public function setDateDebut(\DateTimeInterface $date_debut): static
     {
         $this->date_debut = $date_debut;
 
         return $this;
     }
 
-    public function getDateFin(): ?\DateTime
+    public function getDateFin(): ?\DateTimeInterface
     {
         return $this->date_fin;
     }
 
-    public function setDateFin(\DateTime $date_fin): static
+    public function setDateFin(\DateTimeInterface $date_fin): static
     {
         $this->date_fin = $date_fin;
 
         return $this;
     }
 
-    public function getDateCreated(): ?\DateTime
+    public function getDateCreated(): ?\DateTimeInterface
     {
         return $this->date_created;
     }
 
-    public function setDateCreated(\DateTime $date_created): static
+    protected function setDateCreated(\DateTimeInterface $date_created): static
     {
         $this->date_created = $date_created;
 

@@ -63,7 +63,7 @@ class EvaluationLieu
     #[ORM\Column(type: 'integer', nullable: false)]
     #[Assert\NotNull(message: 'La note est obligatoire.')]
     #[Assert\Range(min: 1, max: 5, notInRangeMessage: 'La note doit etre comprise entre {{ min }} et {{ max }}.')]
-    private ?int $note = null;
+    private int $note = 0;
 
     public function getNote(): ?int
     {
@@ -94,14 +94,19 @@ class EvaluationLieu
     #[ORM\Column(type: 'datetime', nullable: false)]
     #[Assert\NotNull(message: 'La date d\'evaluation est obligatoire.')]
     #[Assert\Type(type: \DateTimeInterface::class, message: 'La date d\'evaluation est invalide.')]
-    private ?\DateTimeInterface $date_evaluation = null;
+    private \DateTimeInterface $date_evaluation;
+
+    public function __construct()
+    {
+        $this->date_evaluation = new \DateTimeImmutable();
+    }
 
     public function getDate_evaluation(): ?\DateTimeInterface
     {
         return $this->date_evaluation;
     }
 
-    public function setDate_evaluation(\DateTimeInterface $date_evaluation): self
+    protected function setDate_evaluation(\DateTimeInterface $date_evaluation): self
     {
         $this->date_evaluation = $date_evaluation;
         return $this;
@@ -115,7 +120,7 @@ class EvaluationLieu
         return $this->updated_at;
     }
 
-    public function setUpdated_at(?\DateTimeInterface $updated_at): self
+    protected function setUpdated_at(?\DateTimeInterface $updated_at): self
     {
         $this->updated_at = $updated_at;
         return $this;
@@ -126,7 +131,7 @@ class EvaluationLieu
         return $this->date_evaluation;
     }
 
-    public function setDateEvaluation(\DateTimeInterface $date_evaluation): static
+    protected function setDateEvaluation(\DateTimeInterface $date_evaluation): static
     {
         $this->date_evaluation = $date_evaluation;
 
@@ -138,7 +143,7 @@ class EvaluationLieu
         return $this->updated_at;
     }
 
-    public function setUpdatedAt(?\DateTimeInterface $updated_at): static
+    protected function setUpdatedAt(?\DateTimeInterface $updated_at): static
     {
         $this->updated_at = $updated_at;
 

@@ -18,10 +18,10 @@ class ChatGroupe
     #[ORM\JoinColumn(nullable: false)]
     private AnnonceSortie $annonce;
 
-    #[ORM\OneToMany(mappedBy: 'chatGroupe', targetEntity: ChatGroupeMembre::class, cascade: ['remove'])]
+    #[ORM\OneToMany(mappedBy: 'chatGroupe', targetEntity: ChatGroupeMembre::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $membres;
 
-    #[ORM\OneToMany(mappedBy: 'chatGroupe', targetEntity: ChatMessage::class, cascade: ['remove'])]
+    #[ORM\OneToMany(mappedBy: 'chatGroupe', targetEntity: ChatMessage::class)]
     private Collection $messages;
 
     #[ORM\Column(type: 'datetime_immutable')]

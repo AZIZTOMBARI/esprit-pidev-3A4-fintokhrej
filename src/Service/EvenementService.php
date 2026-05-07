@@ -112,7 +112,7 @@ class EvenementService
         $paiement->setMontant($inscription->getMontantTotal());
         $paiement->setMethode($methode);
         $paiement->setReferenceCode('REF-' . date('YmdHis') . '-' . bin2hex(random_bytes(4)));
-        $paiement->setDatePaiement(new \DateTime());
+        $paiement->markPaidAt(new \DateTime());
         $paiement->setNomCarte($methode === Paiement::METHODE_CARTE ? $nomCarte : null);
         $paiement->setQuatreDerniers($methode === Paiement::METHODE_CARTE ? $quatreDerniers : null);
 

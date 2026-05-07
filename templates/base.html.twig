@@ -5,19 +5,43 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>{% block title %}Fin Tokhroj{% endblock %}</title>
+        {% set accessibilityUserKey = app.user ? ('user-' ~ app.user.id) : 'guest' %}
+        <script>
+            (function () {
+                try {
+                    var userKey = {{ accessibilityUserKey|json_encode|raw }};
+                    var scopedKey = 'ft-' + userKey + '-vision';
+                    var storedVision = localStorage.getItem(scopedKey) || localStorage.getItem('ft-vision') || 'normal';
+                    document.documentElement.setAttribute('data-vision', storedVision === 'daltonian' ? 'daltonian' : 'normal');
+                } catch (error) {
+                    document.documentElement.setAttribute('data-vision', 'normal');
+                }
+            })();
+        </script>
         <link rel="icon" type="image/png" href="{{ asset('theme/images/logo.png') }}">
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
         {% block stylesheets %}
-            <link rel="stylesheet" href="{{ asset('theme/css/fintokhrej.css') }}?v=20260423-layout4">
+            <link rel="stylesheet" href="{{ asset('theme/css/fintokhrej.css') }}?v=20260507-accessibility1">
         {% endblock %}
 
         {% block javascripts %}
-            <script src="{{ asset('theme/js/app.js') }}?v=20260423-layout4" defer></script>
+            <script src="{{ asset('theme/js/app.js') }}?v=20260507-accessibility1" defer></script>
         {% endblock %}
     </head>
     <body>
+        <div class="vision-switcher" role="group" aria-label="Vision">
+            <span class="vision-switcher__label">Vision</span>
+            <div class="vision-switcher__actions">
+                <button type="button" class="vision-switcher__btn" data-vision-mode="normal" aria-pressed="false">
+                    Normal
+                </button>
+                <button type="button" class="vision-switcher__btn" data-vision-mode="daltonian" aria-pressed="false">
+                    Daltonien
+                </button>
+            </div>
+        </div>
         {% block body %}{% endblock %}
     </body>
 </html>

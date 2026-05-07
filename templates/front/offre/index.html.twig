@@ -210,6 +210,62 @@
             color: #7f1d1d;
         }
 
+        html[data-vision='daltonian'] .offer-front-hero {
+            background: linear-gradient(120deg, #0d3b66, #145da0, #b85c00);
+        }
+
+        html[data-vision='daltonian'] .offer-front-kpi {
+            border: 2px solid rgba(255, 255, 255, 0.7);
+            background: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0 10px, rgba(255, 255, 255, 0.08) 10px 20px);
+        }
+
+        html[data-vision='daltonian'] .offer-chip {
+            border: 2px solid #145da0;
+            background: repeating-linear-gradient(135deg, #e8f2fb 0 10px, #d9eaf8 10px 20px);
+            color: #0d3b66;
+        }
+
+        html[data-vision='daltonian'] .offer-status-dot {
+            width: 12px;
+            height: 12px;
+            background: #0d3b66;
+            box-shadow: 0 0 0 4px rgba(13, 59, 102, 0.15);
+        }
+
+        html[data-vision='daltonian'] .offer-card--urgent {
+            border: 2px solid #b85c00;
+            background: repeating-linear-gradient(135deg, #fff4e6 0 10px, #ffe7cc 10px 20px);
+            box-shadow: none;
+        }
+
+        html[data-vision='daltonian'] .offer-card--urgent::before {
+            background: radial-gradient(circle, rgba(184, 92, 0, 0.18), transparent 72%);
+        }
+
+        html[data-vision='daltonian'] .offer-urgent-banner {
+            border: 2px solid #b83280;
+            background: repeating-linear-gradient(135deg, #fff2f7 0 10px, #ffe5ef 10px 20px);
+            color: #8a1c4a;
+        }
+
+        html[data-vision='daltonian'] .offer-double-pill {
+            background: repeating-linear-gradient(135deg, #fff4e6 0 10px, #ffe7cc 10px 20px) !important;
+            color: #8f4700 !important;
+            border: 2px solid #b85c00 !important;
+        }
+
+        html[data-vision='daltonian'] .offer-countdown {
+            border: 2px dashed #b85c00;
+            background: #fff7ed;
+            color: #8f4700;
+        }
+
+        html[data-vision='daltonian'] .offer-countdown.is-expired {
+            background: #fff2f7;
+            color: #8a1c4a;
+            border-color: #b83280;
+        }
+
         .offer-price-wrap {
             display: inline-flex;
             align-items: baseline;

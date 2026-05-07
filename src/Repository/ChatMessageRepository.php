@@ -66,14 +66,14 @@ class ChatMessageRepository extends ServiceEntityRepository
                 cm.attachment_type,
                 u.prenom,
                 u.nom,
-                u.imageUrl AS image_url,
+                u.image_url AS image_url,
                 COUNT(DISTINCT r.user_id) AS seen_count,
                 MAX(CASE WHEN r.user_id = :viewerId THEN 1 ELSE 0 END) AS is_read_by_me
             FROM chat_message cm
             LEFT JOIN user u ON u.id = cm.sender_id
             LEFT JOIN chat_message_read r ON r.chat_message_id = cm.id
             WHERE '.implode(' AND ', $where).'
-            GROUP BY cm.id, cm.content, cm.message_type, cm.sent_at, cm.edited_at, cm.deleted_at, cm.poll_id, cm.meta_json, cm.sender_id, cm.attachment_path, cm.attachment_type, u.prenom, u.nom, u.imageUrl
+            GROUP BY cm.id, cm.content, cm.message_type, cm.sent_at, cm.edited_at, cm.deleted_at, cm.poll_id, cm.meta_json, cm.sender_id, cm.attachment_path, cm.attachment_type, u.prenom, u.nom, u.image_url
             ORDER BY cm.id DESC
             LIMIT :limitPlusOne
         ';
@@ -112,14 +112,14 @@ class ChatMessageRepository extends ServiceEntityRepository
                     cm.annonce_id,
                     u.prenom,
                     u.nom,
-                    u.imageUrl AS image_url,
+                    u.image_url AS image_url,
                     COUNT(DISTINCT r.user_id) AS seen_count,
                     MAX(CASE WHEN r.user_id = :viewerId THEN 1 ELSE 0 END) AS is_read_by_me
                 FROM chat_message cm
                 LEFT JOIN user u ON u.id = cm.sender_id
                 LEFT JOIN chat_message_read r ON r.chat_message_id = cm.id
                 WHERE cm.id = :messageId
-                GROUP BY cm.id, cm.content, cm.message_type, cm.sent_at, cm.edited_at, cm.deleted_at, cm.poll_id, cm.meta_json, cm.sender_id, cm.attachment_path, cm.attachment_type, cm.annonce_id, u.prenom, u.nom, u.imageUrl
+                GROUP BY cm.id, cm.content, cm.message_type, cm.sent_at, cm.edited_at, cm.deleted_at, cm.poll_id, cm.meta_json, cm.sender_id, cm.attachment_path, cm.attachment_type, cm.annonce_id, u.prenom, u.nom, u.image_url
                 LIMIT 1
             ',
             [

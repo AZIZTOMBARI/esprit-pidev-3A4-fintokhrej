@@ -12,6 +12,11 @@ use App\Repository\SortieMediaRepository;
 #[ORM\Table(name: 'sortie_media')]
 class SortieMedia
 {
+    public function __construct()
+    {
+        $this->uploaded_at = new \DateTimeImmutable();
+    }
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: 'integer')]
@@ -59,7 +64,7 @@ class SortieMedia
     }
 
     #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $file_path = null;
+    private string $file_path = '';
 
     public function getFile_path(): ?string
     {
@@ -73,7 +78,7 @@ class SortieMedia
     }
 
     #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $media_type = null;
+    private string $media_type = '';
 
     public function getMedia_type(): ?string
     {
@@ -87,14 +92,14 @@ class SortieMedia
     }
 
     #[ORM\Column(type: 'datetime', nullable: false)]
-    private ?\DateTimeInterface $uploaded_at = null;
+    private \DateTimeInterface $uploaded_at;
 
     public function getUploaded_at(): ?\DateTimeInterface
     {
         return $this->uploaded_at;
     }
 
-    public function setUploaded_at(\DateTimeInterface $uploaded_at): self
+    protected function setUploaded_at(\DateTimeInterface $uploaded_at): self
     {
         $this->uploaded_at = $uploaded_at;
         return $this;
@@ -124,12 +129,12 @@ class SortieMedia
         return $this;
     }
 
-    public function getUploadedAt(): ?\DateTime
+    public function getUploadedAt(): ?\DateTimeInterface
     {
         return $this->uploaded_at;
     }
 
-    public function setUploadedAt(\DateTime $uploaded_at): static
+    protected function setUploadedAt(\DateTimeInterface $uploaded_at): static
     {
         $this->uploaded_at = $uploaded_at;
 

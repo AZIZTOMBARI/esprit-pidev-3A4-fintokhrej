@@ -59,11 +59,11 @@ class Paiement
     private ?string $quatreDerniers = null;
 
     #[ORM\Column(name: 'date_paiement', type: 'datetime')]
-    private ?\DateTimeInterface $datePaiement = null;
+    private \DateTimeInterface $datePaiement;
 
     public function __construct()
     {
-        $this->datePaiement = new \DateTime();
+        $this->datePaiement = new \DateTimeImmutable();
     }
 
     // GETTERS / SETTERS (identiques à la logique Java)
@@ -83,7 +83,8 @@ class Paiement
     public function getQuatreDerniers(): ?string { return $this->quatreDerniers; }
     public function setQuatreDerniers(?string $quatreDerniers): self { $this->quatreDerniers = $quatreDerniers; return $this; }
     public function getDatePaiement(): ?\DateTimeInterface { return $this->datePaiement; }
-    public function setDatePaiement(\DateTimeInterface $datePaiement): self { $this->datePaiement = $datePaiement; return $this; }
+    protected function setDatePaiement(\DateTimeInterface $datePaiement): self { $this->datePaiement = $datePaiement; return $this; }
+    public function markPaidAt(\DateTimeInterface $datePaiement): self { $this->datePaiement = $datePaiement; return $this; }
 
     // ========== MÉTHODES MÉTIER ==========
     /**

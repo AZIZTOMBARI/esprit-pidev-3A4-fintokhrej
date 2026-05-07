@@ -121,6 +121,46 @@
             cursor: pointer;
         }
 
+        html[data-vision='daltonian'] .offer-detail-hero--urgent {
+            border: 2px solid #b85c00;
+            background: repeating-linear-gradient(135deg, #fff4e6 0 10px, #ffe7cc 10px 20px);
+            box-shadow: none;
+        }
+
+        html[data-vision='daltonian'] .offer-detail-badge {
+            border: 2px solid #b83280;
+            background: repeating-linear-gradient(135deg, #fff2f7 0 10px, #ffe5ef 10px 20px);
+            color: #8a1c4a;
+        }
+
+        html[data-vision='daltonian'] .offer-detail-badge--double {
+            border-color: #b85c00;
+            background: repeating-linear-gradient(135deg, #fff4e6 0 10px, #ffe7cc 10px 20px);
+            color: #8f4700;
+        }
+
+        html[data-vision='daltonian'] .offer-detail-countdown {
+            border: 2px dashed #b85c00;
+            background: #fff7ed;
+            color: #8f4700;
+        }
+
+        html[data-vision='daltonian'] .offer-detail-countdown.is-expired {
+            border-color: #8a1c4a;
+            background: #fff2f7;
+            color: #8a1c4a;
+        }
+
+        html[data-vision='daltonian'] .offer-detail-price-old {
+            color: #60798f;
+        }
+
+        html[data-vision='daltonian'] .offer-detail-price-new {
+            color: #0d3b66;
+            text-decoration: underline;
+            text-decoration-thickness: 2px;
+        }
+
         @media (max-width: 680px) {
             .offer-form-grid {
                 grid-template-columns: 1fr;

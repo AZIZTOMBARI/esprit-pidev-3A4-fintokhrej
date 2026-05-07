@@ -31,6 +31,34 @@ document.addEventListener('DOMContentLoaded', () => {
         syncThemeIcon();
     });
 
+    /* ── VISION MODE (PERSISTENT) ───────────────────────── */
+    const visionButtons = [...document.querySelectorAll('[data-vision-mode]')];
+    const readVisionMode = () => {
+        const stored = localStorage.getItem(scopedStorageKey('vision')) || localStorage.getItem('ft-vision') || root.getAttribute('data-vision') || 'normal';
+        return stored === 'daltonian' ? 'daltonian' : 'normal';
+    };
+
+    const applyVisionMode = (mode) => {
+        const nextMode = mode === 'daltonian' ? 'daltonian' : 'normal';
+        root.setAttribute('data-vision', nextMode);
+        visionButtons.forEach((button) => {
+            const isActive = button.getAttribute('data-vision-mode') === nextMode;
+            button.classList.toggle('is-active', isActive);
+            button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+    };
+
+    applyVisionMode(readVisionMode());
+
+    visionButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+            const nextMode = button.getAttribute('data-vision-mode') === 'daltonian' ? 'daltonian' : 'normal';
+            localStorage.setItem(scopedStorageKey('vision'), nextMode);
+            localStorage.setItem('ft-vision', nextMode);
+            applyVisionMode(nextMode);
+        });
+    });
+
     /* ── DISPLAY SETTINGS (PERSISTENT) ───────────────────── */
     const fontFamilyField = document.querySelector('[data-setting-font-family]');
     const fontSizeField = document.querySelector('[data-setting-font-size]');

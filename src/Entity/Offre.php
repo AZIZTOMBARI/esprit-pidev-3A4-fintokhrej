@@ -60,7 +60,7 @@ class Offre
     }
 
     #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $titre = null;
+    private string $titre = '';
 
     public function getTitre(): ?string
     {
@@ -88,7 +88,7 @@ class Offre
     }
 
     #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $type = null;
+    private string $type = '';
 
     public function getType(): ?string
     {
@@ -102,7 +102,7 @@ class Offre
     }
 
     #[ORM\Column(type: 'float', nullable: false)]
-    private ?float $pourcentage = null;
+    private float $pourcentage = 0.0;
 
     public function getPourcentage(): ?float
     {
@@ -116,7 +116,7 @@ class Offre
     }
 
     #[ORM\Column(type: 'date', nullable: false)]
-    private ?\DateTimeInterface $date_debut = null;
+    private \DateTimeInterface $date_debut;
 
     public function getDate_debut(): ?\DateTimeInterface
     {
@@ -130,7 +130,7 @@ class Offre
     }
 
     #[ORM\Column(type: 'date', nullable: false)]
-    private ?\DateTimeInterface $date_fin = null;
+    private \DateTimeInterface $date_fin;
 
     public function getDate_fin(): ?\DateTimeInterface
     {
@@ -144,7 +144,7 @@ class Offre
     }
 
     #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $statut = null;
+    private string $statut = '';
 
     public function getStatut(): ?string
     {
@@ -233,6 +233,8 @@ class Offre
 
     public function __construct()
     {
+        $this->date_debut = new \DateTimeImmutable();
+        $this->date_fin = new \DateTimeImmutable();
         $this->codePromos = new ArrayCollection();
         $this->lieus = new ArrayCollection();
         $this->reservationOffres = new ArrayCollection();
@@ -263,24 +265,24 @@ class Offre
         return $this;
     }
 
-    public function getDateDebut(): ?\DateTime
+    public function getDateDebut(): ?\DateTimeInterface
     {
         return $this->date_debut;
     }
 
-    public function setDateDebut(\DateTime $date_debut): static
+    public function setDateDebut(\DateTimeInterface $date_debut): static
     {
         $this->date_debut = $date_debut;
 
         return $this;
     }
 
-    public function getDateFin(): ?\DateTime
+    public function getDateFin(): ?\DateTimeInterface
     {
         return $this->date_fin;
     }
 
-    public function setDateFin(\DateTime $date_fin): static
+    public function setDateFin(\DateTimeInterface $date_fin): static
     {
         $this->date_fin = $date_fin;
 

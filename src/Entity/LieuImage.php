@@ -44,7 +44,7 @@ class LieuImage
     }
 
     #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $image_url = null;
+    private string $image_url = '';
 
     public function getImage_url(): ?string
     {
@@ -58,7 +58,7 @@ class LieuImage
     }
 
     #[ORM\Column(type: 'integer', nullable: false)]
-    private ?int $ordre = null;
+    private int $ordre = 0;
 
     public function getOrdre(): ?int
     {

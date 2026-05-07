@@ -45,7 +45,7 @@ class Poll
     }
 
     #[ORM\Column(type: 'text', nullable: false)]
-    private ?string $question = null;
+    private string $question = '';
 
     public function getQuestion(): ?string
     {
@@ -59,7 +59,7 @@ class Poll
     }
 
     #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'polls')]
-    #[ORM\JoinColumn(name: 'created_by', referencedColumnName: 'id')]
+    #[ORM\JoinColumn(name: 'created_by_id', referencedColumnName: 'id')]
     private ?User $user = null;
 
     public function getUser(): ?User
@@ -74,21 +74,21 @@ class Poll
     }
 
     #[ORM\Column(type: 'datetime', nullable: false)]
-    private ?\DateTimeInterface $created_at = null;
+    private \DateTimeInterface $created_at;
 
     public function getCreated_at(): ?\DateTimeInterface
     {
         return $this->created_at;
     }
 
-    public function setCreated_at(\DateTimeInterface $created_at): self
+    protected function setCreated_at(\DateTimeInterface $created_at): self
     {
         $this->created_at = $created_at;
         return $this;
     }
 
     #[ORM\Column(type: 'boolean', nullable: false)]
-    private ?bool $is_open = null;
+    private bool $is_open = true;
 
     public function is_open(): ?bool
     {
@@ -102,7 +102,7 @@ class Poll
     }
 
     #[ORM\Column(type: 'boolean', nullable: false)]
-    private ?bool $allow_multi = null;
+    private bool $allow_multi = false;
 
     public function isAllow_multi(): ?bool
     {
@@ -116,7 +116,7 @@ class Poll
     }
 
     #[ORM\Column(type: 'boolean', nullable: false)]
-    private ?bool $allow_add_options = null;
+    private bool $allow_add_options = false;
 
     public function isAllow_add_options(): ?bool
     {
@@ -130,7 +130,7 @@ class Poll
     }
 
     #[ORM\Column(type: 'boolean', nullable: false)]
-    private ?bool $is_pinned = null;
+    private bool $is_pinned = false;
 
     public function is_pinned(): ?bool
     {
@@ -151,7 +151,7 @@ class Poll
         return $this->closed_at;
     }
 
-    public function setClosed_at(?\DateTimeInterface $closed_at): self
+    protected function setClosed_at(?\DateTimeInterface $closed_at): self
     {
         $this->closed_at = $closed_at;
         return $this;
@@ -190,6 +190,7 @@ class Poll
 
     public function __construct()
     {
+        $this->created_at = new \DateTimeImmutable();
         $this->chatMessages = new ArrayCollection();
         $this->pollOptions = new ArrayCollection();
     }
@@ -219,12 +220,12 @@ class Poll
         return $this;
     }
 
-    public function getCreatedAt(): ?\DateTime
+    public function getCreatedAt(): ?\DateTimeInterface
     {
         return $this->created_at;
     }
 
-    public function setCreatedAt(\DateTime $created_at): static
+    protected function setCreatedAt(\DateTimeInterface $created_at): static
     {
         $this->created_at = $created_at;
 
@@ -279,12 +280,12 @@ class Poll
         return $this;
     }
 
-    public function getClosedAt(): ?\DateTime
+    public function getClosedAt(): ?\DateTimeInterface
     {
         return $this->closed_at;
     }
 
-    public function setClosedAt(?\DateTime $closed_at): static
+    protected function setClosedAt(?\DateTimeInterface $closed_at): static
     {
         $this->closed_at = $closed_at;
 

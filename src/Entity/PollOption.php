@@ -44,7 +44,7 @@ class PollOption
     }
 
     #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $text = null;
+    private string $text = '';
 
     public function getText(): ?string
     {
@@ -58,7 +58,7 @@ class PollOption
     }
 
     #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'pollOptions')]
-    #[ORM\JoinColumn(name: 'created_by', referencedColumnName: 'id')]
+    #[ORM\JoinColumn(name: 'created_by_id', referencedColumnName: 'id')]
     private ?User $user = null;
 
     public function getUser(): ?User
@@ -73,14 +73,14 @@ class PollOption
     }
 
     #[ORM\Column(type: 'datetime', nullable: false)]
-    private ?\DateTimeInterface $created_at = null;
+    private \DateTimeInterface $created_at;
 
     public function getCreated_at(): ?\DateTimeInterface
     {
         return $this->created_at;
     }
 
-    public function setCreated_at(\DateTimeInterface $created_at): self
+    protected function setCreated_at(\DateTimeInterface $created_at): self
     {
         $this->created_at = $created_at;
         return $this;
@@ -100,6 +100,7 @@ class PollOption
 
     public function __construct()
     {
+        $this->created_at = new \DateTimeImmutable();
         $this->polls = new ArrayCollection();
     }
 
@@ -128,12 +129,12 @@ class PollOption
         return $this;
     }
 
-    public function getCreatedAt(): ?\DateTime
+    public function getCreatedAt(): ?\DateTimeInterface
     {
         return $this->created_at;
     }
 
-    public function setCreatedAt(\DateTime $created_at): static
+    protected function setCreatedAt(\DateTimeInterface $created_at): static
     {
         $this->created_at = $created_at;
 

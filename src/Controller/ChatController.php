@@ -372,7 +372,7 @@ class ChatController extends AbstractController
         $connection->insert('poll', [
             'annonce_id' => $id,
             'question' => $question,
-            'created_by' => (int) $user->getId(),
+            'created_by_id' => (int) $user->getId(),
             'created_at' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
             'is_open' => 1,
             'allow_multi' => 0,
@@ -386,7 +386,7 @@ class ChatController extends AbstractController
             $connection->insert('poll_option', [
                 'poll_id' => $pollId,
                 'text' => $option,
-                'created_by' => (int) $user->getId(),
+                'created_by_id' => (int) $user->getId(),
                 'created_at' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
             ]);
         }
@@ -534,11 +534,11 @@ class ChatController extends AbstractController
         $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
         $connection->insert('sortie_task', [
             'annonce_id' => $id,
-            'created_by' => (int) $user->getId(),
+            'created_by_id' => (int) $user->getId(),
             'title' => $title,
             'description' => $description !== '' ? $description : null,
             'status' => 'TODO',
-            'assigned_to' => $assignedTo > 0 ? $assignedTo : null,
+            'assigned_to_id' => $assignedTo > 0 ? $assignedTo : null,
             'created_at' => $now,
             'updated_at' => $now,
             'done_at' => null,
@@ -617,7 +617,7 @@ class ChatController extends AbstractController
         }
 
         $task = $connection->fetchAssociative(
-            'SELECT st.id, st.status, st.assigned_to, an.user_id AS sortie_creator_id
+            'SELECT st.id, st.status, st.assigned_to_id AS assigned_to, an.user_id AS sortie_creator_id
              FROM sortie_task st
              INNER JOIN annonce_sortie an ON an.id = st.annonce_id
              WHERE st.id = ? AND st.annonce_id = ? LIMIT 1',
@@ -699,7 +699,7 @@ class ChatController extends AbstractController
                     MAX(member.is_creator) AS is_creator,
                     MAX(CASE WHEN member.role = 'admin' OR member.is_creator = 1 THEN 1 ELSE 0 END) AS is_group_admin
              FROM (
-                SELECT DISTINCT u.id, u.prenom, u.nom, u.imageUrl AS image_url, u.role, 0 AS is_creator
+                SELECT DISTINCT u.id, u.prenom, u.nom, u.image_url AS image_url, u.role, 0 AS is_creator
                 FROM chat_groupe cg
                 INNER JOIN chat_groupe_membre cgm ON cgm.chat_groupe_id = cg.id
                 INNER JOIN user u ON u.id = cgm.user_id
@@ -707,7 +707,7 @@ class ChatController extends AbstractController
 
                 UNION
 
-                SELECT u.id, u.prenom, u.nom, u.imageUrl AS image_url, u.role, 1 AS is_creator
+                SELECT u.id, u.prenom, u.nom, u.image_url AS image_url, u.role, 1 AS is_creator
                 FROM annonce_sortie s
                 INNER JOIN user u ON u.id = s.user_id
                 WHERE s.id = ?
@@ -721,10 +721,10 @@ class ChatController extends AbstractController
     private function fetchPolls(Connection $connection, int $sortieId, int $userId): array
     {
         $polls = $connection->fetchAllAssociative(
-            'SELECT p.id, p.question, p.created_at, p.is_open, p.created_by,
-                    u.prenom, u.nom, u.imageUrl AS image_url
+            'SELECT p.id, p.question, p.created_at, p.is_open, p.created_by_id AS created_by,
+                    u.prenom, u.nom, u.image_url AS image_url
              FROM poll p
-             LEFT JOIN user u ON u.id = p.created_by
+             LEFT JOIN user u ON u.id = p.created_by_id
              WHERE p.annonce_id = ?
              ORDER BY p.created_at DESC, p.id DESC',
             [$sortieId]
@@ -751,13 +751,13 @@ class ChatController extends AbstractController
     private function fetchTasks(Connection $connection, int $sortieId): array
     {
         return $connection->fetchAllAssociative(
-            'SELECT st.id, st.title, st.description, st.status, st.assigned_to,
+            'SELECT st.id, st.title, st.description, st.status, st.assigned_to_id AS assigned_to,
                     st.created_at, st.updated_at, st.done_at,
                     creator.prenom AS creator_prenom, creator.nom AS creator_nom,
                     assigned.prenom AS assigned_prenom, assigned.nom AS assigned_nom
              FROM sortie_task st
-             LEFT JOIN user creator ON creator.id = st.created_by
-             LEFT JOIN user assigned ON assigned.id = st.assigned_to
+             LEFT JOIN user creator ON creator.id = st.created_by_id
+             LEFT JOIN user assigned ON assigned.id = st.assigned_to_id
              WHERE st.annonce_id = ?
              ORDER BY CASE WHEN st.status = "DONE" THEN 1 ELSE 0 END ASC, st.id DESC',
             [$sortieId]

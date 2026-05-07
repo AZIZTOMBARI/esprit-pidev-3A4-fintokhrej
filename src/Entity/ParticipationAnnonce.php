@@ -13,6 +13,11 @@ use App\Repository\ParticipationAnnonceRepository;
 #[ORM\Table(name: 'participation_annonce')]
 class ParticipationAnnonce
 {
+    public function __construct()
+    {
+        $this->date_demande = new \DateTimeImmutable();
+    }
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: 'integer')]
@@ -30,7 +35,7 @@ class ParticipationAnnonce
     }
 
     #[ORM\OneToOne(targetEntity: AnnonceSortie::class, inversedBy: 'participationAnnonce')]
-    #[ORM\JoinColumn(name: 'annonce_id', referencedColumnName: 'id', unique: true)]
+    #[ORM\JoinColumn(name: 'annonce_id', referencedColumnName: 'id', unique: true, nullable: false)]
     private ?AnnonceSortie $annonceSortie = null;
 
     public function getAnnonceSortie(): ?AnnonceSortie
@@ -45,7 +50,7 @@ class ParticipationAnnonce
     }
 
     #[ORM\OneToOne(targetEntity: User::class, inversedBy: 'participationAnnonce')]
-    #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id', unique: true)]
+    #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id', unique: true, nullable: false)]
     private ?User $user = null;
 
     public function getUser(): ?User
@@ -60,21 +65,21 @@ class ParticipationAnnonce
     }
 
     #[ORM\Column(type: 'datetime', nullable: false)]
-    private ?\DateTimeInterface $date_demande = null;
+    private \DateTimeInterface $date_demande;
 
     public function getDate_demande(): ?\DateTimeInterface
     {
         return $this->date_demande;
     }
 
-    public function setDate_demande(\DateTimeInterface $date_demande): self
+    protected function setDate_demande(\DateTimeInterface $date_demande): self
     {
         $this->date_demande = $date_demande;
         return $this;
     }
 
     #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $statut = null;
+    private string $statut = '';
 
     public function getStatut(): ?string
     {
@@ -88,7 +93,7 @@ class ParticipationAnnonce
     }
 
     #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $contact_prefer = null;
+    private string $contact_prefer = '';
 
     public function getContact_prefer(): ?string
     {
@@ -130,7 +135,7 @@ class ParticipationAnnonce
     }
 
     #[ORM\Column(type: 'integer', nullable: false)]
-    private ?int $nb_places = null;
+    private int $nb_places = 0;
 
     public function getNb_places(): ?int
     {
@@ -157,12 +162,12 @@ class ParticipationAnnonce
         return $this;
     }
 
-    public function getDateDemande(): ?\DateTime
+    public function getDateDemande(): ?\DateTimeInterface
     {
         return $this->date_demande;
     }
 
-    public function setDateDemande(\DateTime $date_demande): static
+    protected function setDateDemande(\DateTimeInterface $date_demande): static
     {
         $this->date_demande = $date_demande;
 

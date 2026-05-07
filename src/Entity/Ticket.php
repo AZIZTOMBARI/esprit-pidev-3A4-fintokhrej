@@ -25,11 +25,11 @@ class Ticket
     private ?Inscription $inscription = null;
 
     #[ORM\Column(type: 'date')]
-    private ?\DateTimeInterface $date = null;
+    private \DateTimeInterface $date;
 
     #[ORM\Column(name: 'numero_ticket', type: 'string', length: 80, unique: true)]
     #[Assert\NotBlank]
-    private ?string $numeroTicket = null;
+    private string $numeroTicket = '';
 
     #[ORM\Column(type: 'string', length: 20)]
     #[Assert\Choice(choices: self::STATUTS_VALIDES)]
@@ -37,11 +37,11 @@ class Ticket
 
     #[ORM\Column(name: 'code_validation', type: 'string', length: 32, unique: true)]
     #[Assert\NotBlank]
-    private ?string $codeValidation = null;
+    private string $codeValidation = '';
 
     public function __construct()
     {
-        $this->date = new \DateTime();
+        $this->date = new \DateTimeImmutable();
         $this->codeValidation = strtoupper(bin2hex(random_bytes(8)));
     }
 

@@ -30,7 +30,7 @@ class BadgeRecompense
     }
 
     #[ORM\Column(name: 'badge_code', type: 'string', nullable: false, unique: true)]
-    private ?string $badge_code = null;
+    private string $badge_code = '';
 
     public function getBadgeCode(): ?string
     {
@@ -44,7 +44,7 @@ class BadgeRecompense
     }
 
     #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $titre = null;
+    private string $titre = '';
 
     public function getTitre(): ?string
     {
@@ -72,7 +72,7 @@ class BadgeRecompense
     }
 
     #[ORM\Column(type: 'float', nullable: false)]
-    private ?float $pourcentage = null;
+    private float $pourcentage = 0.0;
 
     public function getPourcentage(): ?float
     {
@@ -86,7 +86,7 @@ class BadgeRecompense
     }
 
     #[ORM\Column(type: 'integer', nullable: false)]
-    private ?int $duree_jours = null;
+    private int $duree_jours = 0;
 
     public function getDuree_jours(): ?int
     {

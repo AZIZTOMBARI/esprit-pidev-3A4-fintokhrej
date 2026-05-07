@@ -30,7 +30,7 @@ class Badge
     }
 
     #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $code = null;
+    private string $code = '';
 
     public function getCode(): ?string
     {
@@ -44,7 +44,7 @@ class Badge
     }
 
     #[ORM\Column(type: 'string', nullable: false)]
-    private ?string $nom = null;
+    private string $nom = '';
 
     public function getNom(): ?string
     {
